@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-a = 1
-b = 1.2
-c = 4 + 5j
+integer_variable=1  
+float_variable=1.2
+complex_variable=4+5j
 
-print(type(a))
-print(type(b))
-print(type(c))
+print(f"{integer_variable} is of type {type(integer_variable)}")
+print(f"{float_variable} is of type {type(float_variable)}")
+print(f"{complex_variable} is of type {type(complex_variable)}")
+
