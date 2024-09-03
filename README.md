@@ -1,6 +1,6 @@
-# MSc AIM ASE Code
+# MSc AIM Software Engineering for Media
 
-This code is used in the lectures for the [Animation Software Enginering Unit](https://nccastaff.bournemouth.ac.uk/jmacey/aim/ase/) for MSc AIM. 
+This code is used in the lectures for the [SE for Media Unit](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/) for MSc AIM. 
 
-[Lecture 1 Introduction to ASE](Lecture1/)
-[Lecture 2 Files and Data](Lecture2/)
+[Lecture 1 Introduction](Lecture1/)
+[Lecture 2 Basic Python](Lecture2/)
