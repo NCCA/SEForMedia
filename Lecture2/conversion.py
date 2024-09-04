@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-int_text="12"
-float_text="0.23123"
-int_data=123
+int_text = "12"
+float_text = "0.23123"
+int_data = 123
 
-a=int(int_text)
-b=float(float_text)
-text=str(int_data)
+a = int(int_text)
+b = float(float_text)
+text = str(int_data)
 
 
 print(f"{int_text=} type {type(int_text)}")
@@ -15,7 +15,4 @@ print(f"{int_data=} type {type(int_data)}")
 
 # we get a ValueError here we will see how to handle this
 # in a future lecture
-err=float("12.3.4") 
-
-
-
+err = float("12.3.4")
