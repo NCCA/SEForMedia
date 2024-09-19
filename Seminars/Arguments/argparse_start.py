@@ -11,6 +11,7 @@ def main():
     parser.add_argument("-s", "--separator", help="The separator to use between values")
     args = parser.parse_args()
     print(args)
+    print(f"output: {args.output}")
 
 
 if __name__ == "__main__":
