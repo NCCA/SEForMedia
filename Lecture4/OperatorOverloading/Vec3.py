@@ -64,6 +64,14 @@ class Vec3:
     def __rmul__(self, scalar):
         return self.__mul__(scalar)  # Just reuse __mul__
 
+    def __eq__(self, other: "Vec3") -> bool:
+        if isinstance(other, Vec3):
+            return self.x == other.x and self.y == other.y and self.z == other.z
+        return False
+
+    def __ne__(self, other: "Vec3") -> bool:
+        return not self.__eq__(other)
+
 
 if __name__ == "__main__":
     # lets test the class
@@ -82,7 +90,9 @@ if __name__ == "__main__":
     print(v3)
     v3 = 2 * v1
     print(v3)
-
+    print(v1 == v2)
+    print(v1 != v2)
+    print(v1 == 2)
     try:
         v1.x = "hello"
     except ValueError as e:
