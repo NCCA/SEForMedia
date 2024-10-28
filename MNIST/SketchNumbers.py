@@ -10,6 +10,9 @@ from MainWindow import Ui_MainWindow
 from qtpy.QtCore import QPoint, QRect, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from qtpy.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QWidget
+from scipy.ndimage import center_of_mass
+from torchvision.transforms import functional as F
+from torchvision.transforms import ToPILImage, ToTensor
 
 
 class SketchWidget(QWidget):
@@ -20,24 +23,24 @@ class SketchWidget(QWidget):
         self.setAttribute(Qt.WA_StaticContents)
         self.modified = False
         self.scribbling = False
-        self.myPenWidth = 24
-        self.myPenColor = Qt.white
+        self.pen_width = 10
+        self.pen_colour = Qt.white
         self.image = QImage(self.size(), QImage.Format_RGB32)
         self.image.fill(Qt.black)
-        self.lastPoint = QPoint()
+        self.last_point = QPoint()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.lastPoint = event.pos()
+            self.last_point = event.pos()
             self.scribbling = True
 
     def mouseMoveEvent(self, event):
         if (event.buttons() & Qt.LeftButton) and self.scribbling:
-            self.drawLineTo(event.pos())
+            self._draw_to(event.pos())
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton and self.scribbling:
-            self.drawLineTo(event.pos())
+            self._draw_to(event.pos())
             self.scribbling = False
             self.mouse_release.emit()
 
@@ -50,24 +53,23 @@ class SketchWidget(QWidget):
         if self.width() > self.image.width() or self.height() > self.image.height():
             newWidth = max(self.width() + 128, self.image.width())
             newHeight = max(self.height() + 128, self.image.height())
-            self.resizeImage(self.image, QSize(newWidth, newHeight))
+            self._resize_image(self.image, QSize(newWidth, newHeight))
         super().resizeEvent(event)
 
-    def drawLineTo(self, endPoint):
+    def _draw_to(self, endPoint):
         painter = QPainter(self.image)
-        # add some variance to the pen color
 
         painter.setPen(
-            QPen(self.myPenColor, self.myPenWidth, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(self.pen_colour, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         )
-        painter.drawLine(self.lastPoint, endPoint)
+        painter.drawLine(self.last_point, endPoint)
         self.modified = True
 
-        rad = self.myPenWidth // 2 + 2
-        self.update(QRect(self.lastPoint, endPoint).normalized().adjusted(-rad, -rad, +rad, +rad))
-        self.lastPoint = QPoint(endPoint)
+        rad = self.pen_width // 2 + 2
+        self.update(QRect(self.last_point, endPoint).normalized().adjusted(-rad, -rad, +rad, +rad))
+        self.last_point = QPoint(endPoint)
 
-    def resizeImage(self, image, newSize):
+    def _resize_image(self, image, newSize):
         if image.size() == newSize:
             return
 
@@ -98,7 +100,7 @@ class SketchWidget(QWidget):
                     break
             if last_black_row != -1:
                 break
-        # now find the first and last black column
+        # now find the first and last non black column
         first_black_col = -1
         last_black_col = -1
         for col in range(image.width()):
@@ -130,11 +132,44 @@ class SketchWidget(QWidget):
         image = image.copy(bounding_box)
         return image
 
+    def center_image_by_mass(self):
+        # Convert the tensor to a numpy array
+        image = self.image
+        # convert to a numpy array
+        grayscale_image = image.convertToFormat(QImage.Format_Grayscale8)
+        buffer = grayscale_image.bits()
+        buffer.setsize(grayscale_image.byteCount())
+        image_array = np.array(buffer).reshape((image.height(), image.width()))
+        # Calculate the center of mass
+        com_y, com_x = center_of_mass(image_array)  # Assuming a (1, H, W) shape for grayscale
+
+        # Calculate the center of the image
+        center_y, center_x = np.array(image_array.shape) / 2  # Center of the image (H/2, W/2)
+
+        # Calculate the shifts needed to align the center of mass to the center
+        shift_y, shift_x = center_y - com_y, center_x - com_x
+
+        # Convert the tensor to PIL image for transformation
+        image_pil = ToPILImage()(image_array)  # Convert to PIL format
+
+        # Apply the affine transformation with calculated shifts
+        centered_image_pil = F.affine(
+            image_pil, angle=0, translate=(int(shift_x), int(shift_y)), scale=1, shear=0
+        )
+        # now resize the image to 28x28
+        centered_image_pil = centered_image_pil.resize((28, 28))
+        print(f"size is {centered_image_pil.size=}")
+        # Convert the transformed image back to a tensor
+        centered_image_tensor = ToTensor()(centered_image_pil)
+
+        print(f"size is {centered_image_tensor.shape=}")
+        return centered_image_tensor
+
     def get_image_tensor(self):
         # Step 1: Capture the current image
         image = self.image
-        image = self._crop_image(image)
-        resize_image = image.mirrored(horizontal=False, vertical=False)
+        resize_image = self._crop_image(image)
+        # resize_image = image.mirrored(horizontal=False, vertical=False)
         # Step 2: Resize the image to 28x28 pixels
         resized_image = resize_image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
         # Step 3: Convert the resized image to a grayscale numpy array
@@ -147,18 +182,12 @@ class SketchWidget(QWidget):
         np_image = np_image.astype(np.float32)
         tensor_image = torch.tensor(np_image).unsqueeze(0)  # Add batch and channel dimensions
 
-        return tensor_image
-
-    def get_image_pixmap(self):
-        # Step 1: Capture the current image
-        image = self.image
-        image = self._crop_image(image)
-        resize_image = image.mirrored(horizontal=False, vertical=False)
-        # Step 2: Resize the image to 28x28 pixels
-        resized_image = resize_image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        # Step 3: Convert the resized image to a grayscale numpy array
-        grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
-        return QPixmap.fromImage(grayscale_image)
+        # np_image = np.ascontiguousarray(np_image)
+        # # Calculate the stride
+        # stride = np_image.strides[0]
+        # # Create QImage from the numpy array
+        # q_image = QImage(np_image.data, 28, 28, stride, QImage.Format_Grayscale8)
+        return tensor_image, QPixmap.fromImage(grayscale_image)
 
 
 # Define a simple MainWindow class
@@ -166,8 +195,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.sketch_widget = SketchWidget()
-        self.horizontalLayout.addWidget(self.sketch_widget, 0)
+        self.sketch_widget = SketchWidget(self)
+        self.gridLayout.addWidget(self.sketch_widget, 0, 2, 1, 2)
+        # self.horizontalLayout.addWidget(self.sketch_widget, 0)
+
         self.clear_button.clicked.connect(self.clear_sketch)
         self.device = self.get_device()
         # self.load_model()
@@ -175,6 +206,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.count = 0
 
         self.sketch_widget.mouse_release.connect(self.predict)
+        self.pen_size.valueChanged.connect(
+            lambda value: setattr(self.sketch_widget, "pen_width", value)
+        )
 
     def build_model(self):
         n_classes = 10
@@ -210,9 +244,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model.eval()
 
     def predict(self):
-        image_tensor = self.sketch_widget.get_image_tensor().to(self.device)
-        # print(image_tensor)
+        image_tensor, q_image = self.sketch_widget.get_image_tensor()
+        image_tensor.to(self.device)
+        print("input tensor info")
         print(image_tensor.shape)
+        print(image_tensor.shape)
+        print(image_tensor.dtype)
+        print(image_tensor.min(), image_tensor.max())
+        print(image_tensor.device)
 
         # torch.save(image_tensor, f"image_{self.count}.pth")
         # self.count+=1
@@ -220,7 +259,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.numbers.display(prediction.argmax().item())
         print(f"prediction {prediction.argmax().item()}")
         print(prediction)
-        self.image_label.setPixmap(self.sketch_widget.get_image_pixmap())
+        self.image_label.setPixmap(q_image)
 
     def clear_sketch(self):
         self.sketch_widget.image.fill(Qt.black)
