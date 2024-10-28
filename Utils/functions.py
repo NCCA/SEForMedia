@@ -9,6 +9,7 @@ import platform
 import requests
 from tqdm import tqdm
 from pathlib import Path
+import IPython
 
 
 def in_lab() -> bool:
@@ -39,6 +40,14 @@ def download(url: str, fname: str):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             progress_bar.update(size)
+
+
+def shutdown_kernel():
+    """
+    Shutdown the current IPython kernel
+    """
+    app = IPython.Application.instance()
+    app.kernel.do_shutdown(True)
 
 
 if __name__ == "__main__":
