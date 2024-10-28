@@ -11,8 +11,7 @@ from qtpy.QtCore import QPoint, QRect, QSize, Qt, Signal
 from qtpy.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from qtpy.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QWidget
 from scipy.ndimage import center_of_mass
-from torchvision.transforms import functional as F
-from torchvision.transforms import ToPILImage, ToTensor
+from torchvision.transforms import ToPILImage, ToTensor, functional as F
 
 
 class SketchWidget(QWidget):
