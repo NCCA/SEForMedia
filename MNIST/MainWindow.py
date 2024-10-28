@@ -32,6 +32,10 @@ class Ui_MainWindow(object):
         self.numbers = QtWidgets.QLCDNumber(self.groupBox_2)
         self.numbers.setObjectName("numbers")
         self.gridLayout.addWidget(self.numbers, 0, 1, 1, 1)
+        spacerItem = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
+        )
+        self.gridLayout.addItem(spacerItem, 0, 2, 1, 1)
         self.clear_button = QtWidgets.QPushButton(self.groupBox_2)
         self.clear_button.setObjectName("clear_button")
         self.gridLayout.addWidget(self.clear_button, 2, 0, 1, 1)
@@ -42,10 +46,14 @@ class Ui_MainWindow(object):
         self.pen_size.setOrientation(QtCore.Qt.Horizontal)
         self.pen_size.setObjectName("pen_size")
         self.gridLayout.addWidget(self.pen_size, 3, 1, 1, 1)
-        spacerItem = QtWidgets.QSpacerItem(
-            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum
-        )
-        self.gridLayout.addItem(spacerItem, 0, 2, 1, 1)
+        self.proc_type = QtWidgets.QComboBox(self.groupBox_2)
+        self.proc_type.setObjectName("proc_type")
+        self.proc_type.addItem("")
+        self.proc_type.addItem("")
+        self.gridLayout.addWidget(self.proc_type, 4, 1, 1, 1)
+        self.label_2 = QtWidgets.QLabel(self.groupBox_2)
+        self.label_2.setObjectName("label_2")
+        self.gridLayout.addWidget(self.label_2, 4, 0, 1, 1)
         self.grid_layout.addWidget(self.groupBox_2, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -66,3 +74,6 @@ class Ui_MainWindow(object):
         self.image_label.setText(_translate("MainWindow", "TextLabel"))
         self.label.setText(_translate("MainWindow", "Pen Size"))
         self.clear_button.setText(_translate("MainWindow", "clear"))
+        self.proc_type.setItemText(0, _translate("MainWindow", "Bounding Box"))
+        self.proc_type.setItemText(1, _translate("MainWindow", "Center Mass"))
+        self.label_2.setText(_translate("MainWindow", "Image Processing"))

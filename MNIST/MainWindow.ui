@@ -38,6 +38,19 @@
        <item row="0" column="1">
         <widget class="QLCDNumber" name="numbers"/>
        </item>
+       <item row="0" column="2">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
        <item row="2" column="0">
         <widget class="QPushButton" name="clear_button">
          <property name="text">
@@ -61,18 +74,26 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="2">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+       <item row="4" column="1">
+        <widget class="QComboBox" name="proc_type">
+         <item>
+          <property name="text">
+           <string>Bounding Box</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Center Mass</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Image Processing</string>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
+        </widget>
        </item>
       </layout>
      </widget>

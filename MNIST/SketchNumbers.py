@@ -49,10 +49,7 @@ class SketchWidget(QWidget):
         painter.drawImage(dirtyRect, self.image, dirtyRect)
 
     def resizeEvent(self, event):
-        if self.width() > self.image.width() or self.height() > self.image.height():
-            newWidth = max(self.width() + 128, self.image.width())
-            newHeight = max(self.height() + 128, self.image.height())
-            self._resize_image(self.image, QSize(newWidth, newHeight))
+        self._resize_image(self.image, self.size())
         super().resizeEvent(event)
 
     def _draw_to(self, endPoint):
@@ -71,9 +68,8 @@ class SketchWidget(QWidget):
     def _resize_image(self, image, newSize):
         if image.size() == newSize:
             return
-
         newImage = QImage(newSize, QImage.Format_RGB32)
-        newImage.fill(Qt.white)
+        newImage.fill(Qt.black)
         painter = QPainter(newImage)
         painter.drawImage(QPoint(0, 0), image)
         self.image = newImage
@@ -132,37 +128,25 @@ class SketchWidget(QWidget):
         return image
 
     def center_image_by_mass(self):
-        # Convert the tensor to a numpy array
+        # Step 1: Capture the current image
         image = self.image
-        # convert to a numpy array
-        grayscale_image = image.convertToFormat(QImage.Format_Grayscale8)
+        resized_image = image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
+        # Step 3: Convert the resized image to a grayscale numpy array
+        grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
         buffer = grayscale_image.bits()
         buffer.setsize(grayscale_image.byteCount())
-        image_array = np.array(buffer).reshape((image.height(), image.width()))
-        # Calculate the center of mass
-        com_y, com_x = center_of_mass(image_array)  # Assuming a (1, H, W) shape for grayscale
+        np_image = np.array(buffer).reshape((28, 28))
 
-        # Calculate the center of the image
-        center_y, center_x = np.array(image_array.shape) / 2  # Center of the image (H/2, W/2)
+        # Step 4: Normalize the numpy array and convert to PyTorch tensor
+        np_image = np_image.astype(np.float32)
+        tensor_image = torch.tensor(np_image).unsqueeze(0)  # Add batch and channel dimensions
 
-        # Calculate the shifts needed to align the center of mass to the center
-        shift_y, shift_x = center_y - com_y, center_x - com_x
-
-        # Convert the tensor to PIL image for transformation
-        image_pil = ToPILImage()(image_array)  # Convert to PIL format
-
-        # Apply the affine transformation with calculated shifts
-        centered_image_pil = F.affine(
-            image_pil, angle=0, translate=(int(shift_x), int(shift_y)), scale=1, shear=0
-        )
-        # now resize the image to 28x28
-        centered_image_pil = centered_image_pil.resize((28, 28))
-        print(f"size is {centered_image_pil.size=}")
-        # Convert the transformed image back to a tensor
-        centered_image_tensor = ToTensor()(centered_image_pil)
-
-        print(f"size is {centered_image_tensor.shape=}")
-        return centered_image_tensor
+        # np_image = np.ascontiguousarray(np_image)
+        # # Calculate the stride
+        # stride = np_image.strides[0]
+        # # Create QImage from the numpy array
+        # q_image = QImage(np_image.data, 28, 28, stride, QImage.Format_Grayscale8)
+        return tensor_image, QPixmap.fromImage(grayscale_image)
 
     def get_image_tensor(self):
         # Step 1: Capture the current image
@@ -196,7 +180,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.sketch_widget = SketchWidget(self)
         self.gridLayout.addWidget(self.sketch_widget, 0, 2, 1, 2)
-        # self.horizontalLayout.addWidget(self.sketch_widget, 0)
 
         self.clear_button.clicked.connect(self.clear_sketch)
         self.device = self.get_device()
@@ -243,7 +226,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model.eval()
 
     def predict(self):
-        image_tensor, q_image = self.sketch_widget.get_image_tensor()
+        if self.proc_type.currentIndex() == 0:
+            image_tensor, q_image = self.sketch_widget.get_image_tensor()
+        else:
+            image_tensor, q_image = self.sketch_widget.center_image_by_mass()
+
         image_tensor.to(self.device)
         print("input tensor info")
         print(image_tensor.shape)
