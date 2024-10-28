@@ -198,11 +198,12 @@ class SketchWidget(QWidget):
         return tensor_image, QPixmap.fromImage(grayscale_image)
 
 
-class MplCanvas(FigureCanvasQTAgg):
+class GraphWidget(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
-        super(MplCanvas, self).__init__(self.fig)
+        self.axes.set_title("Prediction")
+        super().__init__(self.fig)
 
     def plot_data(self, data):
         x = list(range(0, 10))
@@ -221,7 +222,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.sketch_widget = SketchWidget(self)
         # controls are in added at 0,0 and spans 1 row and 1 columns
         self.main_layout.addWidget(self.sketch_widget, 0, 1, 1, 1)
-        self.plot = MplCanvas(self, width=4, height=4, dpi=100)
+        self.plot = GraphWidget(self, width=4, height=4, dpi=100)
 
         self.main_layout.addWidget(self.plot, 0, 2, 1, 1)
 
