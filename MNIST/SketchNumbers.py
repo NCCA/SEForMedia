@@ -3,6 +3,7 @@
 import random
 import sys
 
+import matplotlib
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,6 +13,11 @@ from qtpy.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from qtpy.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QWidget
 from scipy.ndimage import center_of_mass
 from torchvision.transforms import ToPILImage, ToTensor, functional as F
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+
+matplotlib.use("Qt5Agg")
 
 
 class SketchWidget(QWidget):
@@ -130,22 +136,41 @@ class SketchWidget(QWidget):
     def center_image_by_mass(self):
         # Step 1: Capture the current image
         image = self.image
-        resized_image = image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        # Step 3: Convert the resized image to a grayscale numpy array
-        grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
+        # resized_image = image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
+        # # Step 3: Convert the resized image to a grayscale numpy array
+        # grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
+        # buffer = grayscale_image.bits()
+        # buffer.setsize(grayscale_image.byteCount())
+
+        grayscale_image = image.convertToFormat(QImage.Format_Grayscale8)
+        grayscale_image = grayscale_image.scaled(
+            28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation
+        )
         buffer = grayscale_image.bits()
         buffer.setsize(grayscale_image.byteCount())
-        np_image = np.array(buffer).reshape((28, 28))
+        image_array = np.array(buffer).reshape((grayscale_image.height(), grayscale_image.width()))
+        # Calculate the center of mass
+        com_y, com_x = center_of_mass(image_array)
+        center_y, center_x = np.array(image_array.shape) / 2
+        # Calculate the shifts needed to align the center of mass to the center
+        shift_y, shift_x = center_y - com_y, center_x - com_x
+
+        # Convert the tensor to PIL image for transformation
+        image_pil = ToPILImage()(image_array)  # Convert to PIL format
+
+        # Apply the affine transformation with calculated shifts
+        centered_image_pil = F.affine(
+            image_pil, angle=0, translate=(int(shift_x), int(shift_y)), scale=1, shear=0
+        )
+        # now resize the image to 28x28
+        centered_image_pil = centered_image_pil.resize((28, 28))
+
+        np_image = np.array(centered_image_pil)
 
         # Step 4: Normalize the numpy array and convert to PyTorch tensor
         np_image = np_image.astype(np.float32)
         tensor_image = torch.tensor(np_image).unsqueeze(0)  # Add batch and channel dimensions
 
-        # np_image = np.ascontiguousarray(np_image)
-        # # Calculate the stride
-        # stride = np_image.strides[0]
-        # # Create QImage from the numpy array
-        # q_image = QImage(np_image.data, 28, 28, stride, QImage.Format_Grayscale8)
         return tensor_image, QPixmap.fromImage(grayscale_image)
 
     def get_image_tensor(self):
@@ -173,19 +198,39 @@ class SketchWidget(QWidget):
         return tensor_image, QPixmap.fromImage(grayscale_image)
 
 
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
+
+    def plot_data(self, data):
+        x = list(range(0, 10))
+        self.axes.cla()
+        self.axes.stem(x, data)
+        self.axes.set_title("Prediction")
+        self.axes.set_xticks(x)
+        self.draw()
+
+
 # Define a simple MainWindow class
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
         self.sketch_widget = SketchWidget(self)
-        self.gridLayout.addWidget(self.sketch_widget, 0, 2, 1, 2)
+        # controls are in added at 0,0 and spans 1 row and 1 columns
+        self.main_layout.addWidget(self.sketch_widget, 0, 1, 1, 1)
+        self.plot = MplCanvas(self, width=4, height=4, dpi=100)
+
+        self.main_layout.addWidget(self.plot, 0, 2, 1, 1)
 
         self.clear_button.clicked.connect(self.clear_sketch)
         self.device = self.get_device()
         # self.load_model()
         self.build_model()
         self.count = 0
+        self.statusBar().showMessage("Ready")
 
         self.sketch_widget.mouse_release.connect(self.predict)
         self.pen_size.valueChanged.connect(
@@ -232,19 +277,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             image_tensor, q_image = self.sketch_widget.center_image_by_mass()
 
         image_tensor.to(self.device)
-        print("input tensor info")
-        print(image_tensor.shape)
-        print(image_tensor.shape)
-        print(image_tensor.dtype)
-        print(image_tensor.min(), image_tensor.max())
-        print(image_tensor.device)
 
-        # torch.save(image_tensor, f"image_{self.count}.pth")
-        # self.count+=1
         prediction = self.model(image_tensor.to(self.device))
         self.numbers.display(prediction.argmax().item())
+        # print the prediction on the info bar
+
         print(f"prediction {prediction.argmax().item()}")
-        print(prediction)
+        pred = str(prediction)
+        pred = pred[0 : pred.find("]]")]
+        pred = pred.replace("\t", "")
+        self.statusBar().showMessage(pred)
+        pred_data = list(prediction[0].detach().cpu().numpy())
+        self.plot.plot_data(pred_data)
         self.image_label.setPixmap(q_image)
 
     def clear_sketch(self):

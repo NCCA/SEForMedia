@@ -6,17 +6,30 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>805</width>
-    <height>600</height>
+    <width>1085</width>
+    <height>466</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Sketch Digits</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="grid_layout">
+   <layout class="QGridLayout" name="main_layout">
+    <item row="0" column="2">
+     <spacer name="horizontalSpacer_2">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
     <item row="0" column="0">
-     <widget class="QGroupBox" name="groupBox_2">
+     <widget class="QGroupBox" name="controls">
       <property name="title">
        <string>Image</string>
       </property>
@@ -27,29 +40,6 @@
           <string>TextLabel</string>
          </property>
         </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>Pen Size</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLCDNumber" name="numbers"/>
-       </item>
-       <item row="0" column="2">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
        </item>
        <item row="2" column="0">
         <widget class="QPushButton" name="clear_button">
@@ -74,8 +64,28 @@
          </property>
         </widget>
        </item>
+       <item row="0" column="1">
+        <widget class="QLCDNumber" name="numbers"/>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Pen Size</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Image Processing</string>
+         </property>
+        </widget>
+       </item>
        <item row="4" column="1">
         <widget class="QComboBox" name="proc_type">
+         <property name="currentIndex">
+          <number>1</number>
+         </property>
          <item>
           <property name="text">
            <string>Bounding Box</string>
@@ -88,15 +98,24 @@
          </item>
         </widget>
        </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Image Processing</string>
-         </property>
-        </widget>
+       <item row="0" column="2">
+        <layout class="QGridLayout" name="gridLayout_2"/>
        </item>
       </layout>
      </widget>
+    </item>
+    <item row="0" column="1">
+     <spacer name="horizontalSpacer">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
     </item>
    </layout>
   </widget>
@@ -105,7 +124,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>805</width>
+     <width>1085</width>
      <height>24</height>
     </rect>
    </property>
