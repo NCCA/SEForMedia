@@ -50,5 +50,11 @@ def shutdown_kernel():
     app.kernel.do_shutdown(True)
 
 
+def get_batch_accuracy(output, y, N):
+    pred = output.argmax(dim=1, keepdim=True)
+    correct = pred.eq(y.view_as(pred)).sum().item()
+    return correct / N
+
+
 if __name__ == "__main__":
     print(f"running in lab {in_lab()}")
