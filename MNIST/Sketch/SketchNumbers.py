@@ -3,6 +3,7 @@
 import sys
 
 import torch
+import torch.nn as nn
 from GraphWidget import GraphWidget
 from MainWindow import Ui_MainWindow
 from qtpy.QtCore import Qt
@@ -24,7 +25,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.clear_button.clicked.connect(self.clear_sketch)
         self.device = self.get_device()
-        self.load_model()
+        self.build_model()
         self.count = 0
         self.statusBar().showMessage("Ready")
 
@@ -33,22 +34,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             lambda value: setattr(self.sketch_widget, "pen_width", value)
         )
 
-    # def build_model(self):
-    #     n_classes = 10
-    #     input_size = 28 * 28
-    #     layers = [
-    #         nn.Flatten(),
-    #         nn.Linear(input_size, 512),  # Input
-    #         nn.ReLU(),  # Activation for input
-    #         nn.Linear(512, 512),  # Hidden
-    #         nn.ReLU(),  # Activation for hidden
-    #         nn.Linear(512, n_classes),  # Output
-    #     ]
-    #     self.model = nn.Sequential(*layers)
-    #     self.model.load_state_dict(torch.load("mnist_model.pth"))
+    def build_model(self):
+        n_classes = 10
+        input_size = 28 * 28
+        layers = [
+            nn.Flatten(),
+            nn.Linear(input_size, 512),  # Input
+            nn.ReLU(),  # Activation for input
+            nn.Linear(512, 512),  # Hidden
+            nn.ReLU(),  # Activation for hidden
+            nn.Linear(512, n_classes),  # Output
+        ]
+        self.model = nn.Sequential(*layers)
+        self.model.load_state_dict(torch.load("mnist_model.pth"))
 
-    #     self.model.to(self.device)
-    #     self.model.eval()
+        self.model.to(self.device)
+        self.model.eval()
 
     def get_device(self) -> torch.device:
         """
