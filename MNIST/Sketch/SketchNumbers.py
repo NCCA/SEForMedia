@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-# Import the necessary Qt modules through QtPy
-import random
+
 import sys
 
-import numpy as np
 import torch
-import torch.nn as nn
-from MainWindow import Ui_MainWindow
-from qtpy.QtCore import QPoint, QRect, QSize, Qt, Signal
-from qtpy.QtGui import QColor, QImage, QPainter, QPen, QPixmap
-from qtpy.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QWidget
-from SketchWidget import SketchWidget
 from GraphWidget import GraphWidget
+from MainWindow import Ui_MainWindow
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QApplication, QMainWindow
+from SketchWidget import SketchWidget
 
 
 # Define a simple MainWindow class

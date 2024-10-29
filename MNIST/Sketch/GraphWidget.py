@@ -1,3 +1,5 @@
+""" A Simple Graph Widget for plotting the prediction data into a Qt application. """
+
 import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
