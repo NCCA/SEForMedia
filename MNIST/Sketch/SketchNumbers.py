@@ -46,7 +46,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             nn.Linear(512, n_classes),  # Output
         ]
         self.model = nn.Sequential(*layers)
-        self.model.load_state_dict(torch.load("mnist_model.pth"))
+        self.model.load_state_dict(
+            torch.load("mnist_model.pth", map_location=self.device, weights_only=True)
+        )
 
         self.model.to(self.device)
         self.model.eval()
