@@ -4,12 +4,14 @@
 Module to provide utility functions for lab examples
 """
 
-import re
 import platform
+import re
+import zipfile
+from pathlib import Path
+
+import IPython
 import requests
 from tqdm import tqdm
-from pathlib import Path
-import IPython
 
 
 def in_lab() -> bool:
@@ -40,6 +42,17 @@ def download(url: str, fname: str):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             progress_bar.update(size)
+
+
+def unzip_file(zip_file: Path, dest_dir: Path):
+    """
+    Unzips a file to the specified directory
+        param zip_file: the zip file to unzip
+        param dest_dir: the directory to unzip the file to
+    """
+
+    with zipfile.ZipFile(zip_file, "r") as zip_ref:
+        zip_ref.extractall(dest_dir)
 
 
 def shutdown_kernel():
