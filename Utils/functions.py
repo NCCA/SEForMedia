@@ -12,6 +12,7 @@ from pathlib import Path
 import IPython
 import requests
 from tqdm import tqdm
+import torch
 
 
 def in_lab() -> bool:
@@ -63,10 +64,37 @@ def shutdown_kernel():
     app.kernel.do_shutdown(True)
 
 
-def get_batch_accuracy(output, y, N):
+def get_batch_accuracy(output: torch.Tensor, y: torch.Tensor, N: int) -> float:
+    """
+    Calculate the accuracy of a batch of predictions.
+
+    Args:
+        output (torch.Tensor): The output predictions from the model.
+        y (torch.Tensor): The true labels.
+        N (int): The total number of samples in the batch.
+
+    Returns:
+        float: The accuracy of the batch.
+    """
     pred = output.argmax(dim=1, keepdim=True)
     correct = pred.eq(y.view_as(pred)).sum().item()
     return correct / N
+
+
+def accuracy(y_true: torch.Tensor, y_pred: torch.Tensor) -> float:
+    """
+    Calculate the accuracy of predictions.
+
+    Args:
+        y_true (torch.Tensor): The true labels.
+        y_pred (torch.Tensor): The predicted labels.
+
+    Returns:
+        float: The accuracy as a percentage.
+    """
+    correct = torch.eq(y_true, y_pred).sum().item()
+    acc = (correct / len(y_pred)) * 100
+    return acc
 
 
 if __name__ == "__main__":
