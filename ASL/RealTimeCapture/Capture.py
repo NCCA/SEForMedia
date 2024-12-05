@@ -128,7 +128,7 @@ class WebcamApp(QMainWindow, Ui_MainWindow):
         img = transforms.functional.adjust_sharpness(img, 2.0)
         pred = self.model(img.to(self.device).unsqueeze(0))
         print("Predicted class:", torch.argmax(pred).item())
-        alphabet = "abcdefghiklmnopqrstuvwxy"
+        alphabet = "abcdefghijklmnopqrstuvwxy"
         print("Predicted letter:", alphabet[torch.argmax(pred).item()])
         self.predicted_letter.setText(f"{alphabet[torch.argmax(pred).item()]}")
         # display the image we are sending to the model
