@@ -1,38 +1,43 @@
 [project]
-name = "SE For Media Demo Code"
+name = "SE_For_Media_Demo_Code"
 authors = [
   { name="Jon Macey", email="jmacey@bournemouth.ac.uk" },
 ]
 description = "Lecture code for SE for Media course"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 license = {file = "LICENSE"}
 version = "0.0.1"
+dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.3",
+    "pandas>=2.2.3",
+    "polars>=1.24.0",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "tqdm>=4.67.1",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu124", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },  # Use CUDA on Linux/Windows
+]
+torchvision = [
+  { index = "pytorch-cu124", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
 
 
-[tool.mypy]
-disable_error_code = "import-untyped"
-warn_return_any = true
-warn_unused_configs = true
-follow_imports="skip"
-exclude = "tests/*" 
-namespace_packages = true
-explicit_package_bases = true
+[dependency-groups]
+dev = [
+    "ipykernel>=6.16.2",
+]
 
-
-
-[tool.black]
-line-length = 99
-target-version = ["py37", "py38", "py39", "py310", "py311"]
-skip-magic-trailing-comma = true
-
-[tool.isort]
-py_version = 37
-profile = "black"
-line_length = 99
-combine_as_imports = true
-skip_gitignore = true
