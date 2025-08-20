@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 import turtle
 from turtle import colormode
 from typing import Type
@@ -45,7 +45,9 @@ def rule(sequence: str, rules: dict[str, str]) -> str:
     return sequence
 
 
-def draw_lsystem(turtle: Type[turtle], commands: str, length: float, angle: float) -> None:
+def draw_lsystem(
+    turtle: Type[turtle], commands: str, length: float, angle: float
+) -> None:
     """
     Draws an L-system based on the given commands.
 
@@ -61,7 +63,13 @@ def draw_lsystem(turtle: Type[turtle], commands: str, length: float, angle: floa
     stack = []
     for command in commands:
         turtle.pendown()
-        if command in ["F", "G", "R", "L", "A"]:  # forward rules for some l system grammars
+        if command in [
+            "F",
+            "G",
+            "R",
+            "L",
+            "A",
+        ]:  # forward rules for some l system grammars
             turtle.forward(length)
         elif command in ["f", "B"]:
             turtle.penup()

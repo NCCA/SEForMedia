@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 a = 1
 b = 1.0
 c = float(1)

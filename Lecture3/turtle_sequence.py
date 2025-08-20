@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 import turtle
 
 # create an instance of the turtle object and call it turtle

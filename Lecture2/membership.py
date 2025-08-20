@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 data = (123, "hello", 2.45, 3 + 2j)
 numbers = [1, 2, 3, 4, 5]
 

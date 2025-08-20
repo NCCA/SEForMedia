@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 import ipyturtle3 as turtle
 
 from turtle import colormode

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 
 try:
     number = int(input("please enter a number between 1 and 100 : "))

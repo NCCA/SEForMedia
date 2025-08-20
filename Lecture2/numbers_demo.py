@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 integer_variable = 1
 float_variable = 1.2
 complex_variable = 4 + 5j
