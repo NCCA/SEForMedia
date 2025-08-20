@@ -13,6 +13,7 @@ classifiers = [
 license = {file = "LICENSE"}
 version = "0.0.1"
 dependencies = [
+    "marimo>=0.14.17",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
     "pandas>=2.2.3",
