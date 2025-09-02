@@ -13,6 +13,8 @@ classifiers = [
 license = {file = "LICENSE"}
 version = "0.0.1"
 dependencies = [
+    "ipycanvas>=0.14.1",
+    "ipyturtle3>=0.1.4",
     "marimo>=0.14.17",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
@@ -42,3 +44,6 @@ torchvision = [
 dev = [
     "ipykernel>=6.16.2",
 ]
+
+[tool.marimo.display]
+default_width = "full"
