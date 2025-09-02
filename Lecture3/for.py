@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 
 list_of_ints = [1, 2, 3, 4, 5]
 tuple_of_strings = ("a", "b", "c")

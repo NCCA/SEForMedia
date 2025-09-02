@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
 
 fruit = ("apple", "banana", "cherry")
 fruit_it = iter(fruit)

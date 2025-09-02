@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 int_text = "12"
 float_text = "0.23123"
 int_data = 123

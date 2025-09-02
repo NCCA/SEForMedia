@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 list_1 = [123, "hello", 2.45, 3 + 2j]
 list_2 = [" ", "world"]
 

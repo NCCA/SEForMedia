@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 hello = "hello world"
 print(hello)
 
@@ -16,6 +15,6 @@ verbatim"""
 print(text)
 
 print(
-    "Unicode strings start with u but not all terminals can print these chars \U0001D6D1 "
+    "Unicode strings start with u but not all terminals can print these chars \U0001d6d1 "
 )
 print("Omega:  Ω")

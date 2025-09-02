@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env -S uv run --script
 tuple_1 = (123, "hello", 2.45, 3 + 2j)
 tuple_2 = (" ", "world")
 

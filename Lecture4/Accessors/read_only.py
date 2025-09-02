@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 
 
 class Person:
@@ -14,4 +14,6 @@ class Person:
 person = Person("Jon")
 print(person.name)  # Output: Jon
 
-person.name = "Jonathan"  # This would raise an AttributeError since the setter is not defined
+person.name = (
+    "Jonathan"  # This would raise an AttributeError since the setter is not defined
+)

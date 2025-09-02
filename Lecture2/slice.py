@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S uv run --script
+
 # create a list of 10 elements
 a = list(range(10))
 
