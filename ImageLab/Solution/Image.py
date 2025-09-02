@@ -3,7 +3,6 @@
 from PIL import Image as PILImage
 import numpy as np
 from matplotlib import pyplot as plt
-import random
 
 
 ## copy the previous class and add the method to load image
@@ -77,7 +76,6 @@ class Image:
 
 
 if __name__ == "__main__":
-
     img = Image(100, 100)
     img.draw_line(10, 10, 90, 90, (255, 0, 0))
     img.draw_line(10, 90, 90, 10, (0, 255, 0))

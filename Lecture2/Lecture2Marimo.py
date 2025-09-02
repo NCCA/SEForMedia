@@ -1,10 +1,9 @@
-#!/usr/bin/env -S uvx marimo run
-#
+#!/usr/bin/env -S uv run marimo edit
 
 import marimo
 
-__generated_with = "0.14.17"
-app = marimo.App()
+__generated_with = "0.15.2"
+app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
@@ -46,11 +45,6 @@ def _(mo):
     We should try to make our names easy to read and understand, this may be specific to a problem domain or using the "traditional" or "accepted" names for things (more on this when we talk about machine learning etc). Try to be clear and concise with your names.
     """
     )
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -235,7 +229,6 @@ def _(mo):
 
 @app.cell
 def _():
-
     print(0.2 + 0.2 == 0.4)
     print(0.1 + 0.2 == 0.3)
 

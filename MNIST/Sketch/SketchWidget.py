@@ -5,7 +5,6 @@ from qtpy.QtGui import QImage, QPainter, QPen, QPixmap, QColor
 from qtpy.QtWidgets import QWidget
 from scipy.ndimage import center_of_mass
 from torchvision.transforms import ToPILImage, functional as F
-from typing import Tuple
 
 
 class SketchWidget(QWidget):
@@ -52,13 +51,19 @@ class SketchWidget(QWidget):
         painter = QPainter(self.image)
 
         painter.setPen(
-            QPen(self.pen_colour, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(
+                self.pen_colour, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin
+            )
         )
         painter.drawLine(self.last_point, endPoint)
         self.modified = True
 
         rad = self.pen_width // 2 + 2
-        self.update(QRect(self.last_point, endPoint).normalized().adjusted(-rad, -rad, +rad, +rad))
+        self.update(
+            QRect(self.last_point, endPoint)
+            .normalized()
+            .adjusted(-rad, -rad, +rad, +rad)
+        )
         self.last_point = QPoint(endPoint)
 
     def _resize_image(self, image, newSize) -> None:
@@ -79,7 +84,10 @@ class SketchWidget(QWidget):
             (
                 row
                 for row in range(image.height())
-                if any(is_non_black(image.pixelColor(col, row)) for col in range(image.width()))
+                if any(
+                    is_non_black(image.pixelColor(col, row))
+                    for col in range(image.width())
+                )
             ),
             -1,
         )
@@ -87,7 +95,10 @@ class SketchWidget(QWidget):
             (
                 row
                 for row in range(image.height() - 1, -1, -1)
-                if any(is_non_black(image.pixelColor(col, row)) for col in range(image.width()))
+                if any(
+                    is_non_black(image.pixelColor(col, row))
+                    for col in range(image.width())
+                )
             ),
             -1,
         )
@@ -97,7 +108,10 @@ class SketchWidget(QWidget):
             (
                 col
                 for col in range(image.width())
-                if any(is_non_black(image.pixelColor(col, row)) for row in range(image.height()))
+                if any(
+                    is_non_black(image.pixelColor(col, row))
+                    for row in range(image.height())
+                )
             ),
             -1,
         )
@@ -105,7 +119,10 @@ class SketchWidget(QWidget):
             (
                 col
                 for col in range(image.width() - 1, -1, -1)
-                if any(is_non_black(image.pixelColor(col, row)) for row in range(image.height()))
+                if any(
+                    is_non_black(image.pixelColor(col, row))
+                    for row in range(image.height())
+                )
             ),
             -1,
         )
@@ -131,7 +148,9 @@ class SketchWidget(QWidget):
         buffer = grayscale_image.bits()
         buffer.setsize(grayscale_image.byteCount())
         # we need a numpy array for the center of mass
-        image_array = np.array(buffer).reshape((grayscale_image.height(), grayscale_image.width()))
+        image_array = np.array(buffer).reshape(
+            (grayscale_image.height(), grayscale_image.width())
+        )
         # Calculate the center of mass
         com_y, com_x = center_of_mass(image_array)
         center_y, center_x = np.array(image_array.shape) / 2
@@ -149,7 +168,9 @@ class SketchWidget(QWidget):
         np_image = np.array(centered_image_pil)
         # now convert to tensor and return
         np_image = np_image.astype(np.float32)
-        tensor_image = torch.tensor(np_image).unsqueeze(0)  # Add batch and channel dimensions
+        tensor_image = torch.tensor(np_image).unsqueeze(
+            0
+        )  # Add batch and channel dimensions
 
         return tensor_image, QPixmap.fromImage(grayscale_image)
 
@@ -158,7 +179,9 @@ class SketchWidget(QWidget):
         # crop the image to the bounding box (+ boarder)
         resize_image = self._crop_image(image)
         # Step 2: Resize the image to 28x28 pixels
-        resized_image = resize_image.scaled(28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation)
+        resized_image = resize_image.scaled(
+            28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation
+        )
         # Step 3: Convert the resized image to a grayscale numpy array
         grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
         buffer = grayscale_image.bits()
@@ -166,5 +189,7 @@ class SketchWidget(QWidget):
         np_image = np.array(buffer).reshape((28, 28))
         # convert to tensor
         np_image = np_image.astype(np.float32)
-        tensor_image = torch.tensor(np_image).unsqueeze(0)  # Add batch and channel dimensions
+        tensor_image = torch.tensor(np_image).unsqueeze(
+            0
+        )  # Add batch and channel dimensions
         return tensor_image, QPixmap.fromImage(grayscale_image)

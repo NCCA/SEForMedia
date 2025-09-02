@@ -11,8 +11,12 @@ def random_data() -> int:
 @click.command()
 @click.option("-o", "--output_file", help="The name of the output file", required=True)
 @click.option("-r", "--rows", type=int, help="The number of rows to write", default=10)
-@click.option("-c", "--columns", type=int, help="The number of columns to write", default=10)
-@click.option("-s", "--separator", help="The separator to use between values", default=",")
+@click.option(
+    "-c", "--columns", type=int, help="The number of columns to write", default=10
+)
+@click.option(
+    "-s", "--separator", help="The separator to use between values", default=","
+)
 def main(output_file: str, rows: int, columns: int, separator: str) -> None:
     """
     Writes a CSV file with the specified number of rows and columns.

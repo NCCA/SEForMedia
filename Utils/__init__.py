@@ -1,5 +1,12 @@
 # import functions into the package
-from .functions import download, get_batch_accuracy, in_lab, shutdown_kernel, unzip_file, accuracy
+from .functions import (
+    download,
+    get_batch_accuracy,
+    in_lab,
+    shutdown_kernel,
+    unzip_file,
+    accuracy,
+)
 from .TorchUtils import get_device
 
 __all__ = [

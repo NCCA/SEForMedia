@@ -47,3 +47,8 @@ dev = [
 
 [tool.marimo.display]
 default_width = "full"
+
+[tool.ruff]
+exclude = [
+    "*.ipynb",   # ignore all notebooks
+]

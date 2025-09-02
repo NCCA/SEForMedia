@@ -1,9 +1,9 @@
-#!/usr/bin/env uvx marimo edit
+#!/usr/bin/env -S uv run marimo edit
 
 import marimo
 
-__generated_with = "0.14.17"
-app = marimo.App()
+__generated_with = "0.15.2"
+app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)

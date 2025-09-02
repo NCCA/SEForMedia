@@ -10,8 +10,12 @@ def random_data() -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Random CSV Data")
-    parser.add_argument("-o", "--output", help="The name of the output file", required=True)
-    parser.add_argument("-r", "--rows", type=int, help="The number of rows to write", default=10)
+    parser.add_argument(
+        "-o", "--output", help="The name of the output file", required=True
+    )
+    parser.add_argument(
+        "-r", "--rows", type=int, help="The number of rows to write", default=10
+    )
     parser.add_argument(
         "-c", "--columns", type=int, help="The number of columns to write", default=10
     )

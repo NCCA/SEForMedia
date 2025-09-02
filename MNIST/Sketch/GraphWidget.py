@@ -1,4 +1,4 @@
-""" A Simple Graph Widget for plotting the prediction data into a Qt application. """
+"""A Simple Graph Widget for plotting the prediction data into a Qt application."""
 
 from typing import List
 
@@ -10,7 +10,9 @@ matplotlib.use("Qt5Agg")
 
 
 class GraphWidget(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width: int = 5, height: int = 4, dpi: int = 100) -> None:
+    def __init__(
+        self, parent=None, width: int = 5, height: int = 4, dpi: int = 100
+    ) -> None:
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         self.axes.set_title("Prediction")

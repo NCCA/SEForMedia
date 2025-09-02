@@ -11,4 +11,6 @@ class Sphere:
         self._name = name
 
     def debug(self):
-        print(f"{self._name} pos:{self._pos} colour:{self._colour} radius:{self._radius}")
+        print(
+            f"{self._name} pos:{self._pos} colour:{self._colour} radius:{self._radius}"
+        )

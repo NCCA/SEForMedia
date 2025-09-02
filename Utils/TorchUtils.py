@@ -4,12 +4,13 @@
 Module to provide utility functions for working with PyTorch.
 """
 
-
 try:
     import torch
 except ImportError:
     print("torch not found")
-    print("refer to this URL for install instructions https://pytorch.org/get-started/locally/ ")
+    print(
+        "refer to this URL for install instructions https://pytorch.org/get-started/locally/ "
+    )
 
 
 def get_device() -> torch.device:

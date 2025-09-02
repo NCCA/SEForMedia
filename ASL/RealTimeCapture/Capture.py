@@ -7,13 +7,11 @@ import torch
 import torch.nn as nn
 
 # Visualization tools
-import torchvision
-import torchvision.transforms.functional as F
 import torchvision.transforms.v2 as transforms
 from MainWindow import Ui_MainWindow
 from PIL import Image
 from qtpy.QtCore import Qt, QTimer, Signal
-from qtpy.QtGui import QColor, QImage, QPainter, QPen, QPixmap
+from qtpy.QtGui import QImage, QPainter, QPen, QPixmap
 from qtpy.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget
 
 
@@ -116,7 +114,9 @@ class WebcamApp(QMainWindow, Ui_MainWindow):
             [
                 transforms.Grayscale(),  # Convert to grayscale
                 transforms.Resize((28, 28)),  # Resize to 28x28
-                transforms.ToDtype(torch.float32, scale=True),  # Converts PIL image to tensor
+                transforms.ToDtype(
+                    torch.float32, scale=True
+                ),  # Converts PIL image to tensor
                 transforms.ToTensor(),
             ]
         )
@@ -136,7 +136,9 @@ class WebcamApp(QMainWindow, Ui_MainWindow):
         img = img.scaled(200, 200)
 
         self.input_image.setPixmap(QPixmap.fromImage(img))
-        self.cropped_image.setPixmap(QPixmap.fromImage(self.webcam_widget.cropped_frame))
+        self.cropped_image.setPixmap(
+            QPixmap.fromImage(self.webcam_widget.cropped_frame)
+        )
 
     def tensor_to_qimage(self, tensor: torch.Tensor) -> QImage:
         """
