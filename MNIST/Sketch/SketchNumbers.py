@@ -3,7 +3,6 @@
 import sys
 
 import torch
-import torch.nn as nn
 from GraphWidget import GraphWidget
 from MainWindow import Ui_MainWindow
 from qtpy.QtCore import Qt
@@ -40,23 +39,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         build the pytorch model to predict the numbers
         """
-        n_classes = 10
-        input_size = 28 * 28
-        layers = [
-            nn.Flatten(),
-            nn.Linear(input_size, 512),  # Input
-            nn.ReLU(),  # Activation for input
-            nn.Linear(512, 512),  # Hidden
-            nn.ReLU(),  # Activation for hidden
-            nn.Linear(512, n_classes),  # Output
-        ]
-        self.model = nn.Sequential(*layers)
-        # load the model weights, we need to say what device we are using
-        # and that we are only loading the weights
-        self.model.load_state_dict(
-            torch.load("mnist_model.pth", map_location=self.device, weights_only=True)
+        self.model = torch.load(
+            "mnist_model.pth", map_location=self.device, weights_only=False
         )
-        # Now move to our device
         self.model.to(self.device)
         self.model.eval()
 
