@@ -32,20 +32,20 @@ def _(mo):
 
 @app.cell
 def _():
-    import matplotlib.pyplot as plt
     import pathlib
     import sys
+
+    import matplotlib.pyplot as plt
+    import pandas as pd
     import torch
     import torch.nn as nn
-    from torch.optim import Adam
-    from torch.utils.data import Dataset, DataLoader
-    from PIL import Image
+    import torchvision.transforms.functional as F
 
     # Visualization tools
     import torchvision.transforms.v2 as transforms
-    import torchvision.transforms.functional as F
-    import pandas as pd
-    import string
+    from PIL import Image
+    from torch.optim import Adam
+    from torch.utils.data import DataLoader, Dataset
 
     sys.path.append("../")
     import Utils
@@ -72,7 +72,6 @@ def _():
         nn,
         pd,
         plt,
-        string,
         torch,
         transforms,
     )
@@ -256,7 +255,6 @@ def _(plt, x_0):
     plt.figure(figsize=(1, 1))
     plot_image(x_0, "Base Image")
     plt.show()
-
     return (plot_image,)
 
 
@@ -290,7 +288,6 @@ def _(IMAGE_HEIGHT, IMAGE_WIDTH, plot_image, plt, transforms, x_0):
     )
     # as this returns a plt object we can call show directly
     plot_multiple(8, trans, x_0).show()
-
     return (plot_multiple,)
 
 
@@ -556,9 +553,10 @@ def _(model, torch):
 
 
 @app.cell
-def _(model, plt, string, torch, valid_loader):
+def _(model, plt, torch, valid_loader):
     model.eval()
-    _alphabet = string.ascii_letters[:25]
+    alphabet = "abcdefghijklmnopqrstuvwxy"
+
     with torch.no_grad():
         x, y = next(iter(valid_loader))
         output = model(x)
@@ -568,12 +566,12 @@ def _(model, plt, string, torch, valid_loader):
         for _i in range(num_images):
             plt.subplot(1, num_images, _i + 1)
             plt.title(
-                f" {_alphabet[y[_i].item()]} {_alphabet[_pred[_i].item()]}",
+                f" {alphabet[y[_i].item()]} {alphabet[_pred[_i].item()]}",
                 fontdict={"fontsize": 30},
             )
             plt.axis("off")
             plt.imshow(x[_i].cpu().numpy().reshape(28, 28), cmap="gray")
-    return
+    return (alphabet,)
 
 
 @app.cell(hide_code=True)
@@ -584,7 +582,8 @@ def _(mo):
 
     At present all the data we have used is from the same dataset, we can now test the model on some new data that it has not seen before.  The dataset we downloaded has the following image
 
-    ![](mnist_asl/amer_sign3.png)
+    <img src="amer_sign2.png"/>
+
 
     We can partition this into new test data and see how the model performs on this data.
     """
@@ -603,14 +602,18 @@ def _(DATASET_LOCATION, F, Image, plt, torch, transforms):
             left = j * image_width
             upper = _i * image_height
             sub_images.append(F.crop(image, upper, left, image_width, image_height))
+            # Define the preprocessing transformations
     preprocess_trans = transforms.Compose(
         [
-            transforms.Grayscale(),
-            transforms.Resize((28, 28)),
-            transforms.ToDtype(torch.float32, scale=True),
-            transforms.ToTensor(),
+            transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
+            transforms.Resize((28, 28)),  # Resize to 28x28
+            transforms.ToImage(),  # Ensure input is treated as an image
+            transforms.ToDtype(
+                torch.float32, scale=True
+            ),  # Convert to float32 and scale to [0,1]
         ]
     )
+
     tensor_images = [preprocess_trans(img) for img in sub_images]
     plt.figure(figsize=(4, 4))
     for _i, img in enumerate(tensor_images):
@@ -630,12 +633,11 @@ def _(mo):
 
 
 @app.cell
-def _(device, model, tensor_images, torch):
-    _alphabet = "abcdefghijklmnopqrstuvwxy"
+def _(alphabet, device, model, tensor_images, torch):
     with torch.no_grad():
         for _i in range(23):
             _pred = model(tensor_images[_i].unsqueeze(0).to(device))
-            print(f"{_alphabet[_pred.argmax().item()]} ", sep="", end="")
+            print(f"{alphabet[_pred.argmax().item()]} ", sep="", end="")
     return
 
 
