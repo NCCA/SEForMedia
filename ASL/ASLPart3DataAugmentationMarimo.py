@@ -642,6 +642,51 @@ def _(alphabet, device, model, tensor_images, torch):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## Saving to ONXX
+
+    The ONXX ( Open Neural Network Exchange.) format is a way of exchanging models in an open format. Torch allows us to export using this as well as it's own format. We need to ensure the onxx tools are installed (```uv add onnx onnxruntime onnxscript```) in our own projects.
+
+    We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving. 
+    """
+    )
+    return
+
+
+@app.cell
+def _(IMAGE_CHANNELS, model, torch):
+    # Create a dummy input with the correct shape
+    dummy_input = torch.randn(1, IMAGE_CHANNELS, 28, 28)
+    onxx_model = model.to("cpu")
+    # Export the model
+    exported_model = torch.onnx.export(
+        onxx_model,
+        dummy_input,
+        "asl_model.onnx",
+        dynamo=True,
+        input_names=["input"],
+        output_names=["output"],
+    )
+    print(exported_model)
+
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    This will save the file to disk, and you can see the output of the model if you print it. We can now use a tool like https://netron.app/ to load this back in and visualize the model, this will also allow us to generate an image which is useful for write ups etc.
+
+    ![](asl_model.onnx.png) 
+    """
+    )
+    return
+
+
+@app.cell
 def _():
     import marimo as mo
 
