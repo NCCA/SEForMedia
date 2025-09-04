@@ -576,13 +576,14 @@ def _(model, plt, torch, valid_loader):
 
 @app.cell(hide_code=True)
 def _(mo):
+    _image = mo.image("public/amer_sign2.png")
     mo.md(
-        r"""
+        rf"""
     # More Testing
 
     At present all the data we have used is from the same dataset, we can now test the model on some new data that it has not seen before.  The dataset we downloaded has the following image
 
-    <img src="amer_sign2.png"/>
+    {_image}
 
 
     We can partition this into new test data and see how the model performs on this data.
@@ -675,13 +676,12 @@ def _(IMAGE_CHANNELS, model, torch):
 
 @app.cell
 def _(mo):
+    _image = mo.image("public/asl_model.onnx.png")
     mo.md(
-        r"""
+        rf"""
     This will save the file to disk, and you can see the output of the model if you print it. We can now use a tool like https://netron.app/ to load this back in and visualize the model, this will also allow us to generate an image which is useful for write ups etc.
+    {_image}
 
-    ![where image](public/asl_model.onnx.png)
-
-    <img src="public/asl_model.onnx.png" width="100" />
     """
     )
     return
