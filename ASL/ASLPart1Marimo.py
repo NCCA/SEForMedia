@@ -221,7 +221,6 @@ def _(plt, string, x_train, y_train):
         plt.title(label, fontdict={"fontsize": 30})
         plt.axis("off")
         plt.imshow(image, cmap="gray")
-        plt.show()
 
     alphabet = string.ascii_letters[:25]
 
@@ -231,6 +230,8 @@ def _(plt, string, x_train, y_train):
         row = x_train[x]
         label = y_train[x]
         plot_image(row, alphabet[label], num_images, x)
+    plt.show()
+
     return
 
 
