@@ -649,7 +649,7 @@ def _(mo):
 
     The ONXX ( Open Neural Network Exchange.) format is a way of exchanging models in an open format. Torch allows us to export using this as well as it's own format. We need to ensure the onxx tools are installed (```uv add onnx onnxruntime onnxscript```) in our own projects.
 
-    We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving. 
+    We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving.
     """
     )
     return
@@ -670,7 +670,6 @@ def _(IMAGE_CHANNELS, model, torch):
         output_names=["output"],
     )
     print(exported_model)
-
     return
 
 
@@ -680,7 +679,9 @@ def _(mo):
         r"""
     This will save the file to disk, and you can see the output of the model if you print it. We can now use a tool like https://netron.app/ to load this back in and visualize the model, this will also allow us to generate an image which is useful for write ups etc.
 
-    ![](asl_model.onnx.png) 
+    ![where image](public/asl_model.onnx.png)
+
+    <img src="public/asl_model.onnx.png" width="100" />
     """
     )
     return

@@ -255,29 +255,55 @@ def _(
     y_train,
 ):
     torch.manual_seed(1234)
+
     epochs = 100
-    X_train_1, y_train_1 = (X_train.to(device), y_train.to(device))
-    X_test_1, y_test_1 = (X_test.to(device), y_test.to(device))
+
+    # copy to device
+    X_train_device = X_train.to(device)
+
+    # Note we need to convert here as the cuda model doesn't work on floats
+    y_train_device = y_train.type(torch.LongTensor)
+    y_train_device = y_train_device.to(device)
+
+    X_test_device = X_test.to(device)
+    y_test_device = y_test.type(torch.LongTensor)
+    y_test_device = y_test_device.to(device)
+
     for epoch in range(epochs):
+        ### Training
         model.train()
-        y_logits = model(X_train_1)
+
+        # 1. Forward pass
+        y_logits = model(X_train_device)
+        # turn logits -> pred probs -> pred labls
         y_pred = torch.softmax(y_logits, dim=1).argmax(dim=1)
-        loss = loss_fn(y_logits, y_train_1)
-        acc = accuracy(y_true=y_train_1, y_pred=y_pred)
+
+        # 2. Calculate loss/accuracy
+        loss = loss_fn(y_logits, y_train_device)
+        acc = accuracy(y_true=y_train_device, y_pred=y_pred)
+
+        # reset the optimizer to zero
         optimizer.zero_grad()
+        # calculate the gradients
         loss.backward()
+        # update the weights
         optimizer.step()
+
+        # Testing
         model.eval()
         with torch.inference_mode():
-            _test_logits = model(X_test_1)
-            test_pred = torch.softmax(_test_logits, dim=1).argmax(dim=1)
-            test_loss = loss_fn(_test_logits, y_test_1)
-            test_acc = accuracy(y_true=y_test_1, y_pred=test_pred)
+            # 1. Forward pass
+            test_logits = model(X_test_device)
+            test_pred = torch.softmax(test_logits, dim=1).argmax(dim=1)
+            # 2. calculate loss/accuracy
+            test_loss = loss_fn(test_logits, y_test_device)
+            test_acc = accuracy(y_true=y_test_device, y_pred=test_pred)
+
         if epoch % 10 == 0:
             print(
                 f"Epoch: {epoch} | Loss: {loss:.5f}, Accuracy: {acc:.2f}% | Test loss: {test_loss:.5f}, Test acc: {test_acc:.2f}%"
             )
-    return (X_test_1,)
+    return (X_test_device,)
 
 
 @app.cell(hide_code=True)
@@ -289,10 +315,10 @@ def _(mo):
 
 
 @app.cell
-def _(X_test_1, model, torch, y_1):
+def _(X_test_device, model, torch, y_1):
     model.eval()
     with torch.inference_mode():
-        y_preds = torch.round(torch.sigmoid(model(X_test_1))).squeeze()
+        y_preds = torch.round(torch.sigmoid(model(X_test_device))).squeeze()
     (y_preds[:10], y_1[:10])
     return
 
