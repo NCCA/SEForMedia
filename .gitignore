@@ -240,3 +240,6 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 .vscode/*
+# Marimo cache and session files
+__marimo__/cache/
+__marimo__/sessions/
