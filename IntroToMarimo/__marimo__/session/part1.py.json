@@ -1,0 +1,159 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.15.2"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "9feb0d06f395993d527f585822f00930",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h1 id=\"an-introduction-to-marimo\">An introduction to marimo</h1>\n<span class=\"paragraph\">This is a marimo notebook. It is a plain Python file \u2014 the one you are\nreading right now \u2014 that opens as an interactive, reactive notebook in the\nbrowser. I put it together as a quick intro for lectures and labs, so the\nbest way to read it is to run it and change things.</span>\n<span class=\"paragraph\">To run it yourself:</span>\n<div class=\"language-bash codehilite\"><pre><span></span><code>uvx<span class=\"w\"> </span>marimo<span class=\"w\"> </span>edit<span class=\"w\"> </span>intro_to_marimo.py\n</code></pre></div>\n<span class=\"paragraph\"><a href=\"https://marimo.io\" rel=\"noopener\" target=\"_blank\">marimo.io</a> has the full docs; the source lives on\n<a href=\"https://github.com/marimo-team/marimo\" rel=\"noopener\" target=\"_blank\">GitHub</a> and the package is on\n<a href=\"https://pypi.org/project/marimo/\" rel=\"noopener\" target=\"_blank\">PyPI</a>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "2140602931e3f032fa5badadaf97f18e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"why-not-just-use-jupyter\">Why not just use Jupyter?</h2>\n<span class=\"paragraph\">Jupyter is fine, and most of you already know it. The problem I keep\nhitting when teaching with it is hidden state: you run cells out of order,\ndelete the cell that defined a variable, and the variable is still sitting\nin memory. The notebook looks like it works, you send it to someone else,\nand it falls over. The <code>.ipynb</code> file is also JSON with the outputs baked\nin, which makes it miserable to diff or review in git.</span>\n<span class=\"paragraph\">marimo takes a different line. It works out the dependencies between your\ncells and keeps them consistent for you. Change a value in one cell and\nevery cell that depends on it re-runs automatically \u2014 a bit like a\nspreadsheet. There is no run-order to get wrong because there is no hidden\nstate to get wrong.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "40ad99dded25ec6f6fdd27d1ea84a7fd",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"reactivity-with-a-real-example\">Reactivity, with a real example</h2>\n<span class=\"paragraph\">Below is a slider. Drag it. The cell underneath reads its value and\nre-runs on its own \u2014 I have not wired up any callback or \"run\" button. In\nmarimo a cell that uses a variable automatically depends on the cell that\ndefines it.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "83378dd1dbe1c7d54cebba2d0db54ea9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='bkHC-0' random-id='3bd07675-ab01-a2e9-5145-47d875b57c19'><marimo-slider data-initial-value='5' data-label='&quot;&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;radius&lt;/span&gt;&lt;/span&gt;&quot;' data-start='1' data-stop='20' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "e3c544823d9c0644b42b69859efd3427",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">A circle of radius <strong>10</strong> has an area of <strong>314.16</strong>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "888a6f0d74517864010d5c2728349882",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">Notice what did <em>not</em> happen: I never told the area cell when to update.\nmarimo saw that it reads <code>radius</code>, so it re-runs it whenever <code>radius</code>\nchanges. The UI element and the Python value are the same thing.</span>\n<span class=\"paragraph\">This is also why marimo stops you redefining the same variable in two\ndifferent cells \u2014 if it let you, it could not know which one to trust. It\nfeels strict at first and then you realise it is the thing quietly saving\nyou from the class of bug that eats an afternoon.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "252f18ba8f63cf8242d449328df7b20c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"it-is-just-a-python-file\">It is just a Python file</h2>\n<span class=\"paragraph\">Have a look at <code>intro_to_marimo.py</code> in a text editor. Each cell is an\nordinary Python function decorated with <code>@app.cell</code>, and the arguments to\nthat function are the variables the cell needs from elsewhere. That is how\nmarimo tracks the dependencies \u2014 it reads them straight off the function\nsignature.</span>\n<span class=\"paragraph\">Because it is real Python and not JSON:</span>\n<ul>\n<li>it diffs and reviews cleanly in git, so it works in a normal PR;</li>\n<li>you can <code>import</code> it like any other module;</li>\n<li>you can run it as a script with <code>python intro_to_marimo.py</code>;</li>\n<li>your editor, linter and type checker all understand it.</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "e96d7efbfdffbddd741c20b0f7274d36",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"running-it-as-an-app\">Running it as an app</h2>\n<span class=\"paragraph\">The same file can be served as a read-only web app, with the code hidden\nand only the markdown, widgets and outputs on show:</span>\n<div class=\"language-bash codehilite\"><pre><span></span><code>uvx<span class=\"w\"> </span>marimo<span class=\"w\"> </span>run<span class=\"w\"> </span>intro_to_marimo.py\n</code></pre></div>\n<span class=\"paragraph\">So one file is both the teaching material I edit and the interactive demo\nI hand out. No separate export step, and no dashboard framework to learn.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "4438abe613d3c0e141979100c5aa4a5c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h2 id=\"where-to-go-next\">Where to go next</h2>\n<span class=\"paragraph\">Pick something from the <a href=\"https://docs.marimo.io\" rel=\"noopener\" target=\"_blank\">docs</a> and change it, or\njust start editing the cells above and watch what re-runs. A few things\nworth trying early:</span>\n<ul>\n<li>the other UI elements \u2014 <code>mo.ui.dropdown</code>, <code>mo.ui.text</code>, <code>mo.ui.table</code>;</li>\n<li>plotting, which reacts to widgets the same way the area cell did;</li>\n<li><code>uvx marimo tutorial intro</code>, the official built-in tour.</li>\n</ul>\n<span class=\"paragraph\">The interactive <a href=\"https://marimo.app\" rel=\"noopener\" target=\"_blank\">online playground</a> runs entirely in\nthe browser if you want a look before installing anything.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "Error trying to reload module marimo._ast.compiler: cannot import name 'has_fixture_decorator' from 'marimo._ast.pytest' (/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_ast/pytest.py) \n"
+        },
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_runtime/reload/autoreload.py&quot;</span>, line <span class=\"m\">442</span>, in <span class=\"n\">superreload</span>\n<span class=\"w\">    </span><span class=\"nb\">setattr</span><span class=\"p\">(</span><span class=\"n\">old</span><span class=\"p\">,</span> <span class=\"n\">key</span><span class=\"p\">,</span> <span class=\"nb\">getattr</span><span class=\"p\">(</span><span class=\"n\">new</span><span class=\"p\">,</span> <span class=\"n\">key</span><span class=\"p\">))</span>\n<span class=\"w\">     </span><span class=\"pm\">^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/jmacey/.local/share/uv/python/cpython-3.13.3-macos-aarch64-none/lib/python3.13/importlib/__init__.py&quot;</span>, line <span class=\"m\">129</span>, in <span class=\"n\">reload</span>\n<span class=\"w\">    </span><span class=\"n\">_bootstrap</span><span class=\"o\">.</span><span class=\"n\">_exec</span><span class=\"p\">(</span><span class=\"n\">spec</span><span class=\"p\">,</span> <span class=\"n\">module</span><span class=\"p\">)</span>\n<span class=\"w\">    </span><span class=\"pm\">~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap&gt;&quot;</span>, line <span class=\"m\">866</span>, in <span class=\"n\">_exec</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap_external&gt;&quot;</span>, line <span class=\"m\">1026</span>, in <span class=\"n\">exec_module</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap&gt;&quot;</span>, line <span class=\"m\">488</span>, in <span class=\"n\">_call_with_frames_removed</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_ast/compiler.py&quot;</span>, line <span class=\"m\">28</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"kn\">from</span><span class=\"w\"> </span><span class=\"nn\">marimo._ast.pytest</span><span class=\"w\"> </span><span class=\"kn\">import</span> <span class=\"n\">has_fixture_decorator</span>\n<span class=\"gr\">ImportError</span>: <span class=\"n\">cannot import name &#39;has_fixture_decorator&#39; from &#39;marimo._ast.pytest&#39; (/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_ast/pytest.py)</span>\n</pre></div>\n</span>"
+        },
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "Error trying to reload module marimo._server.start: cannot import name 'normalize_path' from 'marimo._utils.paths' (/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_utils/paths.py) \n"
+        },
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_runtime/reload/autoreload.py&quot;</span>, line <span class=\"m\">442</span>, in <span class=\"n\">superreload</span>\n<span class=\"w\">    </span><span class=\"nb\">setattr</span><span class=\"p\">(</span><span class=\"n\">old</span><span class=\"p\">,</span> <span class=\"n\">key</span><span class=\"p\">,</span> <span class=\"nb\">getattr</span><span class=\"p\">(</span><span class=\"n\">new</span><span class=\"p\">,</span> <span class=\"n\">key</span><span class=\"p\">))</span>\n<span class=\"w\">     </span><span class=\"pm\">^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/Users/jmacey/.local/share/uv/python/cpython-3.13.3-macos-aarch64-none/lib/python3.13/importlib/__init__.py&quot;</span>, line <span class=\"m\">129</span>, in <span class=\"n\">reload</span>\n<span class=\"w\">    </span><span class=\"n\">_bootstrap</span><span class=\"o\">.</span><span class=\"n\">_exec</span><span class=\"p\">(</span><span class=\"n\">spec</span><span class=\"p\">,</span> <span class=\"n\">module</span><span class=\"p\">)</span>\n<span class=\"w\">    </span><span class=\"pm\">~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap&gt;&quot;</span>, line <span class=\"m\">866</span>, in <span class=\"n\">_exec</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap_external&gt;&quot;</span>, line <span class=\"m\">1026</span>, in <span class=\"n\">exec_module</span>\n  File <span class=\"nb\">&quot;&lt;frozen importlib._bootstrap&gt;&quot;</span>, line <span class=\"m\">488</span>, in <span class=\"n\">_call_with_frames_removed</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_server/start.py&quot;</span>, line <span class=\"m\">13</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"kn\">from</span><span class=\"w\"> </span><span class=\"nn\">marimo._cli.sandbox</span><span class=\"w\"> </span><span class=\"kn\">import</span> <span class=\"n\">SandboxMode</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_cli/sandbox.py&quot;</span>, line <span class=\"m\">23</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"kn\">from</span><span class=\"w\"> </span><span class=\"nn\">marimo._utils.inline_script_metadata</span><span class=\"w\"> </span><span class=\"kn\">import</span> <span class=\"p\">(</span>\n<span class=\"w\">    </span><span class=\"o\">...&lt;</span><span class=\"mi\">3</span> <span class=\"n\">lines</span><span class=\"o\">&gt;...</span>\n<span class=\"w\">    </span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_utils/inline_script_metadata.py&quot;</span>, line <span class=\"m\">14</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"kn\">from</span><span class=\"w\"> </span><span class=\"nn\">marimo._utils.paths</span><span class=\"w\"> </span><span class=\"kn\">import</span> <span class=\"n\">normalize_path</span>\n<span class=\"gr\">ImportError</span>: <span class=\"n\">cannot import name &#39;normalize_path&#39; from &#39;marimo._utils.paths&#39; (/Volumes/teaching/Code/SEForMedia/.venv/lib/python3.13/site-packages/marimo/_utils/paths.py)</span>\n</pre></div>\n</span>"
+        }
+      ]
+    }
+  ]
+}
