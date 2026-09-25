@@ -3,7 +3,7 @@
 import marimo
 
 __generated_with = "0.24.2"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
@@ -22,49 +22,77 @@ def _(mo):
 
 @app.cell
 def _():
+    import matplotlib.pyplot as plt
     import torch
     from torchvision.transforms import v2
 
-    torch.manual_seed(42)
-    return torch, v2
+    return plt, torch, v2
 
 
 @app.cell
-def _(torch):
-    # use an asymmetric pattern so we can check flips and rotations
-    def make_letter_f() -> torch.Tensor:
-        img = torch.zeros(3, 32, 32, dtype=torch.uint8)
-        img[:, 6:26, 8:12] = 255  # the upright
-        img[:, 6:10, 8:22] = 255  # the top bar
-        img[:, 14:18, 8:18] = 255  # the middle bar
-        return img
+def _(plt, torch):
+    def image_grid(
+        panels: list[tuple[str, torch.Tensor]], columns: int = 4
+    ) -> plt.Figure:
+        """Show CHW images at their original aspect ratio with a shared display range."""
+        rows = (len(panels) + columns - 1) // columns
+        figure, axes = plt.subplots(
+            rows,
+            columns,
+            figsize=(3 * columns, 3.1 * rows),
+            squeeze=False,
+            layout="constrained",
+        )
+        for axis in axes.flat:
+            axis.axis("off")
+        for axis, (title, tensor) in zip(axes.flat, panels):
+            pixels = tensor.detach().cpu()
+            if pixels.dtype != torch.uint8:
+                pixels = pixels.clamp(0, 1)
+            axis.imshow(pixels.permute(1, 2, 0), interpolation="nearest")
+            axis.set_title(title, fontsize=10)
+        plt.close(figure)
+        return figure
 
-    letter_f = make_letter_f()
+    letter_f = torch.zeros(3, 32, 32, dtype=torch.uint8)
+    letter_f[:, 6:26, 8:12] = 255
+    letter_f[:, 6:10, 8:22] = 255
+    letter_f[:, 14:18, 8:18] = 255
 
-    def ink_centre(img):
-        """
-        Find the mean position of bright pixels in the first channel.
-
-        Parameters
-        ----------
-        img : torch.Tensor
-            CHW image with foreground values above 128.
-
-        Returns
-        -------
-        tuple of float
-            Mean row and column, rounded to one decimal place.
-        """
-        mask = img[0] > 128
-        ys, xs = torch.nonzero(mask, as_tuple=True)
-        return round(ys.float().mean().item(), 1), round(xs.float().mean().item(), 1)
-
-    print("test pattern", tuple(letter_f.shape))
-    print("ink centre (row, col):", ink_centre(letter_f))
-    print(
-        "ink covers", f"{(letter_f[0] > 128).float().mean().item():.1%}", "of the image"
+    # colour gradients let us see hue and saturation as well as brightness
+    colour_image = torch.zeros(3, 64, 64, dtype=torch.uint8)
+    colour_image[0] = torch.linspace(30, 230, 64).to(torch.uint8)[None, :]
+    colour_image[2] = torch.linspace(30, 230, 64).to(torch.uint8)[:, None]
+    colour_image[1, 8:28, 8:28] = 220
+    colour_image[:, 38:54, 36:56] = 210
+    image_grid(
+        [
+            ("Asymmetric F: position and orientation", letter_f),
+            ("Colour pattern: gradients and grey patch", colour_image),
+        ],
+        columns=2,
     )
-    return ink_centre, letter_f
+    return colour_image, image_grid, letter_f
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    sample_seed = mo.ui.slider(0, 100, value=42, label="Random seed", show_value=True)
+    flip_probability = mo.ui.slider(
+        0, 1, step=0.1, value=0.5, label="Flip probability", show_value=True
+    )
+    rotation_angle = mo.ui.slider(
+        0, 60, value=25, label="Rotation angle (degrees)", show_value=True
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "Change the seed to see another set of samples. The same seed repeats the same examples. The other controls update the flip and rotation comparisons below."
+            ),
+            mo.hstack([sample_seed, flip_probability, rotation_angle]),
+        ]
+    )
+    return flip_probability, rotation_angle, sample_seed
 
 
 @app.cell(hide_code=True)
@@ -87,25 +115,27 @@ def _(mo):
 
 
 @app.cell
-def _(ink_centre, letter_f, v2):
-    flipper = v2.RandomHorizontalFlip(p=0.5)
-
-    flipped_count = 0
-    original_centre = ink_centre(letter_f)
-    for _ in range(1000):
-        if ink_centre(flipper(letter_f)) != original_centre:
-            flipped_count += 1
-
-    print(
-        f"out of 1000 calls, {flipped_count} actually flipped ({flipped_count / 10:.1f}%)"
+def _(flip_probability, image_grid, letter_f, mo, sample_seed, torch, v2):
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        _samples = [
+            v2.RandomHorizontalFlip(p=flip_probability.value)(letter_f)
+            for _ in range(8)
+        ]
+    _changed = [not torch.equal(letter_f, _sample) for _sample in _samples]
+    mo.vstack(
+        [
+            mo.md(
+                f"**{sum(_changed)} of 8 samples flipped** with `p={flip_probability.value:.1f}`. A small sample need not match the probability exactly."
+            ),
+            image_grid(
+                [
+                    (f"Sample {_i + 1}: {'flipped' if _flip else 'unchanged'}", _sample)
+                    for _i, (_sample, _flip) in enumerate(zip(_samples, _changed))
+                ]
+            ),
+        ]
     )
-    print()
-    print("original       ink centre", original_centre)
-    print(
-        "always flipped ink centre",
-        ink_centre(v2.RandomHorizontalFlip(p=1.0)(letter_f)),
-    )
-    print("the row is unchanged; the column is reflected about the image centre")
     return
 
 
@@ -124,29 +154,15 @@ def _(mo):
 
 
 @app.cell
-def _(letter_f, torch, v2):
-    mirrored = v2.RandomHorizontalFlip(p=1.0)(letter_f)
-
-    print("the upright stroke, by column, in the original and the mirror:")
-    print(
-        "  original",
-        (letter_f[0, 6:26, :] > 128)
-        .float()
-        .mean(dim=0)
-        .round(decimals=1)[:16]
-        .tolist(),
+def _(image_grid, letter_f, v2):
+    image_grid(
+        [
+            ("Original: label F", letter_f),
+            ("Horizontal flip: still an F?", v2.RandomHorizontalFlip(p=1)(letter_f)),
+            ("Vertical flip: still an F?", v2.RandomVerticalFlip(p=1)(letter_f)),
+        ],
+        columns=3,
     )
-    print(
-        "  mirrored",
-        (mirrored[0, 6:26, :] > 128)
-        .float()
-        .mean(dim=0)
-        .round(decimals=1)[:16]
-        .tolist(),
-    )
-    print()
-    print("identical images?", torch.equal(letter_f, mirrored))
-    print("but we would be handing both to the model with the same label")
     return
 
 
@@ -174,41 +190,24 @@ def _(mo):
 
 
 @app.cell
-def _(letter_f, torch, v2):
-    rotator = v2.RandomRotation(degrees=20)
-
-    print("shape is preserved with expand=False:", tuple(rotator(letter_f).shape))
-    print(
-        "with expand=True it grows:           ",
-        tuple(v2.RandomRotation(25, expand=True)(letter_f).shape),
-    )
-    print("  resize or pad differing output sizes before stacking them into a batch")
-    print()
-
-    corner_dark = v2.RandomRotation(30, fill=0)(letter_f)
-    corner_light = v2.RandomRotation(30, fill=255)(letter_f)
-    print("top-left corner pixel after a rotation:")
-    print("  fill=0   ", corner_dark[:, 0, 0].tolist())
-    print("  fill=255 ", corner_light[:, 0, 0].tolist())
-    print()
-    print("how much content does a 20-degree rotation push off the edges?")
-
-    _full = torch.full((3, 32, 32), 255, dtype=torch.uint8)  # subject fills the frame
-    for _name, _src in [
-        ("small centred subject", letter_f),
-        ("subject fills the frame", _full),
-    ]:
-        _before = (_src[0] > 128).sum().item()
-        _after = torch.tensor(
-            [(v2.RandomRotation(20)(_src)[0] > 128).sum().item() for _ in range(50)]
-        ).float()
-        print(
-            f"  {_name:24} {_before:4} -> {_after.mean():6.0f} px  ({_after.mean() / _before:.0%} kept)"
-        )
-
-    print()
-    print("compare the centred pattern with the full-frame image:")
-    print("the available margin affects how much content is clipped.")
+def _(image_grid, letter_f, rotation_angle, torch, v2):
+    _angle = rotation_angle.value
+    _full = torch.full_like(letter_f, 255)
+    _panels = []
+    for _name, _source in [("Centred F", letter_f), ("Full frame", _full)]:
+        _panels.append((f"{_name}: original", _source))
+        for _expand, _fill in [(False, 0), (True, 0), (False, 120)]:
+            # fix the angle so only the canvas and fill change between panels
+            _rotated = v2.RandomRotation((_angle, _angle), expand=_expand, fill=_fill)(
+                _source
+            )
+            _panels.append(
+                (
+                    f"{_angle}° | expand={_expand}, fill={_fill}\n{_rotated.shape[-1]} × {_rotated.shape[-2]} pixels",
+                    _rotated,
+                )
+            )
+    image_grid(_panels)
     return
 
 
@@ -228,51 +227,30 @@ def _(mo):
     | `saturation` | `None` | same form |
     | `hue` | `None` | a float `h` shifts hue within `[-h, +h]`, and must be ≤ 0.5 |
 
-    We need to set at least one argument to change the image. The first check below confirms that `ColorJitter()` on its own leaves our pattern unchanged.
+    We need to set at least one argument to change the image. `ColorJitter()` on its own leaves the image unchanged.
 
-    I then vary brightness and contrast over several calls. For hue we use a coloured patch, as the white pattern would not show the change. If colour distinguishes our classes, a hue shift may produce an image that no longer supports its label.
+    Each row below changes one property of the same colour pattern. Compare the gradients, green square and grey patch across repeated calls. If colour distinguishes our classes, a hue shift may produce an image that no longer supports its label.
     """)
     return
 
 
 @app.cell
-def _(letter_f, torch, v2):
-    print("ColorJitter() with no arguments:")
-    print("  changes anything?", not torch.equal(v2.ColorJitter()(letter_f), letter_f))
-    print()
-
-    jitter = v2.ColorJitter(brightness=0.4, contrast=0.3)
-    means = torch.tensor([jitter(letter_f).float().mean().item() for _ in range(200)])
-    print("brightness=0.4, contrast=0.3 over 200 runs:")
-    print(f"  original mean pixel {letter_f.float().mean():.1f}")
-    print(
-        f"  augmented mean      {means.mean():.1f}  (sd {means.std():.1f}, range {means.min():.1f} to {means.max():.1f})"
-    )
-    print()
-    # hue only means something on coloured data, so test it on colour
-    red_patch = torch.zeros(3, 8, 8, dtype=torch.uint8)
-    red_patch[0] = 220
-    green_patch = torch.zeros(3, 8, 8, dtype=torch.uint8)
-    green_patch[1] = 220
-
-    print("hue=0.5 on actual colour:")
-    print(
-        "  a red pixel  ",
-        red_patch[:, 0, 0].tolist(),
-        "->",
-        v2.ColorJitter(hue=0.5)(red_patch)[:, 0, 0].tolist(),
-    )
-    print(
-        "  a green pixel",
-        green_patch[:, 0, 0].tolist(),
-        "->",
-        v2.ColorJitter(hue=0.5)(green_patch)[:, 0, 0].tolist(),
-    )
-    print()
-    print("  check whether these colours still support the original class labels")
-    print(
-        "  (white and grey are unaffected, which is why the test pattern above shows nothing)"
-    )
+def _(colour_image, image_grid, sample_seed, torch, v2):
+    _panels = []
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        for _name, _transform in [
+            ("Brightness", v2.ColorJitter(brightness=0.6)),
+            ("Contrast", v2.ColorJitter(contrast=0.6)),
+            ("Saturation", v2.ColorJitter(saturation=0.9)),
+            ("Hue", v2.ColorJitter(hue=0.5)),
+        ]:
+            _panels.append((f"{_name}: original", colour_image))
+            _panels.extend(
+                (f"{_name}: sample {_i + 1}", _transform(colour_image))
+                for _i in range(3)
+            )
+    image_grid(_panels)
     return
 
 
@@ -294,35 +272,49 @@ def _(mo):
 
     This transform chooses a region and resizes it to the output size. `scale` describes the fraction of the original area used for the crop, not the width or height.
 
-    The default allows a crop covering only 8% of the image. For a small subject this can remove much of what we wanted to recognise. Below we compare the default with `scale=(0.7, 1.0)` and measure how much of our pattern remains. I would inspect the results on the training images before choosing either range.
+    The default allows a crop covering only 8% of the image. For a small subject this can remove much of what we wanted to recognise. Below we compare the default with `scale=(0.7, 1.0)`. The orange boxes show the actual sampled regions beside their resized outputs. I would inspect the results on the training images before choosing either range.
     """)
     return
 
 
 @app.cell
-def _(letter_f, torch, v2):
-    def ink_fraction(img):
-        return (img[0] > 128).float().mean().item()
+def _(image_grid, letter_f, plt, sample_seed, torch, v2):
+    from matplotlib.patches import Rectangle
 
-    default_crop = v2.RandomResizedCrop(size=32)
-    gentle_crop = v2.RandomResizedCrop(size=32, scale=(0.7, 1.0))
-
-    _orig = ink_fraction(letter_f)
-    _default = torch.tensor([ink_fraction(default_crop(letter_f)) for _ in range(300)])
-    _gentle = torch.tensor([ink_fraction(gentle_crop(letter_f)) for _ in range(300)])
-
-    print(f"ink covering the frame, original: {_orig:.1%}")
-    print()
-    print(
-        f"scale=(0.08, 1.0)  the default: mean {_default.mean():.1%}, range {_default.min():.1%} to {_default.max():.1%}"
-    )
-    print(
-        f"scale=(0.7, 1.0)   narrower    : mean {_gentle.mean():.1%}, range {_gentle.min():.1%} to {_gentle.max():.1%}"
-    )
-    print()
-    _empty = (_default < 0.01).float().mean().item()
-    print(f"crops that came back essentially blank with the default: {_empty:.1%}")
-    print("these crops have little foreground left, but would keep the original label")
+    _figure, _axes = plt.subplots(2, 8, figsize=(16, 5), layout="constrained")
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        for _row, _scale in enumerate([(0.08, 1.0), (0.7, 1.0)]):
+            for _sample in range(4):
+                _top, _left, _height, _width = v2.RandomResizedCrop.get_params(
+                    letter_f, _scale, (0.75, 4 / 3)
+                )
+                _crop = v2.functional.resized_crop(
+                    letter_f, _top, _left, _height, _width, [32, 32], antialias=True
+                )
+                _source_axis, _crop_axis = _axes[_row, 2 * _sample : 2 * _sample + 2]
+                _source_axis.imshow(letter_f.permute(1, 2, 0))
+                _source_axis.add_patch(
+                    Rectangle(
+                        (_left - 0.5, _top - 0.5),
+                        _width,
+                        _height,
+                        fill=False,
+                        edgecolor="orange",
+                        linewidth=2,
+                    )
+                )
+                _source_axis.set_title(
+                    f"Area: {_height * _width / 1024:.0%}", fontsize=10
+                )
+                _crop_axis.imshow(_crop.permute(1, 2, 0))
+                _crop_axis.set_title("Resized to 32 × 32", fontsize=9)
+            _axes[_row, 0].set_ylabel(f"scale={_scale}")
+    for _axis in _axes.flat:
+        _axis.set_xticks([])
+        _axis.set_yticks([])
+    plt.close(_figure)
+    _figure
     return
 
 
@@ -337,22 +329,35 @@ def _(mo):
     v2.RandomOrder([transform, ...])        # apply all in a random order
     ```
 
-    These let us control how transforms are combined. For example, we can use `RandomApply` to apply a group of colour changes to only some training samples. The next cell measures how often `RandomApply` changes our pattern.
+    These let us control how transforms are combined. For example, we can use `RandomApply` to apply a group of colour changes to only some training samples. The next grid shows which copies of our pattern change.
     """)
     return
 
 
 @app.cell
-def _(ink_centre, letter_f, v2):
-    occasional = v2.RandomApply([v2.RandomRotation(45)], p=0.2)
-
-    changed = sum(
-        1
-        for _ in range(500)
-        if ink_centre(occasional(letter_f)) != ink_centre(letter_f)
-    )
-    print(
-        f"RandomApply(p=0.2) changed the image {changed}/500 times ({changed / 5:.0f}%)"
+def _(image_grid, letter_f, mo, sample_seed, torch, v2):
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        _occasional = v2.RandomApply([v2.RandomRotation(45)], p=0.2)
+        _samples = [_occasional(letter_f) for _ in range(12)]
+    mo.vstack(
+        [
+            mo.md(
+                "`RandomApply(p=0.2)`: most copies stay unchanged. Here we label visible pixel changes; applying a very small rotation can still leave the pixels unchanged."
+            ),
+            image_grid(
+                [
+                    (
+                        "Changed"
+                        if not torch.equal(letter_f, _sample)
+                        else "Unchanged",
+                        _sample,
+                    )
+                    for _sample in _samples
+                ],
+                columns=6,
+            ),
+        ]
     )
     return
 
@@ -401,7 +406,7 @@ def _(torch, v2):
     print()
     print("both pipelines use the same final conversion and normalisation")
     print("this keeps the input type and scale consistent for the model")
-    return train_transform, valid_transform
+    return IMAGENET_MEAN, IMAGENET_STD, train_transform, valid_transform
 
 
 @app.cell(hide_code=True)
@@ -411,29 +416,47 @@ def _(mo):
 
     If we apply random augmentation during validation, the inputs can change between evaluations. A change in the score may then come from the augmentation as well as the model.
 
-    The next cell passes the same image through each pipeline twenty times and compares the outputs. For our usual validation run we use the fixed pipeline. Testing on transformed inputs can be a separate experiment when we want to measure a particular behaviour.
+    The next cell passes the same colour image through each pipeline four times and displays the outputs. For our usual validation run we use the fixed pipeline. Testing on transformed inputs can be a separate experiment when we want to measure a particular behaviour.
     """)
     return
 
 
 @app.cell
-def _(letter_f, torch, train_transform, valid_transform):
-    train_outputs = torch.stack([train_transform(letter_f) for _ in range(20)])
-    valid_outputs = torch.stack([valid_transform(letter_f) for _ in range(20)])
-
-    print("running the same image through each pipeline 20 times:")
-    print(f"  train: all 20 identical? {bool((train_outputs.std(dim=0) < 1e-6).all())}")
-    print(
-        f"         spread across runs, mean sd per pixel {train_outputs.std(dim=0).mean():.4f}"
+def _(
+    IMAGENET_MEAN,
+    IMAGENET_STD,
+    colour_image,
+    image_grid,
+    mo,
+    sample_seed,
+    torch,
+    train_transform,
+    valid_transform,
+):
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        train_outputs = torch.stack([train_transform(colour_image) for _ in range(4)])
+        valid_outputs = torch.stack([valid_transform(colour_image) for _ in range(4)])
+    _mean = torch.tensor(IMAGENET_MEAN).view(3, 1, 1)
+    _std = torch.tensor(IMAGENET_STD).view(3, 1, 1)
+    # undo normalisation for display; the model still receives normalised tensors
+    _panels = [
+        (f"Training: run {_i + 1}", _sample * _std + _mean)
+        for _i, _sample in enumerate(train_outputs)
+    ]
+    _panels += [
+        (f"Validation: run {_i + 1}", _sample * _std + _mean)
+        for _i, _sample in enumerate(valid_outputs)
+    ]
+    mo.vstack(
+        [
+            image_grid(_panels),
+            mo.md(
+                f"Validation outputs identical: **{torch.equal(valid_outputs[0].expand_as(valid_outputs), valid_outputs)}**. Normalisation is undone only for these previews."
+            ),
+        ]
     )
-    print(f"  valid: all 20 identical? {bool((valid_outputs.std(dim=0) < 1e-6).all())}")
-    print(
-        f"         spread across runs, mean sd per pixel {valid_outputs.std(dim=0).mean():.4f}"
-    )
-    print()
-    print("random augmentation can also introduce variation in validation inputs")
-    print("which can change the score between evaluations")
-    return
+    return train_outputs, valid_outputs
 
 
 @app.cell(hide_code=True)
@@ -441,9 +464,9 @@ def _(mo):
     mo.md(r"""
     ## Checking the result
 
-    I would inspect augmented samples before starting a training run. Use `make_grid` from Part 1 to put several versions of the same image together, then check that each still supports the label.
+    I would inspect augmented samples before starting a training run. The grid below puts several versions of the same image together so we can check that each still supports the label.
 
-    Here we measure the area of the remaining pattern. This can help spot nearly empty crops, but it does not tell us whether the image is still recognisable. Likewise, variation between outputs tells us that something changed, not whether the change was useful.
+    The captions show foreground pixel area divided by the original foreground area. Resizing can enlarge the remaining strokes, so a ratio above one does not mean more of the letter survived. This can help spot nearly empty crops, but it does not tell us whether the image is still recognisable. Likewise, variation between outputs tells us that something changed, not whether the change was useful.
 
     To test whether augmentation helps the model, compare training runs with and without it using the same validation data. Measure the extra processing time too.
     """)
@@ -451,49 +474,24 @@ def _(mo):
 
 
 @app.cell
-def _(letter_f, torch, v2):
-    def ink_ratio(pipeline, source, trials=200):
-        """
-        Measure foreground area after repeated applications of a transform.
-
-        Parameters
-        ----------
-        pipeline : callable
-            Transform to apply to each copy of the source.
-        source : torch.Tensor
-            CHW image with foreground values above 128 in the first channel.
-        trials : int
-            Number of transformed samples to measure.
-
-        Returns
-        -------
-        torch.Tensor
-            Foreground pixel count for each result, divided by the source count.
-        """
-        base = (source[0] > 128).float().sum()
-        return torch.tensor(
-            [
-                ((pipeline(source)[0] > 128).float().sum() / base).item()
-                for _ in range(trials)
-            ]
-        )
-
-    print(f"{'transform':24} {'mean':>6} {'worst':>6}   (ink area vs the original)")
-    for name, pipe in [
-        ("flip only", v2.RandomHorizontalFlip(p=0.5)),
-        ("rotate 20", v2.RandomRotation(20)),
-        ("rotate 90", v2.RandomRotation(90)),
-        ("crop, default scale", v2.RandomResizedCrop(32)),
-        ("crop, scale 0.7-1.0", v2.RandomResizedCrop(32, scale=(0.7, 1.0))),
-    ]:
-        s = ink_ratio(pipe, letter_f)
-        print(f"{name:24} {s.mean():6.2f} {s.min():6.2f}")
-
-    print()
-    print("a ratio above 1 means the output contains more foreground pixels.")
-    print("resizing a crop can enlarge the remaining part of the pattern.")
-    print("a minimum near zero indicates a sample with very little foreground.")
-    print("inspect the images as well as these counts.")
+def _(image_grid, letter_f, sample_seed, torch, v2):
+    _panels = []
+    with torch.random.fork_rng():
+        torch.manual_seed(sample_seed.value)
+        for _name, _transform in [
+            ("Flip", v2.RandomHorizontalFlip(p=0.5)),
+            ("Rotate ±20°", v2.RandomRotation(20)),
+            ("Crop: default", v2.RandomResizedCrop(32)),
+            ("Crop: scale 0.7–1.0", v2.RandomResizedCrop(32, scale=(0.7, 1.0))),
+        ]:
+            _panels.append((f"{_name}: original", letter_f))
+            for _i in range(3):
+                _sample = _transform(letter_f)
+                _ratio = (_sample[0] > 128).sum().item() / (
+                    letter_f[0] > 128
+                ).sum().item()
+                _panels.append((f"Sample {_i + 1} | ink area ×{_ratio:.2f}", _sample))
+    image_grid(_panels)
     return
 
 

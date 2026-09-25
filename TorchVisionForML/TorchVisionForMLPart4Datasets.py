@@ -3,7 +3,7 @@
 import marimo
 
 __generated_with = "0.24.2"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
@@ -20,13 +20,45 @@ def _(mo):
 
 @app.cell
 def _():
+    import matplotlib.pyplot as plt
     import torch
     from torch import nn
     from torchvision import datasets
     from torchvision.transforms import v2
 
-    torch.manual_seed(42)
-    return datasets, nn, torch, v2
+    return datasets, nn, plt, torch, v2
+
+
+@app.cell
+def _(plt, torch, v2):
+    def image_grid(
+        panels: list[tuple[str, torch.Tensor]], columns: int = 3
+    ) -> plt.Figure:
+        """Show labelled CHW images with a fixed display range."""
+        rows = (len(panels) + columns - 1) // columns
+        figure, axes = plt.subplots(
+            rows,
+            columns,
+            figsize=(3.6 * columns, 3.3 * rows),
+            squeeze=False,
+            layout="constrained",
+        )
+        for axis in axes.flat:
+            axis.axis("off")
+        for axis, (title, tensor) in zip(axes.flat, panels):
+            pixels = tensor.detach().cpu()
+            if pixels.dtype != torch.uint8:
+                pixels = pixels.clamp(0, 1)
+            axis.imshow(pixels.permute(1, 2, 0), interpolation="nearest")
+            axis.set_title(title, fontsize=10)
+        plt.close(figure)
+        return figure
+
+    def as_tensor(image) -> torch.Tensor:
+        """Convert a PIL sample for plotting without changing its pixel range."""
+        return v2.functional.to_image(image)
+
+    return as_tensor, image_grid
 
 
 @app.cell(hide_code=True)
@@ -65,57 +97,178 @@ def _(mo):
 
 
 @app.cell
-def _(datasets, torch):
+def _(as_tensor, datasets, image_grid, mo, plt):
     import tempfile
     from pathlib import Path
 
-    from torchvision.io import write_png
+    from PIL import Image, ImageDraw
 
-    root = Path(tempfile.mkdtemp()) / "train"
-    # deliberately created in a non-alphabetical order
-    for _cls, _n_files in [("dogs", 4), ("cats", 3), ("axolotls", 2)]:
+    dataset_directory = tempfile.TemporaryDirectory(prefix="torchvision-datasets-")
+    root = Path(dataset_directory.name) / "train"
+    # these drawings are stand-ins for photographs, not a useful training dataset
+    for _cls, _n_files, _colour in [
+        ("dogs", 4, "#dfa65a"),
+        ("cats", 3, "#86bed3"),
+        ("axolotls", 2, "#e99bbb"),
+    ]:
         (root / _cls).mkdir(parents=True)
         for _i in range(_n_files):
-            write_png(
-                torch.randint(0, 255, (3, 24, 24), dtype=torch.uint8),
-                str(root / _cls / f"{_i}.png"),
-            )
+            _image = Image.new("RGB", (96, 72), "#edf1f5")
+            _draw = ImageDraw.Draw(_image)
+            _x = 46 + 2 * _i
+            if _cls == "cats":
+                _draw.polygon([(_x - 24, 34), (_x - 23, 6), (_x - 5, 22)], fill=_colour)
+                _draw.polygon([(_x + 24, 34), (_x + 23, 6), (_x + 5, 22)], fill=_colour)
+            elif _cls == "dogs":
+                _draw.ellipse((_x - 34, 18, _x - 12, 59), fill="#926237")
+                _draw.ellipse((_x + 12, 18, _x + 34, 59), fill="#926237")
+            else:
+                for _y in [22, 34, 46]:
+                    _draw.line([(_x - 18, 36), (_x - 37, _y)], fill="#cc5a86", width=4)
+                    _draw.line([(_x + 18, 36), (_x + 37, _y)], fill="#cc5a86", width=4)
+            _draw.ellipse((_x - 24, 16, _x + 24, 61), fill=_colour)
+            for _eye in [_x - 10, _x + 10]:
+                _draw.ellipse((_eye - 2, 31, _eye + 2, 35), fill="#253047")
+            _draw.arc((_x - 8, 35, _x + 8, 47), 0, 180, fill="#253047", width=2)
+            _image.save(root / _cls / f"{_i}.png")
 
     folder = datasets.ImageFolder(root)
-
-    print("created in this order: dogs, cats, axolotls")
-    print("class_to_idx         :", folder.class_to_idx)
-    print()
-    print("total samples:", len(folder))
-    print("labels in order:", [label for _, label in folder.samples])
-    print()
-    print("index 0 is axolotls, not dogs - it sorted them")
-    return folder, root
+    _counts = [folder.targets.count(_label) for _label in range(len(folder.classes))]
+    _figure, _axis = plt.subplots(figsize=(8, 2.5), layout="constrained")
+    _bars = _axis.barh(folder.classes, _counts, color=["#cc5a86", "#559bb8", "#be843b"])
+    _axis.bar_label(_bars, padding=4)
+    _axis.set_xlim(0, max(_counts) + 1)
+    _axis.set_xticks(range(max(_counts) + 1))
+    _axis.set_xlabel("Images in each class")
+    _axis.invert_yaxis()
+    plt.close(_figure)
+    mo.vstack(
+        [
+            mo.md(
+                "These small drawings stand in for photographs. The folders were created as dogs, cats, axolotls; ImageFolder assigns indices alphabetically."
+            ),
+            mo.ui.table(
+                [
+                    {
+                        "Folder": _name,
+                        "Class index": folder.class_to_idx[_name],
+                        "Images": _count,
+                    }
+                    for _name, _count in zip(folder.classes, _counts)
+                ],
+                selection=None,
+            ),
+            image_grid(
+                [
+                    (
+                        f"{folder.classes[_label]} | label {_label} | sample {_i}",
+                        as_tensor(_image),
+                    )
+                    for _i, (_image, _label) in enumerate(folder)
+                ]
+            ),
+            _figure,
+        ]
+    )
+    return dataset_directory, folder, root
 
 
 @app.cell
-def _(datasets, folder, root, torch, v2):
+def _(datasets, root, torch, v2):
     with_transform = datasets.ImageFolder(
         root,
         transform=v2.Compose(
-            [v2.Resize((16, 16)), v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]
+            [v2.Resize((32, 32)), v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]
         ),
     )
+    return (with_transform,)
 
-    _img, _label = with_transform[0]
-    print(
-        "with a transform:",
-        tuple(_img.shape),
-        _img.dtype,
-        f"{_img.min():.2f} to {_img.max():.2f}",
+
+@app.cell(hide_code=True)
+def _(folder, mo):
+    sample_index = mo.ui.slider(
+        0, len(folder) - 1, value=0, label="Dataset sample", show_value=True
     )
-    print("label            ", _label, "->", with_transform.classes[_label])
-    print()
-    print("without one, you get a PIL image:", type(folder[0][0]).__name__)
-    print()
-    print("save this mapping with the model so we can name its predictions:")
-    print("  ", with_transform.class_to_idx)
+    sample_index
+    return (sample_index,)
+
+
+@app.cell
+def _(as_tensor, folder, image_grid, mo, sample_index, with_transform):
+    _index = sample_index.value
+    _original, _label = folder[_index]
+    _transformed, _ = with_transform[_index]
+    mo.vstack(
+        [
+            mo.md(
+                f"`{folder.classes[_label]}/{_index - folder.targets.index(_label)}.png` → class **{_label}** → **{folder.classes[_label]}**"
+            ),
+            image_grid(
+                [
+                    (
+                        f"PIL image: {_original.width} × {_original.height}\nuint8 pixels, range 0–255",
+                        as_tensor(_original),
+                    ),
+                    (
+                        f"Tensor: {tuple(_transformed.shape)}\n{_transformed.dtype}, range {_transformed.min():.2f}–{_transformed.max():.2f}",
+                        _transformed,
+                    ),
+                ],
+                columns=2,
+            ),
+            mo.md(
+                "The transform resizes the image and converts its pixels. The class index stays the same. Save `class_to_idx` with the model."
+            ),
+        ]
+    )
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    batch_size = mo.ui.slider(1, 9, value=4, label="Batch size", show_value=True)
+    shuffle_samples = mo.ui.checkbox(value=True, label="Shuffle samples")
+    mo.vstack(
+        [
+            mo.md(
+                "### From samples to a batch\n\nA DataLoader stacks images into NCHW order and keeps their labels aligned. Toggle shuffle to compare the first batch with the folder order. We use a fixed seed so the shuffled order is repeatable."
+            ),
+            mo.hstack([batch_size, shuffle_samples]),
+        ]
+    )
+    return batch_size, shuffle_samples
+
+
+@app.cell
+def _(batch_size, image_grid, mo, shuffle_samples, torch, with_transform):
+    from torch.utils.data import DataLoader
+
+    _loader = DataLoader(
+        with_transform,
+        batch_size=batch_size.value,
+        shuffle=shuffle_samples.value,
+        generator=torch.Generator().manual_seed(42),
+    )
+    batch_images, batch_labels = next(iter(_loader))
+    mo.vstack(
+        [
+            mo.md(
+                f"Images: **{tuple(batch_images.shape)}** (N, C, H, W) · labels: **{tuple(batch_labels.shape)}**"
+            ),
+            image_grid(
+                [
+                    (
+                        f"Batch slot {_i} → label {int(_label)}\n{with_transform.classes[int(_label)]}",
+                        _image,
+                    )
+                    for _i, (_image, _label) in enumerate(
+                        zip(batch_images, batch_labels)
+                    )
+                ]
+            ),
+        ]
+    )
+    return batch_images, batch_labels
 
 
 @app.cell(hide_code=True)
@@ -181,7 +334,7 @@ def _(mo):
 
     The weights object provides the preprocessing for inference. This includes the resize, crop, type conversion and normalisation expected by that set of weights. I use this preset so the preprocessing stays tied to the model we have selected.
 
-    The next cells print the VGG16 preset and apply it to a generated image. Creating the preset does not download the model weights.
+    The next cells inspect the VGG16 preset and show its resize and crop on a generated colour pattern. Creating the preset does not download the model weights.
     """)
     return
 
@@ -198,17 +351,63 @@ def _(VGG16_Weights):
 
 
 @app.cell
-def _(preset, torch):
-    fake_photo = torch.randint(0, 255, (3, 480, 640), dtype=torch.uint8)
-    ready = preset(fake_photo)
+def _(image_grid, mo, plt, preset, torch):
+    from matplotlib.patches import Rectangle
+    from torchvision.transforms import functional as preset_functional
 
-    print("a 480x640 uint8 image through the preset:")
-    print(
-        "  ", tuple(ready.shape), ready.dtype, f"{ready.min():.2f} to {ready.max():.2f}"
+    # gradients and coloured blocks make the crop easier to follow than noise
+    fake_photo = torch.zeros(3, 240, 400, dtype=torch.uint8)
+    fake_photo[0] = torch.linspace(0, 255, 400).to(torch.uint8)[None, :]
+    fake_photo[2] = torch.linspace(0, 255, 240).to(torch.uint8)[:, None]
+    fake_photo[1, 30:105, 25:105] = 240
+    fake_photo[:, 130:205, 285:365] = 230
+    _resized = preset_functional.resize(
+        fake_photo,
+        preset.resize_size,
+        interpolation=preset.interpolation,
+        antialias=preset.antialias,
     )
-    print()
-    print("it handled resize, crop, float conversion and normalisation in one call")
-    return
+    _cropped = preset_functional.center_crop(_resized, preset.crop_size)
+    ready = preset(fake_photo)
+    restored = ready * torch.tensor(preset.std).view(3, 1, 1) + torch.tensor(
+        preset.mean
+    ).view(3, 1, 1)
+    _height, _width = _resized.shape[-2:]
+    _crop_height, _crop_width = ready.shape[-2:]
+    _figure, _axis = plt.subplots(figsize=(7, 4), layout="constrained")
+    _axis.imshow(_resized.permute(1, 2, 0))
+    _axis.add_patch(
+        Rectangle(
+            (
+                round((_width - _crop_width) / 2) - 0.5,
+                round((_height - _crop_height) / 2) - 0.5,
+            ),
+            _crop_width,
+            _crop_height,
+            fill=False,
+            edgecolor="yellow",
+            linewidth=2,
+        )
+    )
+    _axis.set_title(f"Resized: {_width} × {_height}; yellow box is the centre crop")
+    _axis.axis("off")
+    plt.close(_figure)
+    mo.vstack(
+        [
+            _figure,
+            image_grid(
+                [
+                    ("Source: 400 × 240", fake_photo),
+                    ("Centre crop: 224 × 224", _cropped),
+                    ("Preset output: normalisation undone", restored),
+                ]
+            ),
+            mo.md(
+                f"The model receives `{tuple(ready.shape)}` floats, from **{ready.min():.2f} to {ready.max():.2f}**. We undo normalisation for the preview; displaying the normalised tensor directly would distort its colours."
+            ),
+        ]
+    )
+    return fake_photo, ready, restored
 
 
 @app.cell(hide_code=True)
@@ -224,19 +423,45 @@ def _(mo):
 
 
 @app.cell
-def _(VGG16_Weights):
+def _(VGG16_Weights, mo):
     meta = VGG16_Weights.DEFAULT.meta
+    category_index = mo.ui.slider(
+        0,
+        len(meta["categories"]) - 1,
+        value=207,
+        label="ImageNet class index",
+        show_value=True,
+    )
+    mo.vstack(
+        [
+            mo.md(
+                f"The original classifier has **{len(meta['categories'])} classes**. Choose an index to decode it using the weights metadata."
+            ),
+            category_index,
+        ]
+    )
+    return category_index, meta
 
-    print("keys available:", sorted(meta.keys()))
-    print()
-    print("categories:", len(meta["categories"]))
-    print("  first five:", meta["categories"][:5])
-    print("  index 207 is:", meta["categories"][207])
-    print()
-    print("reported accuracy:", meta["_metrics"])
-    print()
-    print("so decoding a prediction is just:")
-    print("  meta['categories'][logits.argmax(dim=1).item()]")
+
+@app.cell(hide_code=True)
+def _(category_index, folder, meta, mo):
+    mo.vstack(
+        [
+            mo.md(
+                f"ImageNet index **{category_index.value}** → **{meta['categories'][category_index.value]}**"
+            ),
+            mo.md(
+                "After replacing the classifier for our folders, the output columns have a different meaning:"
+            ),
+            mo.ui.table(
+                [
+                    {"New output column": _index, "Our class": _name}
+                    for _name, _index in folder.class_to_idx.items()
+                ],
+                selection=None,
+            ),
+        ]
+    )
     return
 
 
@@ -255,20 +480,39 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(mo, plt, torch):
     from torchvision.models import vgg16
 
-    vgg = vgg16(
-        weights=None
-    )  # use weights=VGG16_Weights.DEFAULT to load trained parameters
-
-    print("VGG16 has three top-level parts:")
-    for part_name, part in vgg.named_children():
-        n = sum(p.numel() for p in part.parameters())
-        print(f"  {part_name:12} {n:>12,} parameters")
-    print()
-    print("the classifier, which is the bit we replace:")
-    print(vgg.classifier)
+    with torch.random.fork_rng():
+        torch.manual_seed(42)
+        vgg = vgg16(weights=None)
+    _names = []
+    _counts = []
+    for _name, _part in vgg.named_children():
+        _names.append(_name)
+        _counts.append(sum(_parameter.numel() for _parameter in _part.parameters()))
+    _figure, _axis = plt.subplots(figsize=(9, 3), layout="constrained")
+    _bars = _axis.barh(
+        _names,
+        [_count / 1e6 for _count in _counts],
+        color=["#559bb8", "#999999", "#be843b"],
+    )
+    _axis.bar_label(_bars, labels=[f"{_count:,}" for _count in _counts], padding=5)
+    _axis.set_xlim(0, max(_counts) / 1e6 * 1.25)
+    _axis.set_xlabel("Parameters (millions)")
+    _axis.invert_yaxis()
+    plt.close(_figure)
+    mo.vstack(
+        [
+            mo.md(
+                "**Input** `N × 3 × 224 × 224` → **features** → **avgpool** `N × 512 × 7 × 7` → **flatten** `N × 25088` → **classifier** `N × 1000`"
+            ),
+            _figure,
+            mo.md(
+                "Most VGG16 parameters are in the classifier. Average pooling has no learned parameters. This model uses `weights=None`; its features are randomly initialised."
+            ),
+        ]
+    )
     return vgg, vgg16
 
 
@@ -283,26 +527,51 @@ def _(mo):
 
     This sets `requires_grad=False` on the module's parameters. We call it before training so autograd does not accumulate gradients for them. The trailing underscore indicates that the method changes the module in place.
 
-    The next cell counts trainable and frozen parameters before and after the call. Freezing parameters is separate from `eval()`, which changes the behaviour of layers such as dropout. Use evaluation mode when checking predictions.
+    The next chart compares trainable and frozen parameters before and after the call. Freezing parameters is separate from `eval()`, which changes the behaviour of layers such as dropout. Use evaluation mode when checking predictions.
     """)
     return
 
 
 @app.cell
-def _(vgg):
-    def count(m):
-        trainable = sum(p.numel() for p in m.parameters() if p.requires_grad)
-        frozen = sum(p.numel() for p in m.parameters() if not p.requires_grad)
+def _(nn, plt, vgg):
+    def count(model: nn.Module) -> tuple[int, int]:
+        """Count trainable and frozen parameters separately."""
+        trainable = sum(
+            parameter.numel()
+            for parameter in model.parameters()
+            if parameter.requires_grad
+        )
+        frozen = sum(
+            parameter.numel()
+            for parameter in model.parameters()
+            if not parameter.requires_grad
+        )
         return trainable, frozen
 
-    print(f"{'':16} {'trainable':>14} {'frozen':>14}")
-    _t, _f = count(vgg)
-    print(f"{'as loaded':16} {_t:>14,} {_f:>14,}")
-
-    vgg.requires_grad_(False)
-    _t, _f = count(vgg)
-    print(f"{'after freezing':16} {_t:>14,} {_f:>14,}")
-    return (count,)
+    # restore the starting state so rerunning this cell gives the same comparison
+    vgg.requires_grad_(True)
+    _before = count(vgg)
+    frozen_vgg = vgg.requires_grad_(False)
+    _after = count(frozen_vgg)
+    _figure, _axis = plt.subplots(figsize=(9, 3), layout="constrained")
+    _trainable = [_before[0] / 1e6, _after[0] / 1e6]
+    _frozen = [_before[1] / 1e6, _after[1] / 1e6]
+    _axis.barh(
+        ["As loaded", "After freezing"], _trainable, color="#be843b", label="Trainable"
+    )
+    _axis.barh(
+        ["As loaded", "After freezing"],
+        _frozen,
+        left=_trainable,
+        color="#559bb8",
+        label="Frozen",
+    )
+    _axis.set_xlabel("Parameters (millions)")
+    _axis.legend(loc="upper center", bbox_to_anchor=(0.5, 1.25), ncol=2)
+    _axis.invert_yaxis()
+    plt.close(_figure)
+    _figure
+    return count, frozen_vgg
 
 
 @app.cell(hide_code=True)
@@ -328,36 +597,93 @@ def _(mo):
 
 
 @app.cell
-def _(count, nn, torch, vgg, vgg16):
-    N_CLASSES = 7
+def _(count, folder, frozen_vgg, mo, nn, plt, torch, vgg16):
+    N_CLASSES = len(folder.classes)
+    with torch.random.fork_rng():
+        torch.manual_seed(42)
+        stacked = nn.Sequential(frozen_vgg, nn.Linear(1000, N_CLASSES))
+        replaced = vgg16(weights=None)
+        replaced.requires_grad_(False)
+        replaced.classifier[6] = nn.Linear(4096, N_CLASSES)
+    stacked.eval()
+    replaced.eval()
 
-    # the repository's approach: stack on top of the 1000-class output
-    stacked = nn.Sequential(vgg, nn.Linear(1000, N_CLASSES))
-
-    # alternatively, replace the final layer to use its input features
-    replaced = vgg16(weights=None)
-    replaced.requires_grad_(False)
-    replaced.classifier[6] = nn.Linear(
-        4096, N_CLASSES
-    )  # a new layer is trainable by default
-
-    for _label, _model in [("stacked on top", stacked), ("head replaced ", replaced)]:
-        _t, _f = count(_model)
-        print(f"{_label}  trainable {_t:>9,}  frozen {_f:>12,}")
-
-    print()
-    print("what the new head actually receives:")
-    print("  stacked : 1000 outputs (ImageNet class scores with trained weights)")
-    print("  replaced: 4096 features from the layer before")
-    print()
-    sample = torch.randn(2, 3, 224, 224)
+    _figure, _axes = plt.subplots(2, 1, figsize=(12, 4.5), layout="constrained")
+    for _axis, _name, _stages in [
+        (
+            _axes[0],
+            "Stack a layer",
+            [
+                "Frozen VGG16",
+                "1000 scores",
+                f"Trainable Linear\n1000 → {N_CLASSES}",
+                f"{N_CLASSES} class scores",
+            ],
+        ),
+        (
+            _axes[1],
+            "Replace the head",
+            [
+                "Frozen VGG16\nup to classifier[5]",
+                "4096 features",
+                f"Trainable Linear\n4096 → {N_CLASSES}",
+                f"{N_CLASSES} class scores",
+            ],
+        ),
+    ]:
+        _axis.set_xlim(-0.6, 3.6)
+        _axis.set_ylim(-0.5, 0.5)
+        _axis.axis("off")
+        _axis.set_title(_name, loc="left")
+        for _i, _stage in enumerate(_stages):
+            _axis.text(
+                _i,
+                0,
+                _stage,
+                ha="center",
+                va="center",
+                bbox={
+                    "boxstyle": "round,pad=0.7",
+                    "facecolor": "#f4d9b4" if _i == 2 else "#dceaf0",
+                    "edgecolor": "#607080",
+                },
+            )
+            if _i < 3:
+                _axis.annotate(
+                    "",
+                    xy=(_i + 0.65, 0),
+                    xytext=(_i + 0.35, 0),
+                    arrowprops={"arrowstyle": "->"},
+                )
+    plt.close(_figure)
+    _sample = torch.zeros(2, 3, 224, 224)
     with torch.inference_mode():
-        print(
-            "both give the right output shape:",
-            tuple(stacked(sample).shape),
-            tuple(replaced(sample).shape),
-        )
-    return
+        stacked_output = stacked(_sample)
+        replaced_output = replaced(_sample)
+    mo.vstack(
+        [
+            _figure,
+            mo.ui.table(
+                [
+                    {
+                        "Approach": _name,
+                        "Trainable parameters": count(_model)[0],
+                        "Frozen parameters": count(_model)[1],
+                        "Output shape": str(tuple(_output.shape)),
+                    }
+                    for _name, _model, _output in [
+                        ("Stacked", stacked, stacked_output),
+                        ("Replaced", replaced, replaced_output),
+                    ]
+                ],
+                selection=None,
+            ),
+            mo.md(
+                f"Both produce one score per class: **{' · '.join(folder.classes)}**. The values are untrained scores, not useful predictions. Both models are in evaluation mode for the shape check."
+            ),
+        ]
+    )
+    return N_CLASSES, replaced, replaced_output, stacked, stacked_output
 
 
 @app.cell(hide_code=True)
