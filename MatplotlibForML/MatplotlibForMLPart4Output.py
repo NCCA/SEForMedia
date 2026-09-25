@@ -2,27 +2,19 @@
 
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    # Matplotlib for Machine Learning, Part 4: getting figures out
+    mo.md(r"""
+    # Matplotlib for Machine Learning, Part 4: saving figures
 
-    The last of the four, and the one covering the least-travelled ground in this unit.
+    In this final notebook we will save figures for reports and slides. We will look at file formats, figure size, shared settings and readability.
 
-    Some of it is already here. `Lecture5/IntroductionToNumpy.py:856` and `Lecture6/IntroductionToPandas.ipynb:193` both set `plt.rcParams["figure.figsize"]` and `figure.autolayout`, and `Lecture1/test.py` has a `style.use("ggplot")`. So the idea of setting defaults once is established.
-
-    What is missing entirely is **`savefig`** — there is not one call to it anywhere in the repository. Every figure in the unit is looked at in a notebook and then left there.
-
-    That matters because every student on this unit eventually has to put a figure in a report, and a figure that looked fine in a notebook usually does not survive the trip. The text comes out too small, the labels are cut off, the lines vanish when it is printed, and two of the series turn out to be the same colour for one reader in twelve.
-
-    Four topics: saving, sizing, setting defaults, and checking the result is readable.
-    """
-    )
+    A plot that works in a notebook may need some changes before we use it in a report. I check the saved file at its final size, paying attention to the labels, lines and colours.
+    """)
     return
 
 
@@ -48,8 +40,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [savefig](https://matplotlib.org/stable/api/figure_api.html#matplotlib.figure.Figure.savefig)
 
     ```python
@@ -57,17 +48,20 @@ def _(mo):
                 pad_inches=0.1, facecolor='auto', transparent=False)
     ```
 
-    | Parameter | Default | What it does |
-    | --- | --- | --- |
-    | `fname` | required | the format is taken from the extension |
-    | `dpi` | the figure's own | dots per inch for raster formats |
-    | `bbox_inches` | `None` | `'tight'` crops to the content, rescuing cut-off labels |
-    | `pad_inches` | `0.1` | margin left when cropping tight |
-    | `transparent` | `False` | transparent background, for slides |
+    These are the parameters we will use:
 
-    Two habits worth forming immediately. **`bbox_inches="tight"`** fixes the cut-off y-label, which is the most common fault in a submitted figure. And **save the `fig`, not `plt`** — `plt.savefig()` saves whatever the current figure happens to be, which is the state-machine trap from Part 1 with your coursework attached.
-    """
-    )
+    | Parameter | What it does |
+    | --- | --- |
+    | `fname` | output path; the extension normally selects the format |
+    | `dpi` | resolution for raster output |
+    | `bbox_inches` | use `'tight'` to fit the saved bounds around the content |
+    | `pad_inches` | padding in inches when using tight bounds |
+    | `transparent` | makes the background transparent, useful for slides |
+
+    I use `fig.savefig(...)` so it is clear which figure we are saving. `plt.savefig(...)` uses the current figure, which can be easy to lose track of when we have several plots.
+
+    The example saves the same training curve in several formats. The files go into a temporary directory, printed by the first code cell. Check the saved files for clipped labels, even when using `bbox_inches="tight"`.
+    """)
     return
 
 
@@ -94,42 +88,38 @@ def _(epochs, out_dir, plt, train, valid):
     for _f in sorted(out_dir.iterdir()):
         print(f"  {_f.name:14} {_f.stat().st_size / 1024:8.1f} KB")
     plt.show()
-    return (fig_save,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    ### Which format
-
-    | Format | Use it for | Why |
-    | --- | --- | --- |
-    | **PDF** or **SVG** | line plots, bar charts, anything in a written report | vector — scales to any size without going fuzzy, and the text stays selectable |
-    | **PNG** | images, dense scatter plots, anything with thousands of marks | raster — a fixed grid of pixels, so complexity does not inflate the file |
-    | **JPEG** | nothing here | lossy compression puts artefacts around sharp lines and text |
-
-    The rule is about what is in the figure. A training curve is a few hundred line segments and a vector file stays tiny and perfectly sharp at any zoom. A scatter of 50,000 points as a PDF is 50,000 individual objects, and will produce a file that takes ten seconds to render in a PDF viewer — that one wants PNG at 300 dpi.
-
-    `dpi=300` is the usual requirement for print. The screen default of 100 looks soft on paper.
-    """
-    )
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Size, and why the text ends up too small
+    mo.md(r"""
+    ### Choosing a format
 
-    `figsize` is in **inches** and `dpi` converts to pixels. A `figsize=(6, 4)` figure at `dpi=100` is 600x400 pixels; the same figure at `dpi=300` is 1800x1200 pixels of the same drawing.
+    | Format | Use | Notes |
+    | --- | --- | --- |
+    | PDF or SVG | line plots and bar charts | vector lines and text remain sharp when scaled |
+    | PNG | images and dense scatter plots | stores a fixed grid of pixels |
+    | JPEG | photographs | lossy compression can add artefacts around plot lines and text |
 
-    The thing that trips people up is what happens next. You save a 10-inch-wide figure, drop it into a report, and drag it down to fit a 3-inch column. Everything scales — including the text, which is now a third of the size you set it. That is why so many figures in dissertations have unreadable axis labels.
+    A training curve usually works well as a vector file. A dense scatter plot can produce a large vector file because it stores the individual marks. We will compare the output sizes in the exercises.
 
-    **Make the figure the size it will be printed at, and leave it alone.** If the column is 3.2 inches wide, set `figsize=(3.2, 2.4)` and raise `dpi` for quality rather than scaling afterwards. The font sizes then mean what they say.
-    """
-    )
+    For raster figures intended for print, 300 dpi is a useful starting point. Check the requirements for your report and inspect the result at the size you will use.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Figure size
+
+    `figsize` is measured in inches. Multiplying by `dpi` gives the pixel dimensions: a `(6, 4)` figure at 100 dpi is 600 by 400 pixels, whilst at 300 dpi it is 1800 by 1200. Cropping with `bbox_inches="tight"` can change the saved dimensions.
+
+    Resizing a figure in a report also resizes its text. A 10-inch figure reduced to a 3-inch column will have labels at roughly a third of their original size.
+
+    I set the figure width to match the space in the report before saving it. For a 3.2-inch column we could start with `figsize=(3.2, 2.4)`, then adjust the font sizes and spacing. Increasing the dpi adds pixels to raster output; it does not make the labels larger.
+    """)
     return
 
 
@@ -161,23 +151,21 @@ def _(epochs, out_dir, plt, train, valid):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [rcParams](https://matplotlib.org/stable/users/explain/customizing.html) and style sheets
 
     ```python
-    plt.rcParams["figure.dpi"] = 150          # one setting
-    plt.rcParams.update({...})                # several
-    plt.style.use("ggplot")                   # a whole preset
-    with plt.style.context("ggplot"):         # ...temporarily
+    plt.rcParams["figure.dpi"] = 150       # change one setting
+    plt.rcParams.update({...})           # change several settings
+    plt.style.use("ggplot")              # apply a style sheet
+    with plt.style.context("ggplot"):    # apply it within this block
         ...
     ```
 
-    `rcParams` is the dictionary of every default matplotlib uses. Setting things there once at the top of a notebook beats repeating `fontsize=` on every call, and it means every figure in a report matches.
+    `rcParams` holds Matplotlib's default settings. We can use it to set font sizes, line widths and figure sizes once, keeping the figures in a report consistent.
 
-    A set worth putting at the top of any notebook you will take figures out of:
-    """
-    )
+    The dictionary below is a starting point for these examples. Adjust it to suit the size and layout of your report.
+    """)
     return
 
 
@@ -187,13 +175,13 @@ def _(plt):
         "figure.figsize": (6, 3.5),
         "figure.dpi": 110,  # on screen
         "savefig.dpi": 300,  # on disk
-        "savefig.bbox": "tight",  # never cut off a label again
+        "savefig.bbox": "tight",  # fit the saved bounds to the content
         "font.size": 11,
         "axes.titlesize": 12,
         "axes.labelsize": 11,
         "axes.grid": True,
-        "grid.alpha": 0.3,  # recessive
-        "axes.spines.top": False,  # less frame, more data
+        "grid.alpha": 0.3,  # keep the grid faint
+        "axes.spines.top": False,  # hide the top border
         "axes.spines.right": False,
         "lines.linewidth": 2,
         "legend.frameon": False,
@@ -225,13 +213,11 @@ def _(SENSIBLE_DEFAULTS, epochs, plt, train, valid):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    `plt.rc_context(...)` as a context manager is the tidy way to do it — the settings apply inside the block and revert afterwards, so one figure with different rules does not leak into the rest of the notebook.
+    mo.md(r"""
+    We use `plt.rc_context(...)` to apply the settings within a block. When we leave the block, the previous settings are restored.
 
-    Style sheets are the same idea packaged. `plt.style.available` lists what is installed; `'ggplot'`, `'bmh'` and the `'seaborn-v0_8-*'` set are the common ones. A style changes appearance only, never data, so it is always safe to try.
-    """
-    )
+    Style sheets collect settings in the same way. `plt.style.available` lists the installed styles. Try one with `plt.style.context(...)`, then check the labels, contrast and spacing in the resulting figure.
+    """)
     return
 
 
@@ -246,17 +232,15 @@ def _(plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Checking a figure is actually readable
+    mo.md(r"""
+    ## Checking readability
 
-    Here is the part I would most like students to take away, because it is checkable rather than a matter of taste.
+    We need to be able to identify each series without relying on colour alone. Line styles, markers and labels also help when a figure is printed in greyscale.
 
-    Around **1 in 12 men and 1 in 200 women** have some form of colour vision deficiency, the commonest being deuteranopia — reduced sensitivity to green, which compresses the red-green axis. If two series in your figure are distinguished by colour alone, and those colours collapse together under that condition, the figure does not work for those readers. They will not tell you; they will just misread it.
+    The next cells use a simple colour vision simulation and compare colours in CIE Lab space. We will use the results to explore which pairs become more similar under the simulation.
 
-    You do not have to guess at this. Simulating it is about fifteen lines of arithmetic, and comparing the results is a distance in a perceptual colour space. The cell below does both, then runs it on matplotlib's default cycle.
-    """
-    )
+    This is an approximate demonstration. The distances are useful for comparison, but a single threshold cannot tell us whether a complete figure is readable. Line width, background and the size of the marks also matter.
+    """)
     return
 
 
@@ -283,7 +267,7 @@ def _(np, plt):
     }
 
     def simulate_cvd(rgb, kind):
-        """What this colour looks like to someone with that colour vision deficiency."""
+        """Approximate an RGB colour using the selected colour vision simulation."""
         lms = _to_linear(rgb) @ RGB_TO_LMS.T
         return _to_srgb((lms @ CVD[kind].T) @ LMS_TO_RGB.T)
 
@@ -307,7 +291,7 @@ def _(np, plt):
         )
 
     def delta_e(a, b):
-        """Perceptual distance. Below about 10, two colours are hard to tell apart."""
+        """Return the Euclidean distance between two colours in CIE Lab space."""
         return float(np.linalg.norm(to_lab(a) - to_lab(b)))
 
     cycle_rgb = np.array(
@@ -331,26 +315,20 @@ def _(cycle_rgb, delta_e, simulate_cvd):
                 simulate_cvd(cycle_rgb[_i], "deuteranopia"),
                 simulate_cvd(cycle_rgb[_j], "deuteranopia"),
             )
-            _flag = "  <-- collapses" if _d < 10 else ""
+            _flag = "  <-- inspect this pair" if _d < 10 else ""
             print(f"C{_i}-C{_j}    {_n:8.1f} {_d:14.1f}{_flag}")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    There it is. **C2 and C3 — matplotlib's green and red, the third and fourth colours you get for free — are 120 apart normally and about 8 apart under deuteranopia.** A four-series plot drawn with the defaults has two lines that a colourblind reader cannot reliably separate, and nothing in the notebook hints at it.
+    mo.md(r"""
+    Compare the distances for the original colours with those from the simulation. Smaller distances mean the colours are closer together in this calculation.
 
-    Three ways to deal with it, in order of preference:
+    We can try a different palette, reorder the colours, or distinguish the lines using markers and line styles. I would use line styles or markers alongside colour when the series need to be easy to identify.
 
-    1. **Pick a palette designed for it.** The Okabe-Ito set is the standard one and it is eight colours that stay separated under both common deficiencies.
-    2. **Do not rely on colour alone.** Vary the line style or marker too, so identity is carried twice. This also survives a black-and-white printer, which is the other reason to do it.
-    3. **Reorder the default cycle** so the colours you actually use are the ones that separate — `C0, C1, C5, C6` scores far better than `C0` to `C3`.
-
-    The cell below measures all three against the default.
-    """
-    )
+    The next cell compares the default cycle, a reordered selection and seven colours from the Okabe-Ito palette. It measures colour distances only; we will add a dashed line in the plot afterwards. The threshold of 10 used above is an example flag for inspection, not a pass or fail test.
+    """)
     return
 
 
@@ -387,14 +365,16 @@ def _(cycle_rgb, delta_e, np, plt, simulate_cvd):
         f"{'Okabe-Ito, all 7 (protanopia)':34} {worst_pair(okabe_rgb, 'protanopia'):>30.1f}"
     )
     print()
-    print("Below about 10 is a collision. Okabe-Ito stays above 17 for all seven,")
-    print("under both deficiencies - which is why it is the one to reach for.")
+    print("Compare the smallest colour distances for each palette above.")
+    print(
+        "Check the plotted lines as well, using markers or line styles to identify them."
+    )
     return (OKABE_ITO,)
 
 
 @app.cell
 def _(OKABE_ITO, epochs, np, plt, rng, train, valid):
-    # making it the default for a notebook is one line
+    # apply the colour cycle within this block
     with plt.rc_context(
         {"axes.prop_cycle": plt.cycler(color=OKABE_ITO), "lines.linewidth": 2}
     ):
@@ -418,24 +398,22 @@ def _(OKABE_ITO, epochs, np, plt, rng, train, valid):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    Note the dashed baseline in that figure. That is point 2 — the line style distinguishes it whatever happens to the colour, and it is the single cheapest robustness measure available.
+    mo.md(r"""
+    The dashed baseline gives us another way to identify that series. Try giving each line a different style or marker, then check the figure in greyscale.
 
     ## Backends
 
     ```python
     import matplotlib
-    matplotlib.use("Agg")      # before importing pyplot
+    matplotlib.use("Agg")      # select the backend before importing pyplot
     ```
 
-    A backend is what matplotlib draws onto. Interactive ones open a window; `Agg` renders to a memory buffer and is what you want in a script, on a headless machine, or anywhere there is no display — a lab batch job, or a training run on a remote GPU.
+    The backend handles rendering. Interactive backends can open plot windows. `Agg` renders raster images without a display, which is useful for batch jobs and training scripts on a remote machine.
 
-    There are three `matplotlib.use` calls in this repository, which is the right instinct. The rule is that it must come **before** `import matplotlib.pyplot`, because the backend is chosen when pyplot is first imported.
+    When selecting a backend explicitly, put `matplotlib.use(...)` before importing `matplotlib.pyplot`. With `Agg`, use `savefig` to write the output; `plt.show()` will not open a plot window.
 
-    Note the output of the cell below: these notebooks are themselves running under `Agg` when exported to a script, which is why `plt.show()` produces nothing there and the figures only appear in marimo.
-    """
-    )
+    Notebook tools can handle figure display themselves. The next cell prints the backend used by this session.
+    """)
     return
 
 
@@ -444,7 +422,9 @@ def _(matplotlib):
     print("current backend:", matplotlib.get_backend())
     print()
     print(
-        "some that exist here:", sorted(set(matplotlib.rcsetup.all_backends))[:8], "..."
+        "some built-in backends:",
+        sorted(matplotlib.backends.backend_registry.list_builtin())[:8],
+        "...",
     )
     print()
     print("Agg           - headless, writes files. The safe choice in a script.")
@@ -454,37 +434,33 @@ def _(matplotlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## A checklist
+    mo.md(r"""
+    ## Checking the saved figure
 
-    Before a figure goes in a report:
+    Before adding a figure to a report, I check the following:
 
-    - [ ] every axis has a label, **with units**
-    - [ ] the figure is the size it will be printed at, not scaled afterwards
-    - [ ] font sizes are readable at that size — 8pt minimum, and check it on paper
-    - [ ] saved with `bbox_inches="tight"`, so nothing is cut off
-    - [ ] vector (PDF/SVG) unless it has thousands of marks in it
-    - [ ] two or more series means a legend
-    - [ ] colour is not the only thing distinguishing series — line style or marker too
-    - [ ] a sequential colormap for magnitude, a qualitative one for categories, never `jet`
-    - [ ] a colorbar wherever colour encodes a number, with a label
-    - [ ] bar charts start at zero
-    - [ ] no second y-axis
-    - [ ] compared images share `vmin` and `vmax`
-    - [ ] the caption says what the reader should conclude, not just what is plotted
+    - Label the axes and include units where they apply.
+    - Inspect the figure at its final size, including the smallest text.
+    - Check that labels and legends are inside the saved bounds.
+    - Choose a file format and resolution suited to the content.
+    - Identify each series with a legend or direct labels.
+    - Use line styles or markers as well as colour where needed.
+    - Choose a colourmap that matches the data, and label the colourbar for numerical values.
+    - Start bar chart value axes at zero so bar lengths represent the values.
+    - Check that axes and scales make comparisons clear; separate plots may be easier to read than a second y-axis.
+    - Share `vmin` and `vmax` when comparing images on the same numerical scale.
+    - Write a caption that explains what the figure shows and why it matters.
 
     ## Exercises
 
-    1. Save the same training curve as PDF and as PNG at 72, 150 and 300 dpi. Compare the file sizes, then zoom to 400% on each.
-    2. Make a scatter of 50,000 points and save it both ways. How long does the PDF take to open?
-    3. Build an rcParams dictionary for your dissertation template — measure the column width first.
-    4. Run the CVD check on a five-series figure of your own. If any pair is below 10, fix it and re-run.
-    5. Take a figure you have already submitted for something and put it through the checklist. How many items does it fail?
+    1. Save the training curve as PDF and as PNG at 72, 150 and 300 dpi. Compare file sizes and view each at 400% zoom.
+    2. Save a scatter plot of 50,000 points as PDF and PNG. Compare the file sizes and the time taken to open them.
+    3. Build an `rcParams` dictionary for your report template. Measure the column width first.
+    4. Run the colour simulation on a five-series plot. Inspect the closest pairs, then add line styles or markers and check the result in greyscale.
+    5. Review a figure from an earlier piece of work using the checks above. Save a revised version and compare the two at their final size.
 
-    That is the matplotlib set, and the end of the four groups. Between `NumPyForML/`, `PyTorchForML/`, `TorchVisionForML/` and these, you have the libraries the machine learning demos in this repository are built from.
-    """
-    )
+    This completes the Matplotlib notebooks. We use these plotting tools alongside `NumPyForML/`, `PyTorchForML/` and `TorchVisionForML/` in the machine learning examples.
+    """)
     return
 
 
