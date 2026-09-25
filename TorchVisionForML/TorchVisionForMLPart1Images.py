@@ -27,6 +27,7 @@ def _(mo):
 
 @app.cell
 def _():
+    import matplotlib.pyplot as plt
     import torch
     import torchvision
     import torchvision.io as tv_io
@@ -35,7 +36,34 @@ def _():
 
     torch.manual_seed(42)
     print("torchvision", torchvision.__version__)
-    return make_grid, to_pil_image, torch, tv_io
+    return make_grid, plt, to_pil_image, torch, tv_io
+
+
+@app.cell
+def _(plt, torch):
+    def show_images(images: list[tuple[str, torch.Tensor]]):
+        """Draw CHW tensors using their supplied values, without rescaling floats."""
+        figure, axes = plt.subplots(
+            1, len(images), figsize=(4 * len(images), 3.5), squeeze=False
+        )
+        for axis, (title, tensor) in zip(axes[0], images):
+            data = tensor.detach().cpu()
+            if data.shape[0] == 1:
+                axis.imshow(
+                    data[0],
+                    cmap="gray",
+                    vmin=0,
+                    vmax=255 if data.dtype == torch.uint8 else 1,
+                )
+            else:
+                axis.imshow(data.permute(1, 2, 0))
+            axis.set_title(title)
+            axis.set_axis_off()
+        figure.tight_layout()
+        plt.close(figure)
+        return figure
+
+    return (show_images,)
 
 
 @app.cell(hide_code=True)
@@ -95,6 +123,44 @@ def _(torch):
     print()
     print("we will use the green square near the top left to check the layout")
     return H, W, test_image, work_dir
+
+
+@app.cell
+def _(show_images, test_image, torch):
+    _panels = [("Generated RGB image", test_image)]
+    for _index, _name in enumerate(
+        ["Red: downwards", "Green: square", "Blue: rightwards"]
+    ):
+        _channel = torch.zeros_like(test_image)
+        _channel[_index] = test_image[_index]
+        _panels.append((_name, _channel))
+    show_images(_panels)
+    return
+
+
+@app.cell
+def _(mo):
+    channel_order = mo.ui.dropdown(
+        ["RGB", "BGR", "GRB"], value="RGB", label="Channel order"
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "Swap the channels and watch the colours change. The pixel positions stay the same."
+            ),
+            channel_order,
+        ]
+    )
+    return (channel_order,)
+
+
+@app.cell
+def _(channel_order, show_images, test_image):
+    _indices = ["RGB".index(_letter) for _letter in channel_order.value]
+    show_images(
+        [("Original RGB", test_image), (channel_order.value, test_image[_indices])]
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -157,7 +223,27 @@ def _(H, W, test_image, to_pil_image, torch, tv_io, work_dir):
         "  as greyscale  ",
         tuple(tv_io.read_image(str(rgb_path), mode=ImageReadMode.GRAY).shape),
     )
-    return (rgb_path,)
+    return rgb_path, rgba_tensor
+
+
+@app.cell
+def _(rgb_path, rgba_tensor, show_images, test_image, torch, tv_io):
+    _rgb = tv_io.read_image(str(rgb_path), mode=tv_io.ImageReadMode.RGB)
+    _grey = tv_io.read_image(str(rgb_path), mode=tv_io.ImageReadMode.GRAY)
+    _alpha = rgba_tensor[3:].float() / 255
+    _foreground = rgba_tensor[:3].float() / 255
+    _white = _foreground * _alpha + (1 - _alpha)
+    _black = _foreground * _alpha
+    assert torch.equal(test_image, _rgb)
+    show_images(
+        [
+            ("PNG round trip: identical", _rgb),
+            ("Read as greyscale", _grey),
+            ("Alpha 128 over white", _white),
+            ("Alpha 128 over black", _black),
+        ]
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -200,7 +286,7 @@ def _(mo):
 
 
 @app.cell
-def _(rgb_path, to_pil_image, tv_io):
+def _(mo, plt, rgb_path, to_pil_image, tv_io):
     loaded = tv_io.read_image(str(rgb_path))
 
     pil_version = to_pil_image(loaded)
@@ -221,6 +307,14 @@ def _(rgb_path, to_pil_image, tv_io):
         loaded[:, 60, 90].tolist(),
         "<- red and blue high, green low",
     )
+    _figure, _axis = plt.subplots(figsize=(4, 3))
+    _axis.imshow(for_matplotlib)
+    _axis.set_title("Matplotlib: HWC")
+    _axis.set_axis_off()
+    plt.close(_figure)
+    mo.hstack(
+        [mo.vstack([mo.md("**PIL: RGB**"), mo.image(pil_version, width=300)]), _figure]
+    )
     return (loaded,)
 
 
@@ -231,13 +325,13 @@ def _(mo):
 
     Our tensor has shape `(3, 64, 96)`. Passing it directly to `imshow` would put 96 in the channel position, so Matplotlib rejects it. RGB and RGBA inputs need three or four channels in the last dimension, as described in the [imshow documentation](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html).
 
-    The next cell prints the two shapes. This is a useful check before looking for a problem in the image data.
+    The next cell shows the correct layout alongside a tempting mistake: using `reshape` instead of `permute`. Reshaping changes which values belong to each pixel. It does not reorder the axes.
     """)
     return
 
 
 @app.cell
-def _(loaded):
+def _(loaded, plt, show_images):
     print("what imshow would try to draw, given each:")
     print(
         "  correct (permuted):",
@@ -246,7 +340,20 @@ def _(loaded):
     )
     print("  forgotten permute :", tuple(loaded.shape), "-> 3 x 64, 96 'channels'")
     print()
-    print("imshow rejects this CHW input: the last dimension must have 3 or 4 channels")
+    _figure, _axis = plt.subplots()
+    try:
+        _axis.imshow(loaded)
+    except TypeError as _error:
+        print("Actual imshow error:", _error)
+    finally:
+        plt.close(_figure)
+    _reshaped = loaded.reshape(loaded.shape[1], loaded.shape[2], 3)
+    show_images(
+        [
+            ("Correct: permute", loaded),
+            ("Wrong: reshape to HWC", _reshaped.permute(2, 0, 1)),
+        ]
+    )
     return
 
 
@@ -263,7 +370,7 @@ def _(mo):
 
 
 @app.cell
-def _(loaded, torch):
+def _(loaded, show_images, torch):
     as_float_unscaled = loaded.to(
         torch.float32
     )  # converting the type leaves the range unchanged
@@ -289,6 +396,13 @@ def _(loaded, torch):
     print()
     print("fraction of colour components above the floating point display range:")
     print(f"  {(as_float_unscaled > 1.0).float().mean().item():.1%}")
+    show_images(
+        [
+            ("uint8: 0–255", loaded),
+            ("Unscaled float: clipped to 0–1", as_float_unscaled.clamp(0, 1)),
+            ("Float divided by 255", as_float_scaled),
+        ]
+    )
     return
 
 
@@ -311,21 +425,36 @@ def _(mo):
 
     `make_grid` arranges a batch into a single image. I use this when checking several samples together, particularly after augmentation.
 
-    `nrow` is the number of images in each row. The example below arranges twelve images in three rows of four. The result is still `CHW`, so we need to reorder it before plotting.
+    `nrow` is the number of images in each row. Change the controls below to rearrange twelve images and adjust the gaps between them. The result is still `CHW`, so we need to reorder it before plotting.
     """)
     return
 
 
 @app.cell
-def _(loaded, make_grid, torch):
+def _(mo):
+    images_per_row = mo.ui.slider(
+        1, 12, value=4, label="Images per row", show_value=True
+    )
+    grid_padding = mo.ui.slider(
+        0, 12, value=4, label="Padding (pixels)", show_value=True
+    )
+    mo.hstack([images_per_row, grid_padding])
+    return grid_padding, images_per_row
+
+
+@app.cell
+def _(grid_padding, images_per_row, loaded, make_grid, show_images, torch):
     batch = torch.stack([loaded] * 12)
     print("a batch of 12:", tuple(batch.shape))
 
-    grid = make_grid(batch, nrow=4, padding=4, pad_value=255)
-    print("as a grid:    ", tuple(grid.shape), "- one image, 3 rows of 4")
+    grid = make_grid(
+        batch, nrow=images_per_row.value, padding=grid_padding.value, pad_value=255
+    )
+    print("as a grid:    ", tuple(grid.shape), "- one CHW image")
     print()
     print("still CHW, so it needs the same permute before plotting:")
     print("  ", tuple(grid.permute(1, 2, 0).shape))
+    show_images([("Batch of twelve images", grid)])
     return
 
 
@@ -342,7 +471,7 @@ def _(mo):
 
 
 @app.cell
-def _(H, W, loaded, make_grid, torch):
+def _(H, W, loaded, make_grid, plt, torch):
     def to_displayable(img: torch.Tensor) -> torch.Tensor:
         """
         Prepare the example images for display with imshow.
@@ -375,18 +504,78 @@ def _(H, W, loaded, make_grid, torch):
             return img.squeeze(0).clamp(0, 1)
         return img.permute(1, 2, 0).clamp(0, 1)
 
-    for label, candidate in [
-        ("uint8 CHW      ", loaded),
-        ("float 0-255    ", loaded.float()),
-        ("float 0-1      ", loaded.float() / 255),
-        ("greyscale      ", loaded[:1]),
-        ("a batch of 5   ", torch.stack([loaded] * 5)),
-    ]:
+    _figure, _axes = plt.subplots(1, 5, figsize=(16, 3))
+    for _axis, (label, candidate) in zip(
+        _axes,
+        [
+            ("uint8 CHW      ", loaded),
+            ("float 0-255    ", loaded.float()),
+            ("float 0-1      ", loaded.float() / 255),
+            ("greyscale      ", loaded[:1]),
+            ("a batch of 5   ", torch.stack([loaded] * 5)),
+        ],
+    ):
         out = to_displayable(candidate)
-        print(f"{label} -> {str(tuple(out.shape)):18} {out.dtype}  max {out.max():.3f}")
+        _axis.imshow(out, cmap="gray", vmin=0, vmax=1)
+        _axis.set_title(label.strip())
+        _axis.set_axis_off()
+        print(f"{label} -> {tuple(out.shape)!s:18} {out.dtype}  max {out.max():.3f}")
 
     print()
     print(f"(the source image was {H} x {W})")
+    _figure.tight_layout()
+    plt.close(_figure)
+    _figure
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## JPEG compression
+
+    PNG preserved every value. JPEG trades some detail for a smaller file. Move the quality slider and look at the green square and the gradients. We subtract floating point values so negative differences cannot wrap around as they would with `uint8`.
+
+    The heatmap shows the largest absolute channel difference at each pixel, using a fixed 0–255 scale so we can compare settings. The mean and maximum below help us spot smaller changes.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    jpeg_quality = mo.ui.slider(1, 100, value=10, label="JPEG quality", show_value=True)
+    jpeg_quality
+    return (jpeg_quality,)
+
+
+@app.cell
+def _(jpeg_quality, loaded, mo, plt, tv_io):
+    _encoded = tv_io.encode_jpeg(loaded, quality=jpeg_quality.value)
+    _decoded = tv_io.decode_jpeg(_encoded)
+    _difference = (loaded.float() - _decoded.float()).abs()
+    _figure, _axes = plt.subplots(1, 3, figsize=(12, 3.5))
+    for _axis, _title, _image in zip(
+        _axes[:2],
+        ["Original", f"JPEG quality {jpeg_quality.value}"],
+        [loaded, _decoded],
+    ):
+        _axis.imshow(_image.permute(1, 2, 0))
+        _axis.set_title(_title)
+        _axis.set_axis_off()
+    _heatmap = _axes[2].imshow(_difference.amax(dim=0), cmap="magma", vmin=0, vmax=255)
+    _axes[2].set_title("Largest channel difference")
+    _axes[2].set_axis_off()
+    _figure.colorbar(_heatmap, ax=_axes[2], label="Difference (0–255)")
+    _figure.tight_layout()
+    plt.close(_figure)
+    mo.vstack(
+        [
+            _figure,
+            mo.md(
+                f"JPEG: **{_encoded.numel():,} bytes**; mean absolute channel difference: **{_difference.mean():.2f}**; maximum: **{_difference.max():.0f}**."
+            ),
+        ]
+    )
     return
 
 
