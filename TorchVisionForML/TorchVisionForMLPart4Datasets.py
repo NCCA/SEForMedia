@@ -2,23 +2,19 @@
 
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # torchvision for Machine Learning, Part 4: datasets and pre-trained models
 
-    The last of the four. Two halves: getting a folder of images into a `Dataset` without writing one yourself, and using a model somebody else already trained.
+    We will finish by loading images from class folders and preparing a model for transfer learning. This follows the approach used in the `PreTrainedModels/` demos.
 
-    The second half is what `PreTrainedModels/` in this repository is about, and it is the most practical thing in the whole unit. Training VGG16 from scratch on ImageNet takes a few GPU-weeks. Downloading those weights and fitting a new head onto them takes a few minutes, and for most problems you will meet it works better than anything you could train from scratch on the data you have.
-
-    Nothing here downloads weights — I build the architectures with `weights=None` so it runs offline. The parts that need the real weights are marked.
-    """
-    )
+    I use `weights=None` in the runnable cells so we can inspect the architecture without downloading weights. These models are randomly initialised: they show the structure and tensor shapes, but do not give useful predictions. The code snippets show where to request pre-trained weights when we want to train a new classifier.
+    """)
     return
 
 
@@ -35,8 +31,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [ImageFolder](https://pytorch.org/vision/stable/generated/torchvision.datasets.ImageFolder.html)
 
     ```python
@@ -51,17 +46,21 @@ def _(mo):
     | `target_transform` | `None` | applied to each label |
     | `loader` | `default_loader` | PIL by default; swap for `read_image` if you prefer tensors |
 
-    If your data is laid out as one folder per class, this replaces the whole `Dataset` subclass from `PyTorchForML` Part 5:
+    `ImageFolder` gives us a dataset when the images are arranged in one directory per class:
 
     ```
     train/
-        cats/  img001.jpg  img002.jpg ...
-        dogs/  img001.jpg ...
+        cats/
+            img001.jpg
+            img002.jpg
+        dogs/
+            img001.jpg
     ```
 
-    **The class ordering is alphabetical, not the order you think of them in.** `ImageFolder` sorts the directory names and assigns indices in that order, which it records in `class_to_idx`. That mapping is how prediction index 3 becomes a class name, and it has to be the same at training and at inference time — so save it alongside the model, or read it from the same folder structure both times. Getting it wrong gives you a model that appears to work and names everything incorrectly.
-    """
-    )
+    It sorts the directory names and records the label mapping in `class_to_idx`. We need that same mapping when interpreting predictions, so save it with the model.
+
+    The next cell creates three folders in a different order from their names. Check the indices assigned by `ImageFolder`, then compare the samples with and without a transform.
+    """)
     return
 
 
@@ -114,56 +113,47 @@ def _(datasets, folder, root, torch, v2):
     print()
     print("without one, you get a PIL image:", type(folder[0][0]).__name__)
     print()
-    print("save this with the model, or predictions are meaningless:")
+    print("save this mapping with the model so we can name its predictions:")
     print("  ", with_transform.class_to_idx)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### The built-in datasets
+    mo.md(r"""
+    ### Built-in datasets
 
     ```python
     datasets.MNIST(root, train=True, transform=None, download=False)
     datasets.CIFAR10(root, train=True, transform=None, download=False)
-    datasets.FashionMNIST(...)
     ```
 
-    torchvision ships loaders for the standard research datasets. `download=True` fetches and unpacks on first use and is a no-op afterwards, which is why it is safe to leave on.
+    For these datasets, `download=True` fetches the files if a valid local copy is missing. In a lab without network access we need to prepare the data first and point `root` at it.
 
-    `download=True` needs the network, so the first run in a lab with no outbound access fails — point `root` at a shared copy instead. `Utils/functions.py` in this repository has `in_lab()` and a `download` helper for exactly that reason.
-
-    The MNIST material here does it both ways, and the order is worth noticing. `ReadDigitsTraining` reads the raw IDX files by hand with `np.fromfile`, pulling the header apart and reshaping the byte stream into images. `TheMNISTDataSet` then uses `datasets.MNIST(..., download=True)` and gets the same data in one line.
-
-    That sequence is the right way round. Do the convenience loader first and the byte layout never gets looked at; do it second and it is obviously a convenience rather than magic. Which is the general argument for the raw version of anything in a teaching context.
-    """
-    )
+    The examples in `MNIST/` show both reading the IDX files with NumPy and using `datasets.MNIST`. I like to look at the file layout first so we can see what the dataset loader is doing for us.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## The weights API
+    mo.md(r"""
+    ## Choosing weights
 
     ```python
     from torchvision.models import vgg16, VGG16_Weights
 
-    weights = VGG16_Weights.DEFAULT          # or .IMAGENET1K_V1 to pin a version
-    model = vgg16(weights=weights)           # downloads on first use
-    model = vgg16(weights=None)              # the architecture, randomly initialised
+    weights = VGG16_Weights.DEFAULT
+    model = vgg16(weights=weights)  # downloads the weights if they are not cached
+    model = vgg16(weights=None)    # randomly initialised parameters
     ```
 
-    `PreTrainedModelsPart1Marimo.py:75` does exactly this. Two things worth knowing about the API.
+    The weights enum identifies a set of trained parameters. Older examples may use `pretrained=True`; the weights API lets us select a particular version instead.
 
-    First, it replaced an older one. You will find plenty of code and tutorials written as `vgg16(pretrained=True)`. That is deprecated — it worked when each architecture had exactly one set of weights, and broke down once torchvision started shipping improved retrainings of the same architectures.
+    `DEFAULT` is an alias and may change between torchvision releases. For an experiment we need to reproduce, record the library version and the explicit weights member, such as `VGG16_Weights.IMAGENET1K_V1`.
 
-    Second, `DEFAULT` is not a fixed thing. It means "the best currently available weights for this architecture", so it can change when you upgrade torchvision, and your results change with it. For teaching that is a feature — students get the good weights without choosing. For anything you need to reproduce in six months, pin the version explicitly.
-    """
-    )
+    The next cell reads the enum's metadata without loading the weights.
+    """)
     return
 
 
@@ -182,23 +172,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### weights.transforms() — the part worth the price of admission
+    mo.md(r"""
+    ### Preprocessing from the weights
 
     ```python
     pre_trans = weights.transforms()
     ```
 
-    **The weights carry their own preprocessing.** This is the single most useful thing in the torchvision models API and the easiest to miss.
+    The weights object provides the preprocessing for inference. This includes the resize, crop, type conversion and normalisation expected by that set of weights. I use this preset so the preprocessing stays tied to the model we have selected.
 
-    A pre-trained network is only valid on inputs prepared exactly as its training data was — the same resize, the same crop, the same normalisation constants. Get the normalisation wrong and the model still runs and still produces confident-looking predictions; they are just worse, quietly, with nothing to indicate why.
-
-    Rather than expecting you to look those up, the weights object builds the correct pipeline for you. `PreTrainedModelsPart1Marimo.py:110` uses it, and every ImageNet model you load should.
-
-    Note it also means you do not need to remember `[0.485, 0.456, 0.406]` at all — which is the honest answer to why that magic number appears in so many tutorials without explanation.
-    """
-    )
+    The next cells print the VGG16 preset and apply it to a generated image. Creating the preset does not download the model weights.
+    """)
     return
 
 
@@ -207,9 +191,9 @@ def _(VGG16_Weights):
     preset = VGG16_Weights.DEFAULT.transforms()
     print(preset)
     print()
-    print("that is Resize(256) + CenterCrop(224) + the ImageNet normalisation,")
-    print("which is precisely the recipe we wrote out by hand in Part 2 -")
-    print("except this one is guaranteed to match the weights.")
+    print("the preset includes resizing, centre cropping and normalisation.")
+    print("compare its settings with the pipeline from Part 2.")
+    print("here the weights object supplies the settings.")
     return (preset,)
 
 
@@ -229,13 +213,13 @@ def _(preset, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### weights.meta
+    mo.md(r"""
+    ### Class names and metadata
 
-    The weights also carry their metadata, including the class names — so you can turn an output index into a label without shipping a separate file of 1000 strings.
-    """
-    )
+    `weights.meta` includes the original class names and information about the trained model. For the ImageNet classifier we can use the predicted index to look up a name in `categories`.
+
+    Once we replace the classifier for our own dataset, we need our own class mapping instead.
+    """)
     return
 
 
@@ -258,20 +242,15 @@ def _(VGG16_Weights):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Transfer learning
 
-    The idea: a network trained on ImageNet has learned, in its early layers, generic visual features — edges, textures, repeated patterns — that are useful for almost any image task. Only the last layers are specific to "which of these 1000 ImageNet classes is this". So keep the early layers, replace the end, and train only the new part on your data.
+    A model trained on a large image dataset can provide useful features for another task. We can keep those layers and train a new classifier on our own classes. How well this works depends on the images and the task.
 
-    Two things have to happen:
+    For the example below we will freeze the existing parameters, then add a trainable output layer. This is one approach to transfer learning; we can also fine-tune some of the existing layers later.
 
-    1. **Replace the head** so the output has your number of classes
-    2. **Freeze the rest** so training does not destroy the features you came for
-
-    Let me build the architecture first — `weights=None` so this runs offline, but the shapes are identical to the real thing.
-    """
-    )
+    First we build VGG16 with `weights=None` and inspect its parts. Remember that this version has no learned features to transfer.
+    """)
     return
 
 
@@ -279,7 +258,9 @@ def _(mo):
 def _():
     from torchvision.models import vgg16
 
-    vgg = vgg16(weights=None)  # weights=VGG16_Weights.DEFAULT for the real thing
+    vgg = vgg16(
+        weights=None
+    )  # use weights=VGG16_Weights.DEFAULT to load trained parameters
 
     print("VGG16 has three top-level parts:")
     for part_name, part in vgg.named_children():
@@ -293,19 +274,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Freezing with [requires_grad_](https://pytorch.org/docs/stable/generated/torch.nn.Module.requires_grad_.html)
 
     ```python
     model.requires_grad_(False)
     ```
 
-    Sets `requires_grad = False` on every parameter in the module tree. Those tensors stop being tracked by autograd, get no gradients, and so cannot be changed by the optimiser. Note the trailing underscore — it is an in-place operation, like `zero_()`.
+    This sets `requires_grad=False` on the module's parameters. We call it before training so autograd does not accumulate gradients for them. The trailing underscore indicates that the method changes the module in place.
 
-    `TransferLearningMarimo.py` calls `vgg_model.requires_grad_(False)` before training. The saving is real: on VGG16 it takes the trainable parameter count from 138 million to whatever your new head has.
-    """
-    )
+    The next cell counts trainable and frozen parameters before and after the call. Freezing parameters is separate from `eval()`, which changes the behaviour of layers such as dropout. Use evaluation mode when checking predictions.
+    """)
     return
 
 
@@ -328,25 +307,23 @@ def _(vgg):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### Two ways to attach a head
+    mo.md(r"""
+    ### Adding a classifier
 
-    This repository takes the simpler route. `TransferLearningMarimo.py` keeps the whole VGG, including its 1000-class ImageNet classifier, and stacks a new layer on the end:
+    The transfer learning demo adds a layer after VGG's existing output:
 
     ```python
     dog_model = nn.Sequential(vgg_model, nn.Linear(1000, N_CLASSES))
     ```
 
-    The more usual approach replaces VGG's final layer instead, so the new head sees the 4096-dimensional features rather than the 1000 class scores:
+    That layer receives the 1000 class scores. We can instead replace VGG's final layer:
 
     ```python
     vgg.classifier[6] = nn.Linear(4096, N_CLASSES)
     ```
 
-    Both work and the first is easier to explain, which is a fair reason to teach it. But it is worth being clear with students about what the difference costs. In the stacked version, everything your new layer knows about the image has been squeezed through "how much does this look like each of 1000 ImageNet categories". If your classes are ImageNet-like — breeds of dog, say, which the demo is — that is a decent summary and it works fine. If they are not — X-rays, circuit boards, hand signs — a lot of relevant information has already been thrown away, and the replacement approach will do better.
-    """
-    )
+    The replacement receives the 4096 features from the previous layer. We will build both versions, count their trainable parameters and check their output shapes. Comparing their accuracy would require pre-trained weights and a training run on the same dataset.
+    """)
     return
 
 
@@ -357,7 +334,7 @@ def _(count, nn, torch, vgg, vgg16):
     # the repository's approach: stack on top of the 1000-class output
     stacked = nn.Sequential(vgg, nn.Linear(1000, N_CLASSES))
 
-    # the usual approach: replace VGG's final layer
+    # alternatively, replace the final layer to use its input features
     replaced = vgg16(weights=None)
     replaced.requires_grad_(False)
     replaced.classifier[6] = nn.Linear(
@@ -370,7 +347,7 @@ def _(count, nn, torch, vgg, vgg16):
 
     print()
     print("what the new head actually receives:")
-    print("  stacked : 1000 ImageNet class scores")
+    print("  stacked : 1000 outputs (ImageNet class scores with trained weights)")
     print("  replaced: 4096 features from the layer before")
     print()
     sample = torch.randn(2, 3, 224, 224)
@@ -385,27 +362,24 @@ def _(count, nn, torch, vgg, vgg16):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    One detail in that cell worth pointing out. A newly created `nn.Linear` has `requires_grad=True`, so assigning it *after* freezing gives you a frozen backbone and a trainable head with no extra work. Do it in the other order — create the head, then call `requires_grad_(False)` on the whole model — and you freeze your new layer too, so nothing trains at all. The loss sits perfectly flat, which at least makes it easy to spot.
+    mo.md(r"""
+    We add the new `nn.Linear` after freezing the existing model. Its parameters are trainable by default. If we freeze the whole model after adding it, we freeze the new layer too.
 
-    It is also worth passing only the trainable parameters to the optimiser:
+    We can pass just the trainable parameters to the optimiser:
 
     ```python
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
     ```
 
-    `TransferLearningMarimo.py` passes `dog_model.parameters()` — all of them — which works, because frozen parameters have no gradient and Adam leaves them alone. But the filtered version says what you mean, and it avoids Adam allocating optimiser state for 138 million parameters it will never update.
-    """
-    )
+    This makes our choice explicit. Passing all the parameters also works here: the frozen parameters have no gradients, and [Adam skips parameters whose gradient is None](https://github.com/pytorch/pytorch/blob/main/torch/optim/adam.py). It does not allocate per-parameter state for them. If we change what is frozen during training, we also need to consider existing gradients and optimiser state.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## The whole thing
+    mo.md(r"""
+    ## Preparing a training run
 
     ```python
     from torch import nn, optim
@@ -426,21 +400,20 @@ def _(mo):
     loss_fn = nn.CrossEntropyLoss()
     ```
 
-    Then the training loop from `PyTorchForML` Part 2, unchanged.
+    Set `N_CLASSES` and `device` for your task, then use the training loop from the PyTorch notebooks. This snippet downloads the weights if needed; the runnable examples above do not.
 
-    That is eleven lines for a model that would otherwise need weeks of GPU time and a million labelled images. It is the most useful thing in this unit, and the reason it works is worth restating: the features are the valuable part, and somebody else already paid for them.
+    I have used the weights' preprocessing as a starting point. We can add suitable training augmentation after checking it on the dataset. Keep the class mapping with the saved model so we can interpret its output later.
 
     ## Exercises
 
-    1. Build an `ImageFolder` with classes named `1`, `2` and `10`. What does `class_to_idx` give you, and why is it not what you wanted?
-    2. Compare `VGG16_Weights.DEFAULT.transforms()` with `ResNet50_Weights.DEFAULT.transforms()`. Are they the same? What would happen if you used one with the other's model?
-    3. Freeze a model, replace the head, and print `requires_grad` for every parameter to confirm exactly what will train. Now do the two operations in the wrong order and diff the output.
-    4. Take the stacked and replaced models above and count the parameters your optimiser would allocate state for, with and without the `filter`. At what model size does that matter?
-    5. For the ASL dataset — hand signs, greyscale, 28x28 — would you expect transfer learning from ImageNet to help? Argue both sides, then check what `ASLPart2CNN` achieves training from scratch.
+    1. Create class folders named `1`, `2` and `10`. Inspect `class_to_idx` and explain the ordering.
+    2. Compare the preprocessing presets for VGG16 and ResNet50. What would you need to check when changing the model?
+    3. Freeze a model and replace its final layer. Print `requires_grad` for each parameter, then repeat the operations in the other order.
+    4. With a small model, compare Adam's state after a training step when it receives all parameters and when it receives only trainable parameters. Freeze some parameters before constructing each optimiser and inspect which ones acquire state.
+    5. Consider transfer learning for the ASL images. What preprocessing would be needed, and how would you compare the result with a model trained from scratch?
 
-    That is the torchvision set. Between `NumPyForML/`, `PyTorchForML/` and these four you have every function used in the machine learning demos in this repository.
-    """
-    )
+    We can now use these pieces in the image classification and transfer learning demos.
+    """)
     return
 
 

@@ -2,26 +2,21 @@
 
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # torchvision for Machine Learning, Part 3: augmentation
 
-    Data augmentation applies a random transformation to each training image every time it is seen, so the model never gets the same input twice. It enlarges the effective dataset without collecting more data, and it teaches the model to ignore things it should ignore — where the subject sits in the frame, how bright the room was, which way round the camera was held.
+    Data augmentation gives us variations of the training images. We can change the position, brightness or orientation of a subject without collecting another photograph.
 
-    It is also the part of a pipeline most often applied without thinking. There are two rules, and the second needs judgement rather than a lookup:
+    The choice depends on what we are trying to recognise. A transformation is useful only if the resulting image still supports its label. I will use a small asymmetric pattern to show what the transforms do, then combine them into a training pipeline.
 
-    1. **Training set only.** Augmenting the validation set makes the score meaningless.
-    2. **An augmentation is only valid if it preserves the label.**
-
-    The ASL demo in this repository makes a proper job of the second, which is why I keep pointing at it. This notebook is mostly about how to check both rather than assume them.
-    """
-    )
+    For these examples we will keep validation preprocessing fixed so we can compare runs on the same inputs.
+    """)
     return
 
 
@@ -36,8 +31,7 @@ def _():
 
 @app.cell
 def _(torch):
-    # an asymmetric test pattern - a crude "F", which has no symmetry at all,
-    # so any flip or rotation is immediately visible in the numbers
+    # use an asymmetric pattern so we can check flips and rotations
     def make_letter_f() -> torch.Tensor:
         img = torch.zeros(3, 32, 32, dtype=torch.uint8)
         img[:, 6:26, 8:12] = 255  # the upright
@@ -48,7 +42,19 @@ def _(torch):
     letter_f = make_letter_f()
 
     def ink_centre(img):
-        """Where is the bright ink, on average? A cheap fingerprint of the content."""
+        """
+        Find the mean position of bright pixels in the first channel.
+
+        Parameters
+        ----------
+        img : torch.Tensor
+            CHW image with foreground values above 128.
+
+        Returns
+        -------
+        tuple of float
+            Mean row and column, rounded to one decimal place.
+        """
         mask = img[0] > 128
         ys, xs = torch.nonzero(mask, as_tuple=True)
         return round(ys.float().mean().item(), 1), round(xs.float().mean().item(), 1)
@@ -63,8 +69,7 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [RandomHorizontalFlip](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomHorizontalFlip.html)
 
     ```python
@@ -76,9 +81,8 @@ def _(mo):
     | --- | --- | --- |
     | `p` | `0.5` | probability of flipping; `p=1.0` always flips |
 
-    5 calls across 2 demos. The `p` is a probability, not a strength — half the time it does nothing at all, which is the first thing to check when you cannot see any effect.
-    """
-    )
+    `p` is the probability of applying the flip. With `p=0.5`, some calls leave the image unchanged. To check the direction of the operation, I use `p=1.0` below and compare the position of the pattern before and after flipping.
+    """)
     return
 
 
@@ -101,32 +105,21 @@ def _(ink_centre, letter_f, v2):
         "always flipped ink centre",
         ink_centre(v2.RandomHorizontalFlip(p=1.0)(letter_f)),
     )
-    print("note the row is unchanged and the column has mirrored about 16")
+    print("the row is unchanged; the column is reflected about the image centre")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### The label preservation question
+    mo.md(r"""
+    ### Does the label still fit?
 
-    A horizontal flip is the most common augmentation and the most commonly misapplied. Whether it is valid is a fact about your data, not about torchvision:
+    Before adding a flip, look at what it does to the subject. A mirrored cat still supports the label "cat". Mirroring text can change or remove the character we wanted to recognise.
 
-    | Data | Horizontal flip | Why |
-    | --- | --- | --- |
-    | photos of cats | fine | a mirrored cat is a cat |
-    | handwritten letters | **no** | a flipped "b" is a "d" |
-    | digits | **no** | and a vertical flip turns 6 into something like 9 |
-    | ASL hand signs | fine | signing works with either dominant hand |
-    | medical scans | usually **no** | organs are not symmetric |
-    | road scenes for a UK model | debatable | it swaps which side of the road you drive on |
+    The next cell mirrors our F-shaped pattern. The result is no longer an ordinary F, but a training pipeline would keep the original label. Whether that is useful depends on the task: recognising printed letters and recognising shapes under reflection are different problems.
 
-    `ASL/ASLPart3DataAugmentationMarimo.py:302` argues the ASL case explicitly rather than just applying the transform, and then at line 321 caps rotation at 20 degrees on the grounds that a sufficiently rotated sign stops meaning what it meant. That is the right shape of reasoning and worth pointing students at.
-
-    The cell below shows what a bad flip does. The "F" and its mirror are different letters, and the model is being told they have the same label.
-    """
-    )
+    For the hand signs in `ASL/`, consider which variations the dataset represents and whether each transformed sign remains recognisable. We need to make that judgement for the actual classes and images.
+    """)
     return
 
 
@@ -159,8 +152,7 @@ def _(letter_f, torch, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [RandomRotation](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomRotation.html)
 
     ```python
@@ -174,9 +166,10 @@ def _(mo):
     | `expand` | `False` | grow the canvas so nothing is cut off |
     | `fill` | `0` | what to put in the corners the rotation leaves empty |
 
-    Two defaults worth knowing. `expand=False` means the image stays the same size and the corners get cut off — usually what you want in a pipeline, since the shape must stay constant for batching. And `fill=0` means those corners become black, which on a dataset with white backgrounds inserts a black wedge that the model can learn from. On MNIST that is fine; on a document scan set `fill=255`.
-    """
-    )
+    With `expand=False`, the output keeps the same size and rotated content can be clipped at the edges. `expand=True` allows a larger canvas, so we may need to resize or pad the outputs before batching them.
+
+    `fill` sets the value in the exposed corners. Our pattern has a black background, so zero fits. For a white background use 255 with `uint8` data, or 1.0 with floating point data in 0–1. The next cell compares the effect on a centred pattern and an image filled to the edges.
+    """)
     return
 
 
@@ -189,7 +182,7 @@ def _(letter_f, torch, v2):
         "with expand=True it grows:           ",
         tuple(v2.RandomRotation(25, expand=True)(letter_f).shape),
     )
-    print("  - which breaks batching, so it is rarely used in a Compose")
+    print("  resize or pad differing output sizes before stacking them into a batch")
     print()
 
     corner_dark = v2.RandomRotation(30, fill=0)(letter_f)
@@ -214,15 +207,14 @@ def _(letter_f, torch, v2):
         )
 
     print()
-    print("so the answer depends entirely on your data. A centred subject with room")
-    print("around it loses nothing; a full-frame one loses the corners every time.")
+    print("compare the centred pattern with the full-frame image:")
+    print("the available margin affects how much content is clipped.")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [ColorJitter](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.ColorJitter.html)
 
     ```python
@@ -236,11 +228,10 @@ def _(mo):
     | `saturation` | `None` | same form |
     | `hue` | `None` | a float `h` shifts hue within `[-h, +h]`, and must be ≤ 0.5 |
 
-    5 calls across 2 demos. All four default to `None`, meaning no change — so `ColorJitter()` with no arguments does precisely nothing, which is an easy thing to ship by accident.
+    We need to set at least one argument to change the image. The first check below confirms that `ColorJitter()` on its own leaves our pattern unchanged.
 
-    `hue` is the one to be careful with. Brightness and contrast changes are usually label-preserving; hue rotation is not, if colour is part of what distinguishes your classes. Shift the hue on a dataset of red and green peppers and you have relabelled them.
-    """
-    )
+    I then vary brightness and contrast over several calls. For hue we use a coloured patch, as the white pattern would not show the change. If colour distinguishes our classes, a hue shift may produce an image that no longer supports its label.
+    """)
     return
 
 
@@ -278,9 +269,7 @@ def _(letter_f, torch, v2):
         v2.ColorJitter(hue=0.5)(green_patch)[:, 0, 0].tolist(),
     )
     print()
-    print(
-        "  if red versus green IS the label, that transform has just relabelled the data"
-    )
+    print("  check whether these colours still support the original class labels")
     print(
         "  (white and grey are unaffected, which is why the test pattern above shows nothing)"
     )
@@ -289,8 +278,7 @@ def _(letter_f, torch, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [RandomResizedCrop](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomResizedCrop.html)
 
     ```python
@@ -301,16 +289,13 @@ def _(mo):
     | Parameter | Default | What it does |
     | --- | --- | --- |
     | `size` | required | output size, so the batch shape stays fixed |
-    | `scale` | `(0.08, 1.0)` | fraction of the **original area** the crop covers |
+    | `scale` | `(0.08, 1.0)` | fraction of the original area the crop covers |
     | `ratio` | `(0.75, 1.333)` | aspect ratio range of the crop before resizing |
 
-    Crops a random region and resizes it to `size`. It is the standard ImageNet augmentation and it does the jobs of cropping, scaling and translating in one step.
+    This transform chooses a region and resizes it to the output size. `scale` describes the fraction of the original area used for the crop, not the width or height.
 
-    **Look at that `scale` default.** `0.08` means a crop can be 8% of the original area — under a third of the width and height. That default comes from ImageNet, where photographs are large and the subject usually fills a good part of the frame, so an aggressive crop still contains the subject. On a 28x28 MNIST digit or a tightly cropped ASL hand, an 8% crop is a few pixels of background with the label still attached, and you are training the model on noise.
-
-    If you use this on anything other than ImageNet-like photographs, set `scale` yourself. Something like `(0.7, 1.0)` is a sane starting point.
-    """
-    )
+    The default allows a crop covering only 8% of the image. For a small subject this can remove much of what we wanted to recognise. Below we compare the default with `scale=(0.7, 1.0)` and measure how much of our pattern remains. I would inspect the results on the training images before choosing either range.
+    """)
     return
 
 
@@ -332,30 +317,28 @@ def _(letter_f, torch, v2):
         f"scale=(0.08, 1.0)  the default: mean {_default.mean():.1%}, range {_default.min():.1%} to {_default.max():.1%}"
     )
     print(
-        f"scale=(0.7, 1.0)   sensible    : mean {_gentle.mean():.1%}, range {_gentle.min():.1%} to {_gentle.max():.1%}"
+        f"scale=(0.7, 1.0)   narrower    : mean {_gentle.mean():.1%}, range {_gentle.min():.1%} to {_gentle.max():.1%}"
     )
     print()
     _empty = (_default < 0.01).float().mean().item()
     print(f"crops that came back essentially blank with the default: {_empty:.1%}")
-    print("every one of those is a training sample with a label and no content")
+    print("these crops have little foreground left, but would keep the original label")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Applying augmentation sometimes: RandomApply and RandomChoice
+    mo.md(r"""
+    ## Choosing when to apply a transform
 
     ```python
-    v2.RandomApply([transform, ...], p=0.5)   # apply the whole list, or none of it
-    v2.RandomChoice([transform, ...])         # pick exactly one
-    v2.RandomOrder([transform, ...])          # all of them, shuffled
+    v2.RandomApply([transform, ...], p=0.5)  # apply the list with probability p
+    v2.RandomChoice([transform, ...])       # choose one transform
+    v2.RandomOrder([transform, ...])        # apply all in a random order
     ```
 
-    Useful when an augmentation is strong enough that you only want it occasionally, or when two of them together would be too much. `RandomApply` with a low `p` is the usual way to include something aggressive without it dominating.
-    """
-    )
+    These let us control how transforms are combined. For example, we can use `RandomApply` to apply a group of colour changes to only some training samples. The next cell measures how often `RandomApply` changes our pattern.
+    """)
     return
 
 
@@ -376,13 +359,13 @@ def _(ink_centre, letter_f, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## The two pipelines
+    mo.md(r"""
+    ## Training and validation pipelines
 
-    This is the shape every image project takes. Both pipelines must end in the same conversion and normalisation, and only the training one is augmented.
-    """
-    )
+    We can now put the transforms together. Both pipelines finish with the same conversion and normalisation. The training pipeline also adds random variations; the validation pipeline uses fixed preprocessing.
+
+    This is a demonstration of the mechanics. The flips and crops still need checking against the labels of any dataset we use.
+    """)
     return
 
 
@@ -416,20 +399,20 @@ def _(torch, v2):
     print("train pipeline:", len(train_transform.transforms), "steps")
     print("valid pipeline:", len(valid_transform.transforms), "steps")
     print()
-    print("the last three are identical in both - that is not optional.")
-    print("whatever the model was trained to expect, it must see at evaluation too.")
+    print("both pipelines use the same final conversion and normalisation")
+    print("this keeps the input type and scale consistent for the model")
     return train_transform, valid_transform
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### Why the validation set must not be augmented
+    mo.md(r"""
+    ### Keeping validation inputs fixed
 
-    Two reasons, and the first is the one people miss. An augmented validation score is **not reproducible** — run it twice on identical data and get two different numbers, so you cannot tell whether your model improved or the dice rolled differently. The second is that it measures the wrong thing: you want performance on real images, not on randomly degraded ones.
-    """
-    )
+    If we apply random augmentation during validation, the inputs can change between evaluations. A change in the score may then come from the augmentation as well as the model.
+
+    The next cell passes the same image through each pipeline twenty times and compares the outputs. For our usual validation run we use the fixed pipeline. Testing on transformed inputs can be a separate experiment when we want to measure a particular behaviour.
+    """)
     return
 
 
@@ -448,36 +431,44 @@ def _(letter_f, torch, train_transform, valid_transform):
         f"         spread across runs, mean sd per pixel {valid_outputs.std(dim=0).mean():.4f}"
     )
     print()
-    print(
-        "if the validation pipeline were augmented, the second number would be non-zero"
-    )
-    print("and every evaluation would give a different accuracy on the same data")
+    print("random augmentation can also introduce variation in validation inputs")
+    print("which can change the score between evaluations")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Checking augmentation is worth it
+    mo.md(r"""
+    ## Checking the result
 
-    Augmentation is not free — it costs CPU time per sample, and too much of it slows convergence because the model is chasing a moving target. The honest way to decide is to train with and without and compare validation curves, but before that there are two cheap checks:
+    I would inspect augmented samples before starting a training run. Use `make_grid` from Part 1 to put several versions of the same image together, then check that each still supports the label.
 
-    1. **Look at the output.** `make_grid` from Part 1 over a batch of augmented copies of one image. If you cannot tell what the subject is, neither can the model.
-    2. **Measure the spread**, as above. If the mean standard deviation per pixel is near zero your augmentation is doing nothing; if it is enormous you have probably destroyed the content.
+    Here we measure the area of the remaining pattern. This can help spot nearly empty crops, but it does not tell us whether the image is still recognisable. Likewise, variation between outputs tells us that something changed, not whether the change was useful.
 
-    Below is the first check as numbers, since these notebooks have no plots.
-    """
-    )
+    To test whether augmentation helps the model, compare training runs with and without it using the same validation data. Measure the extra processing time too.
+    """)
     return
 
 
 @app.cell
 def _(letter_f, torch, v2):
     def ink_ratio(pipeline, source, trials=200):
-        """Ink area after the transform, as a multiple of the original.
+        """
+        Measure foreground area after repeated applications of a transform.
 
-        Above 1 means the transform zoomed in; near 0 means the subject is gone.
+        Parameters
+        ----------
+        pipeline : callable
+            Transform to apply to each copy of the source.
+        source : torch.Tensor
+            CHW image with foreground values above 128 in the first channel.
+        trials : int
+            Number of transformed samples to measure.
+
+        Returns
+        -------
+        torch.Tensor
+            Foreground pixel count for each result, divided by the source count.
         """
         base = (source[0] > 128).float().sum()
         return torch.tensor(
@@ -499,28 +490,26 @@ def _(letter_f, torch, v2):
         print(f"{name:24} {s.mean():6.2f} {s.min():6.2f}")
 
     print()
-    print("Read the two columns differently. A mean above 1 is the crop zooming in,")
-    print("which is fine and is half the point of it. The column that matters is the")
-    print("worst case: near zero means some training samples have no subject at all,")
-    print("and they still carry a label.")
+    print("a ratio above 1 means the output contains more foreground pixels.")
+    print("resizing a crop can enlarge the remaining part of the pattern.")
+    print("a minimum near zero indicates a sample with very little foreground.")
+    print("inspect the images as well as these counts.")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Exercises
 
-    1. Build a pipeline you believe is label-preserving for MNIST digits, and one that is not. Justify each choice in a sentence.
-    2. Run `RandomResizedCrop(28)` with the default `scale` over a 28x28 digit 1000 times and count how many crops contain no ink at all. Would you have guessed that number?
-    3. `ColorJitter(hue=0.5)` on a dataset where colour is the label — red versus green peppers, say. Construct the two-pixel example that proves it relabels them.
-    4. Take the train pipeline above and move `Normalize` before the augmentation. Does it raise? If not, what is different about the result, and which is correct?
-    5. Measure the per-sample cost of the train pipeline against the valid pipeline with `timeit`. At what batch size does augmentation become the bottleneck rather than the GPU?
+    1. Build two augmentation pipelines for MNIST: one you expect to preserve the digit labels and one you expect to cause problems. Explain your choices and inspect their outputs.
+    2. Apply `RandomResizedCrop(28)` to a digit 1000 times. Count crops with no foreground pixels, then repeat with a narrower `scale` range.
+    3. Apply `ColorJitter(hue=0.5)` repeatedly to a red patch. Inspect the colours produced and discuss what this would mean for a red-versus-green classifier.
+    4. Move `Normalize` before the augmentation in the training pipeline. Which transforms accept the result? Do they still behave as intended?
+    5. Time the training and validation pipelines on the same images. Then measure data loading and model execution separately to find where the training run spends its time.
 
-    Part 4 is the last one: datasets, and the pre-trained models the transfer learning demos use.
-    """
-    )
+    In Part 4 we will load datasets and prepare a pre-trained model for a new set of classes.
+    """)
     return
 
 

@@ -2,23 +2,19 @@
 
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # torchvision for Machine Learning, Part 2: transforms
 
-    `torchvision.transforms` is 56 of the 63 torchvision calls in this repository, so this is the notebook that matters most.
+    In Part 1 we read images as tensors and checked their layout and range. We will now use transforms to prepare those images for a model.
 
-    A transform is a callable that takes an image and returns a modified one. `Compose` chains them. That is the whole idea, and it would need very little explanation were it not for two things: there are two versions of the API in circulation, and the order you chain them in is not arbitrary.
-
-    Both of those are visible in this repository right now — some demos import `torchvision.transforms`, others import `torchvision.transforms.v2`, and one still uses `ToTensor`. That is worth sorting out, and this notebook is partly me doing that.
-    """
-    )
+    A transform takes an image and returns a modified version. `Compose` applies a list of transforms in order. I will use the v2 API here, with a few comparisons to the older API you may see in other examples.
+    """)
     return
 
 
@@ -50,33 +46,24 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## v1 and v2
 
     ```python
-    import torchvision.transforms as transforms        # v1, the original
-    from torchvision.transforms import v2              # v2, since torchvision 0.15
+    import torchvision.transforms as transforms  # the original API
+    from torchvision.transforms import v2
     ```
 
-    v2 is a rewrite with the same names and mostly the same behaviour. Three reasons it exists:
+    The two APIs share many names. v2 also supports working with related inputs, such as an image and its bounding boxes or segmentation mask, in one transform call. This helps keep them aligned when we crop, rotate or flip them.
 
-    - **it transforms more than images.** A v1 transform takes one image. A v2 transform takes an image *and* its bounding boxes, masks or keypoints, and applies the same geometric change to all of them consistently. If you flip the image you must flip the boxes, and v1 left you to do that yourself.
-    - **it is faster**, particularly on batches and on tensors that are already on a GPU.
-    - **it works on batches**, not just single images.
-
-    For plain image classification — which is everything in this repository — the two behave identically, so the practical advice is simply to use v2 in new code because v1 is in maintenance. The [official guidance](https://pytorch.org/vision/stable/transforms.html) says the same.
-
-    The one real difference you will hit is the conversion pair at the start of every pipeline.
-    """
-    )
+    We will use v2 for these examples. The [transforms guide](https://pytorch.org/vision/stable/transforms.html) covers the differences in more detail. First we need to separate converting an image to a tensor from scaling its values.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## The conversion pair: [ToImage](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.ToImage.html) and [ToDtype](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.ToDtype.html)
 
     ```python
@@ -89,16 +76,12 @@ def _(mo):
     | `dtype` | required | usually `torch.float32` |
     | `scale` | `False` | map 0–255 onto 0–1 |
 
-    Together these replace v1's `ToTensor()`, which did both jobs in one step and is now deprecated. `MNIST/PyTorchDataLoaders.ipynb:38` pairs them correctly.
+    `ToImage` converts the input to a `tv_tensors.Image` without scaling the values. `ToDtype` changes the data type; for our `uint8` image, `scale=True` also converts 0–255 to 0–1.
 
-    The split was not tidying up. `ToTensor` behaves **differently depending on what you hand it**, and that is the bug it was retired for:
+    The next cell compares this pair with the deprecated [v2.ToTensor](https://docs.pytorch.org/vision/stable/generated/torchvision.transforms.v2.ToTensor.html). That transform scales our RGB PIL image, but passes the existing tensor through unchanged. Check both the type and range in the output.
 
-    - given a PIL image or a NumPy array, it casts to `float32` and rescales to 0–1
-    - given a tensor that is already `uint8`, it returns it unchanged — still `uint8`, still 0–255
-
-    So the same line in your `Compose` either scales your data or does nothing at all, depending on how the image got loaded. Run the cell and watch it happen.
-    """
-    )
+    This example uses `v2.ToTensor`. The older `torchvision.transforms.ToTensor` accepts PIL images and NumPy arrays, and rejects a tensor input.
+    """)
     return
 
 
@@ -109,11 +92,13 @@ def _(image, to_pil_image, torch, v2):
     as_pil = to_pil_image(image)
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # it warns about deprecation, which we know
+        warnings.simplefilter(
+            "ignore"
+        )  # the text above explains the deprecation warning
         from_pil = v2.ToTensor()(as_pil)
         from_tensor = v2.ToTensor()(image)
 
-    print("ToTensor(), same picture, two source types:")
+    print("v2.ToTensor(), same picture, two source types:")
     print(
         f"  from a PIL image  -> {str(from_pil.dtype):14} {from_pil.min():.3f} to {from_pil.max():.3f}"
     )
@@ -131,25 +116,23 @@ def _(image, to_pil_image, torch, v2):
         f"  from a uint8 tensor -> {str(pair(image).dtype):12} {pair(image).min():.3f} to {pair(image).max():.3f}"
     )
     print()
-    print("the pair gives the same answer either way. ToTensor does not.")
+    print("the conversion pair gives matching ranges for these two inputs")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    That matters here specifically. This repository contains both `from torchvision.transforms import ToTensor` and `tv_io.read_image`, and `read_image` returns a `uint8` tensor. A dataset loaded through PIL and a dataset loaded through `read_image` will behave differently under the same `ToTensor()` line — one scaled to 0–1, the other left at 0–255 — with no warning and no exception, just a model that trains on one and not the other.
+    mo.md(r"""
+    The conversion pair gives us the same floating point image from either source. This is useful when one loader returns PIL images and another returns tensors.
 
-    Use `ToImage()` and `ToDtype(torch.float32, scale=True)`. The cost of the split is that `scale=True` is something you have to remember, and its default is `False`.
-    """
-    )
+    We still need `scale=True`. The next cell leaves it out, then compares the ranges. Both results have the same shape and type, so those checks alone would miss the difference.
+    """)
     return
 
 
 @app.cell
 def _(image, torch, v2):
-    # and the one you must not forget
+    # compare type conversion with and without scaling
     unscaled = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32)])(image)
     scaled = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])(image)
 
@@ -157,14 +140,13 @@ def _(image, torch, v2):
     print("scale=True               :", f"{scaled.min():.3f} to {scaled.max():.3f}")
     print()
     print("both are float32, both have the right shape, and nothing raises.")
-    print("the first one just trains badly.")
+    print("check the value range as well as the type and shape")
     return (scaled,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [Normalize](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Normalize.html)
 
     ```python
@@ -176,15 +158,12 @@ def _(mo):
     | `mean` | required | one value per channel |
     | `std` | required | one value per channel |
 
-    It computes `(x - mean) / std` per channel. Nothing more.
+    `Normalize` applies `(x - mean) / std` to each channel. It needs floating point input, so we convert and scale the image first.
 
-    The point is to get every input feature onto a comparable scale centred near zero, which is where activation functions are most sensitive and where gradients behave. Feed a network values in 0–1 and it will train; centre them at zero and it usually trains faster.
+    Here I have used the ImageNet normalisation values found in many pre-trained model examples. The preprocessing must match the weights we use; in Part 4 we will obtain it from the weights object.
 
-    The numbers `mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]` appear everywhere. They are the per-channel statistics of the ImageNet training set. You use them when your model was pre-trained on ImageNet, because the model learned its weights on inputs distributed that way — and Part 4 shows that the weights themselves can hand you the right preset so you do not have to remember the numbers at all.
-
-    Two rules. `Normalize` must come **after** the conversion to float — it will refuse on `uint8`. And it takes the data out of 0–1, so anything you do after it that assumes 0–1 will be wrong.
-    """
-    )
+    Normalised values can be negative or greater than one. Keep this in mind when displaying the result or applying a transform that expects values in 0–1.
+    """)
     return
 
 
@@ -198,8 +177,8 @@ def _(image, scaled, v2):
     print()
     print("per-channel means after normalising:")
     print("  ", normalised.mean(dim=(1, 2)).tolist())
-    print("(not zero, because this test image is not an ImageNet photo -")
-    print(" on real data these would sit near zero, which is the point)")
+    print("(these means describe one generated image;")
+    print(" normalisation does not force each individual image to have zero mean)")
 
     print()
     try:
@@ -211,9 +190,8 @@ def _(image, scaled, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Geometry: [Resize](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Resize.html), CenterCrop and [Grayscale](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Grayscale.html)
+    mo.md(r"""
+    ## Resizing and greyscale conversion: [Resize](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Resize.html), CenterCrop and [Grayscale](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Grayscale.html)
 
     ```python
     v2.Resize(size, interpolation='bilinear', max_size=None, antialias=True)
@@ -223,16 +201,17 @@ def _(mo):
 
     | Parameter | Default | What it does |
     | --- | --- | --- |
-    | `size` (Resize) | required | an int scales the **shorter** side, keeping aspect ratio; a tuple forces exact dimensions |
+    | `size` (Resize) | required | an int scales the shorter side, keeping aspect ratio; a tuple forces exact dimensions |
     | `interpolation` | `'bilinear'` | how pixels are sampled |
     | `antialias` | `True` | filter before downsampling |
     | `num_output_channels` | `1` | set to 3 to keep three identical channels |
 
-    The `size` behaviour is the one to get right. `Resize(224)` on a 64x96 image gives you 224x336 — it scaled the shorter side and kept the proportions. `Resize((224, 224))` gives you exactly 224x224 and squashes the image. Both are used in practice; the standard ImageNet recipe is `Resize(256)` then `CenterCrop(224)`, which preserves the aspect ratio and then takes the middle.
+    `Resize(224)` scales the shorter side to 224 and keeps the aspect ratio. Our 64 by 96 image becomes 224 by 336. `Resize((224, 224))` sets both dimensions, which changes the proportions of this image.
 
-    `Grayscale(num_output_channels=3)` looks odd but is common: you want greyscale content in a 3-channel tensor because the pre-trained model you are feeding expects 3 channels.
-    """
-    )
+    We can resize whilst preserving the proportions, then use `CenterCrop` to get a fixed size. The example uses `Resize(256)` followed by `CenterCrop(224)`.
+
+    `Grayscale(num_output_channels=3)` gives us three identical channels. This is useful when we have greyscale content but the model expects three input channels.
+    """)
     return
 
 
@@ -250,7 +229,7 @@ def _(image, v2):
         "squashed",
     )
     print()
-    print("the ImageNet recipe:")
+    print("a resize and centre crop:")
     _recipe = v2.Compose([v2.Resize(256), v2.CenterCrop(224)])
     print("  Resize(256) then CenterCrop(224) ->", tuple(_recipe(image).shape[1:]))
     print()
@@ -264,25 +243,21 @@ def _(image, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## [Compose](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Compose.html), and why the order is not arbitrary
+    mo.md(r"""
+    ## [Compose](https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.Compose.html): applying transforms in order
 
     ```python
     v2.Compose([transform, transform, ...])
     ```
 
-    12 calls across 5 demos. Chains transforms into one callable applied per sample, and it is nothing cleverer than a for loop over the list.
+    `Compose` applies each transform to the output of the previous one. For the examples below we use this order:
 
-    The order that works, and the reason for each position:
+    1. Resize and crop the image.
+    2. Convert it with `ToImage` and `ToDtype(torch.float32, scale=True)`.
+    3. Apply `Normalize`.
 
-    1. **geometry first** — `Resize`, `CenterCrop`, and any augmentation. Cheapest on `uint8`, and cropping before converting means converting fewer pixels.
-    2. **then `ToImage` and `ToDtype(scale=True)`** — the conversion to float in 0–1.
-    3. **then `Normalize`** — which needs float, and takes you off the 0–1 scale.
-
-    Getting it wrong is usually an exception rather than a silent problem, which is a mercy. The cell below shows the two common mistakes.
-    """
-    )
+    This keeps the geometry operations on our original image and gives `Normalize` the floating point input it needs. Other pipelines can use a different order, but each step must accept what the previous one returns. The following cells show an ordering error and a redundant conversion.
+    """)
     return
 
 
@@ -322,7 +297,7 @@ def _(image, torch, v2):
 
 @app.cell
 def _(good, image, torch, v2):
-    # the subtler one: scaling after normalising, which does not raise
+    # repeating the same dtype conversion does not rescale the image
     scale_after = v2.Compose(
         [
             v2.Resize(256),
@@ -330,39 +305,31 @@ def _(good, image, torch, v2):
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            v2.ToDtype(
-                torch.float32, scale=True
-            ),  # a no-op here, but people add it "to be safe"
+            v2.ToDtype(torch.float32, scale=True),  # the input is already float32
         ]
     )
     both = scale_after(image)
     print("an extra ToDtype after Normalize:")
     print("  result identical?", torch.allclose(both, good(image)))
-    print("  - harmless in this case, because scale only acts on integer input.")
-    print("    But it reads as though it rescales, which is how the habit spreads.")
+    print("  the input is already float32, so this conversion leaves it unchanged.")
+    print("  scale=True does not rescale a float32 tensor to the same dtype.")
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Class transforms and functional transforms
 
-    Every transform comes in two forms:
-
     ```python
-    v2.RandomRotation(degrees=20)(img)        # the class: picks its own random angle
-    v2.functional.rotate(img, angle=13.2)     # the function: you supply the angle
+    v2.RandomRotation(degrees=20)(img)
+    v2.functional.rotate(img, angle=13.2)
     ```
 
-    The class form is what goes in a `Compose` — it holds the configuration and samples any randomness itself. The functional form does one thing with parameters you provide, and it is what you need when the same random operation has to be applied to more than one thing consistently.
+    The class stores our settings and chooses a random angle each time we call it. With the functional version we supply the angle ourselves.
 
-    The classic case is an image and its segmentation mask. If you call the class transform twice you get two different random rotations and the mask no longer lines up. You sample the parameters once, then apply the functional form to both. (In v2 you can often pass both to the class transform together and it handles this — which is the main reason v2 exists — but the functional route is worth knowing.)
-
-    `PreTrainedModelsPart1.ipynb:362` uses `functional.to_pil_image`, which is the other common use: a one-off conversion rather than part of a pipeline.
-    """
-    )
+    If an image has a matching mask, separate random rotations can move them out of alignment. We can choose an angle once and use it for both, taking care to use suitable interpolation for the mask. v2 can also transform an image and a `tv_tensors.Mask` together in one call.
+    """)
     return
 
 
@@ -399,17 +366,13 @@ def _(image, torch, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## tv_tensors
 
-    One last thing you will see in v2 code and in stack traces.
+    `ToImage` returns a `tv_tensors.Image`, which is a subclass of `torch.Tensor`. The type tells v2 that this input represents an image. Other types identify masks and bounding boxes so a transform can handle each appropriately.
 
-    `ToImage()` does not return a plain tensor — it returns a `tv_tensors.Image`, which is a subclass carrying a label saying "I am an image". That label is how a v2 transform knows to rotate the image and the mask together but to leave a plain tensor of class labels alone.
-
-    It behaves as a tensor everywhere that matters, so you rarely think about it. Two places it shows up: `print(type(x))` in a debugging session, and `isinstance` checks that fail in surprising ways. `as_subclass(torch.Tensor)` gets you a plain one if something downstream is fussy.
-    """
-    )
+    We can still use tensor operations on an `Image`, and `isinstance(image, torch.Tensor)` is true. If an API needs a plain tensor, `as_subclass(torch.Tensor)` gives us one. The next cell prints the types before and after this conversion.
+    """)
     return
 
 
@@ -425,9 +388,8 @@ def _(image, torch, v2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## The pipeline worth copying
+    mo.md(r"""
+    ## A preprocessing pipeline
 
     ```python
     from torchvision.transforms import v2
@@ -450,19 +412,18 @@ def _(mo):
     ])
     ```
 
-    Two pipelines, identical except that only the training one is augmented. That distinction is the subject of Part 3, and it is the one students most often get wrong.
+    These pipelines currently do the same thing. I have left a place for training augmentation, which we will add in Part 3. The validation pipeline will keep a fixed sequence of preprocessing steps.
 
     ## Exercises
 
-    1. Take the correct pipeline and remove `scale=True`. Print the range going into `Normalize` and work out what the normalised values become. Would you notice this from the loss curve alone?
-    2. `Resize(224)` on a 100x400 image — what comes out? Now `Resize((224, 224))`. Which would you use for a photograph, and which for a document scan?
-    3. Compute the actual per-channel mean and std of a folder of your own images and normalise with those instead of the ImageNet numbers. When is that the better choice?
-    4. Write a `Compose` that produces a 3-channel greyscale float image normalised with a single mean and std. How many channels does `Normalize` need values for?
-    5. Rotate an image and a mask with the class transform inside one `v2.Compose([...])` call, passing both together. Does v2 keep them aligned? Compare with the two-separate-calls version above.
+    1. Remove `scale=True` and print the range before and after `Normalize`. Explain the difference using `(x - mean) / std`.
+    2. Compare `Resize(224)` and `Resize((224, 224))` on a 100 by 400 image. Which preserves its proportions?
+    3. Calculate the channel means and standard deviations for your own images. Discuss when to use these and when to keep a pre-trained model's preprocessing.
+    4. Create a pipeline that produces three identical greyscale channels, then normalise it. Compare providing one mean and standard deviation with providing three identical values.
+    5. Rotate an image and a `tv_tensors.Mask` together in one v2 call. Compare this with calling the random transform separately on each input.
 
-    Part 3 is augmentation.
-    """
-    )
+    Part 3 covers data augmentation.
+    """)
     return
 
 
