@@ -243,3 +243,7 @@ fabric.properties
 # Marimo cache and session files
 __marimo__/cache/
 __marimo__/sessions/
+.worktrees
+.DS_Store
+.serena
+.virtual_documents
