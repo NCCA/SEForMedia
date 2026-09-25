@@ -104,7 +104,7 @@ def _(mo):
 
     A training curve usually works well as a vector file. A dense scatter plot can produce a large vector file because it stores the individual marks. We will compare the output sizes in the exercises.
 
-    For raster figures intended for print, 300 dpi is a useful starting point. Check the requirements for your report and inspect the result at the size you will use.
+    For raster figures intended for print, 300 dpi is a useful starting point.
     """)
     return
 
