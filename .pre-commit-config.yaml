@@ -10,3 +10,12 @@ repos:
       # Run the formatter.
       - id: ruff-format
         types_or: [python, pyi]
+  - repo: local
+    hooks:
+      # Export staged marimo notebooks to MarkdownExports/ and into Joplin.
+      - id: export-marimo-markdown
+        name: export marimo notebooks to markdown
+        entry: uv run python scripts/export_marimo_md.py
+        language: system
+        files: \.py$
+        exclude: ^scripts/

@@ -247,3 +247,6 @@ __marimo__/sessions/
 .DS_Store
 .serena
 .virtual_documents
+
+# markdown copies of the marimo notebooks, made by scripts/export_marimo_md.py
+MarkdownExports/
