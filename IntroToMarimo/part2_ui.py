@@ -9,31 +9,28 @@ app = marimo.App(width="medium")
 @app.cell
 def _(mo):
     mo.md(r"""
-    # marimo UI widgets — what they are and when to reach for them
+    # marimo UI widgets
 
-    marimo ships its interactive widgets under `mo.ui`. Every one of them is a
-    Python object with a `.value` attribute, and whenever you change it in the
-    browser marimo re-runs the cells that read that `.value`. That reactive
-    loop is the whole point — you get an interface for free without writing any
-    callbacks.
+    In this notebook we will use `mo.ui` to add controls to our examples.
+    Each widget has a `.value` attribute which we can read from another cell.
+    Changing the control causes marimo to re-run the cells which use it.
 
-    This notebook walks through the lot, grouped by the job they do, with a
-    live example of each and a short note on when I would actually use it. Run
-    it with:
+    I have grouped the examples by the type of input we need. Run the notebook
+    from the repository root using:
 
     ```bash
-    uvx marimo edit marimo_ui_widgets.py
+    uv run marimo edit IntroToMarimo/part2_ui.py
     ```
 
-    The full reference is in the [inputs docs](https://docs.marimo.io/api/inputs/).
+    The [inputs reference](https://docs.marimo.io/api/inputs/) lists the
+    available widgets and their options.
 
-    ## The one rule worth learning first
+    ## Creating and reading widgets
 
-    Define a widget in one cell and read its `.value` in a *different* cell. If
-    you create the widget and read its value in the same cell, interacting with
-    it re-runs that cell, rebuilds the widget from scratch and throws your input
-    away. Every example below follows that pattern: a cell that builds the
-    widgets, then a cell that reacts to them.
+    We create a widget in one cell and read its `.value` in another. marimo
+    does not allow us to read a widget's value in the cell which creates it.
+    Each example below has a cell for the controls followed by a cell which
+    uses their values.
     """)
     return
 
@@ -41,7 +38,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Numbers — `slider`, `range_slider`, `number`
+    ## Numbers: `slider`, `range_slider`, `number`
     """)
     return
 
@@ -62,15 +59,13 @@ def _(mo):
 @app.cell
 def _(mo, num_input, num_range, num_slider):
     mo.md(f"""
-    `slider` = **{num_slider.value}**,
-    `range_slider` = **{num_range.value}**,
-    `number` = **{num_input.value}**
+    `slider` = {num_slider.value},
+    `range_slider` = {num_range.value},
+    `number` = {num_input.value}
 
-    Reach for a **slider** when the exact figure doesn't matter and you want
-    people to explore a range by feel — a threshold, an opacity, a year. Use
-    **range_slider** when you're picking a *window* rather than a point, like a
-    min/max filter. Use **number** when the precise value does matter and typing
-    `42` is quicker than dragging to it.
+    I use a `slider` when I want to experiment with a value, such as an opacity
+    or a threshold. A `range_slider` selects two endpoints, which we could use
+    to filter a dataset. With `number` we can type a value directly.
     """)
     return
 
@@ -78,7 +73,7 @@ def _(mo, num_input, num_range, num_slider):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Yes/no — `checkbox`, `switch`
+    ## Boolean values: `checkbox`, `switch`
     """)
     return
 
@@ -94,12 +89,11 @@ def _(mo):
 @app.cell
 def _(flag_check, flag_switch, mo):
     mo.md(f"""
-    `checkbox` = **{flag_check.value}**, `switch` = **{flag_switch.value}**
+    `checkbox` = {flag_check.value}, `switch` = {flag_switch.value}
 
-    They return the same thing — a `bool` — so the choice is purely about
-    tone. A **checkbox** reads as "tick this option" in a list of settings; a
-    **switch** reads as "turn this feature on/off". Pick whichever matches the
-    mental model and stay consistent.
+    Both controls return a `bool`. I tend to use a checkbox for an option in
+    a list and a switch for turning something on or off. Try changing them
+    and watch the values above.
     """)
     return
 
@@ -107,7 +101,7 @@ def _(flag_check, flag_switch, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Picking from a set — `radio`, `dropdown`, `multiselect`
+    ## Choosing options: `radio`, `dropdown`, `multiselect`
     """)
     return
 
@@ -117,7 +111,7 @@ def _(mo):
     pick_radio = mo.ui.radio(
         options=["Linux", "macOS", "Windows"], value="Linux", label="radio"
     )
-    # a dict maps a nice label to the value your code actually gets back
+    # map the colour names to the hex values used by our code
     pick_drop = mo.ui.dropdown(
         options={"Red": "#ff0000", "Green": "#00ff00", "Blue": "#0000ff"},
         value="Green",
@@ -135,15 +129,15 @@ def _(mo):
 @app.cell
 def _(mo, pick_drop, pick_multi, pick_radio):
     mo.md(f"""
-    `radio` = **{pick_radio.value}**, `dropdown` = **{pick_drop.value}**,
-    `multiselect` = **{pick_multi.value}**
+    `radio` = {pick_radio.value}, `dropdown` = {pick_drop.value},
+    `multiselect` = {pick_multi.value}
 
-    All three choose from a fixed list. **radio** shows every option at once —
-    good for two to five choices where seeing them all helps. **dropdown**
-    hides them until clicked, so it's the one for long lists (pass
-    `searchable=True` when there are lots), and note the dict trick above: the
-    user sees `Green`, your code gets `#00ff00`. **multiselect** is the same
-    idea when more than one answer is allowed.
+    A `radio` control displays all the options, whilst a `dropdown` keeps
+    them in a menu. For a longer list we can add `searchable=True` to the
+    dropdown. Use `multiselect` when we need more than one selection.
+
+    Notice the dictionary used for the colours above. We see `Green` in the
+    menu, but the value returned to our code is `#00ff00`.
     """)
     return
 
@@ -151,7 +145,7 @@ def _(mo, pick_drop, pick_multi, pick_radio):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Text — `text`, `text_area`, `code_editor`
+    ## Text: `text`, `text_area`, `code_editor`
     """)
     return
 
@@ -178,16 +172,17 @@ def _(mo):
 @app.cell
 def _(mo, txt_area, txt_code, txt_line):
     mo.md(f"""
-    `text` = **{txt_line.value!r}**, `text_area` has
-    **{len(txt_area.value)}** characters, `code_editor` has
-    **{len(txt_code.value.splitlines())}** line(s).
+    `text` = {txt_line.value!r}, `text_area` has
+    {len(txt_area.value)} characters, `code_editor` has
+    {len(txt_code.value.splitlines())} lines.
 
-    **text** is a single line — names, search boxes, a URL; it also does
-    `kind="password"` and `"email"`. **text_area** is the multi-line version
-    for prompts or free-form notes. **code_editor** adds syntax highlighting,
-    which is handy in teaching material when you want people to edit a snippet
-    and feed it back into the notebook. Note text inputs debounce by default,
-    so the value updates when you stop typing rather than on every keystroke.
+    Use `text` for a single line and `text_area` for several lines. The
+    `code_editor` adds syntax highlighting, which is useful when we want to
+    edit a code example in a notebook. Editing the text does not execute it.
+
+    Try typing into each control and watch the output above. The text controls
+    can delay updates until we finish typing; their `debounce` option controls
+    this behaviour.
     """)
     return
 
@@ -195,7 +190,7 @@ def _(mo, txt_area, txt_code, txt_line):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Dates — `date`, `date_range`, `datetime`
+    ## Dates: `date`, `date_range`, `datetime`
     """)
     return
 
@@ -212,13 +207,13 @@ def _(mo):
 @app.cell
 def _(dt_day, dt_range, dt_stamp, mo):
     mo.md(f"""
-    `date` = **{dt_day.value}**, `date_range` = **{dt_range.value}**,
-    `datetime` = **{dt_stamp.value}**
+    `date` = {dt_day.value}, `date_range` = {dt_range.value},
+    `datetime` = {dt_stamp.value}
 
-    Each hands back a real `datetime.date`/`datetime.datetime`, not a string,
-    so no parsing at your end. Use **date** for a single day, **date_range**
-    for a from/to filter over a dataframe, and **datetime** when the time of
-    day matters. All three take `start`/`stop` to fence off the allowed range.
+    Use `date` to select a day, `date_range` for a pair of dates and `datetime`
+    when we also need a time. The selected values use Python's date and
+    datetime types, so we can work with them without parsing a text field.
+    We can set `start` and `stop` to limit the available dates.
     """)
     return
 
@@ -226,14 +221,14 @@ def _(dt_day, dt_range, dt_stamp, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Actions — `button`, `run_button`, `refresh`
+    ## Buttons and timers: `button`, `run_button`, `refresh`
     """)
     return
 
 
 @app.cell
 def _(mo):
-    # on_click gets the current value and returns the next one — a click counter
+    # add one to the current count each time we click
     act_button = mo.ui.button(
         value=0, on_click=lambda count: count + 1, label="click me", kind="success"
     )
@@ -246,16 +241,17 @@ def _(mo):
 @app.cell
 def _(act_button, act_run, mo):
     mo.md(f"""
-    button clicked **{act_button.value}** times; run_button pressed:
-    **{act_run.value}**.
+    Button clicked {act_button.value} times; run button pressed:
+    {act_run.value}.
 
-    These are for *actions* rather than values. A plain **button** carries
-    whatever `value` you compute in `on_click` — above it counts clicks.
-    **run_button** is the escape hatch from reactivity: gate an expensive cell
-    behind `if not run.value: mo.stop()` so it only fires when asked.
-    **refresh** re-runs its dependents on a timer, which is what you want for
-    polling a file or an API. (There's also `mo.ui.microphone` for audio and
-    `mo.ui.file`/`file_browser` next.)
+    The `button` above uses `on_click` to add one to its current value.
+    A `run_button` is useful when I want to control when a slow calculation
+    runs. In the calculation cell we can use `mo.stop(not act_run.value)`
+    to stop execution until the button is pressed.
+
+    A `refresh` control updates on a timer. We could use its value in a cell
+    which reads a file or requests data from an API. Here we only display
+    the control; there is no polling cell.
     """)
     return
 
@@ -263,7 +259,7 @@ def _(act_button, act_run, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Files — `file`, `file_browser`
+    ## Files: `file`, `file_browser`
     """)
     return
 
@@ -282,14 +278,15 @@ def _(file_pick, file_upload, mo):
     _picked = file_pick.value[0].path if file_pick.value else "nothing yet"
     mo.md(
         f"""
-        uploaded: **{_uploaded}**, browsed: **{_picked}**
+    Uploaded: {_uploaded}, selected path: {_picked}
 
-        **file** uploads a file's *contents* into the notebook — the value is a
-        list of results with `.name` and `.contents` (bytes). That's the one for a
-        deployed app where the user is on another machine. **file_browser** picks a
-        *path* on the machine the notebook is running on, which is more useful for
-        local work where the data is already on disk.
-        """
+    The `file` widget uploads file contents. Its value is a list of results
+    with a `.name` and `.contents` containing the bytes. This is useful when
+    the browser and notebook are running on different machines.
+
+    The `file_browser` selects a path on the machine running the notebook.
+    I would use this when the data is already available on disk.
+    """
     )
     return
 
@@ -297,7 +294,7 @@ def _(file_pick, file_upload, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Tabular data — `table`
+    ## Tables: `table`
     """)
     return
 
@@ -318,14 +315,15 @@ def _(mo):
 @app.cell
 def _(data_table, mo):
     mo.md(f"""
-    you selected **{len(data_table.value)}** row(s).
+    We have selected {len(data_table.value)} rows.
 
-    **table** renders a list of dicts, a dataframe (pandas or polars) or a
-    dict of columns, with search, sorting and paging built in. Set
-    `selection="single"` or `"multi"` and `.value` gives you back the chosen
-    rows — a clean way to let someone pick records and drive the next cell off
-    them. For editing cells in place look at `mo.ui.data_editor`, and for a
-    no-code column explorer there's `mo.ui.dataframe`.
+    The `table` widget displays data with controls for searching, sorting and
+    moving between pages. This example uses a list of dictionaries; we can
+    also pass a pandas or polars dataframe.
+
+    Select some rows and look at the count above. With `selection="multi"`,
+    `.value` contains the selected rows. Use `selection="single"` to limit
+    this to one row. For editable data see `mo.ui.data_editor`.
     """)
     return
 
@@ -333,9 +331,10 @@ def _(data_table, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Composing widgets — `array`, `dictionary`, `form`, `batch`
+    ## Combining widgets: `array`, `dictionary`, `form`, `batch`
 
-    The four below don't add new controls; they combine the ones you've seen.
+    We can combine controls and read their values together. The examples
+    below show four ways of doing this.
     """)
     return
 
@@ -362,13 +361,13 @@ def _(mo):
     )
     mo.vstack(
         [
-            mo.md("**array**"),
+            mo.md("`array`"),
             comp_array,
-            mo.md("**dictionary**"),
+            mo.md("`dictionary`"),
             comp_dict,
-            mo.md("**form** (nothing updates until you Submit)"),
+            mo.md("`form` (press Submit to update its value)"),
             comp_form,
-            mo.md("**batch**"),
+            mo.md("`batch`"),
             comp_batch,
         ]
     )
@@ -378,16 +377,21 @@ def _(mo):
 @app.cell
 def _(comp_array, comp_batch, comp_dict, comp_form, mo):
     mo.md(f"""
-    `array` = **{comp_array.value}**, `dictionary` = **{comp_dict.value}**,
-    `form` = **{comp_form.value}**, `batch` = **{comp_batch.value}**
+    `array` = {comp_array.value}, `dictionary` = {comp_dict.value},
+    `form` = {comp_form.value}, `batch` = {comp_batch.value}
 
-    Use **array** when the *number* of widgets isn't known ahead of time —
-    one slider per column of a dataframe, say. Use **dictionary** for the same
-    idea with meaningful keys instead of positions. Wrap anything in **form**
-    when reacting on every keystroke would be wasteful (a slow query, a model
-    run): the value stays `None` until Submit, then updates in one go. **batch**
-    is for laying controls out inside a sentence of markdown rather than
-    stacking them.
+    An `array` gives us a list of values. Here I have created three sliders
+    using a list comprehension. A `dictionary` gives us named values, which
+    is useful for a group of related settings.
+
+    A `form` holds the changes until we press Submit. Its value starts as
+    `None`. Try entering a name and age, then submitting the form and
+    checking the output. I would use this before a slow calculation so
+    editing each field does not start it again.
+
+    The `batch` example places controls inside Markdown using named
+    placeholders. Its value is a dictionary containing the drink and
+    temperature.
     """)
     return
 
@@ -395,7 +399,7 @@ def _(comp_array, comp_batch, comp_dict, comp_form, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Layout — `tabs`
+    ## Layout: `tabs`
     """)
     return
 
@@ -404,9 +408,9 @@ def _(mo):
 def _(mo):
     layout_tabs = mo.ui.tabs(
         {
-            "Overview": mo.md("Tabs organise content — the value is the open tab."),
-            "Details": mo.md("Put a heavy widget in a lazy tab to defer its work."),
-            "Notes": mo.md("Handy for keeping a dense notebook navigable."),
+            "Overview": mo.md("We can group related content into tabs."),
+            "Details": mo.md("Use this tab for the details of an example."),
+            "Notes": mo.md("I use a separate tab for notes when an example gets long."),
         }
     )
     layout_tabs
@@ -416,12 +420,14 @@ def _(mo):
 @app.cell
 def _(layout_tabs, mo):
     mo.md(f"""
-    open tab: **{layout_tabs.value}**
+    Open tab: {layout_tabs.value}
 
-    **tabs** is layout rather than input, but it still reports which tab is
-    open via `.value`. Pair it with `mo.hstack`/`mo.vstack` and `mo.accordion`
-    to keep a widget-heavy notebook from turning into one long scroll. Set
-    `lazy=True` so a tab's contents only compute when it's first opened.
+    The `.value` of `tabs` tells us which tab is open. I use tabs to group
+    related content when a notebook is getting long. We can also arrange
+    controls with `mo.hstack`, `mo.vstack` and `mo.accordion`.
+
+    For content which should only be evaluated when its tab is opened, see
+    `mo.lazy` in the [layout reference](https://docs.marimo.io/api/layouts/).
     """)
     return
 
@@ -429,18 +435,19 @@ def _(layout_tabs, mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Where to go next
+    ## Try it yourself
 
-    That covers the everyday widgets. A few specialised ones I've skipped
-    because they need extra libraries or a real device: `mo.ui.altair_chart`,
-    `mo.ui.plotly` and `mo.ui.matplotlib` make plots that report selections
-    back as `.value`; `mo.ui.microphone` and `mo.ui.chat` are for audio and LLM
-    chat; `mo.ui.anywidget` lets you drop in any
-    [anywidget](https://anywidget.dev). The full list is in the
-    [inputs reference](https://docs.marimo.io/api/inputs/).
+    Combine some of these controls in a small example. We could use a dropdown
+    to select a colour and a slider to set the radius of a circle, then draw
+    it in another cell.
 
-    The pattern is always the same: build the widget in one cell, read
-    `.value` in another, and let marimo work out what re-runs.
+    There are more specialised controls in the
+    [inputs reference](https://docs.marimo.io/api/inputs/), including chart
+    selections, audio input and chat. We can also use
+    [anywidget](https://anywidget.dev) widgets through `mo.ui.anywidget`.
+
+    The same pattern applies: create the widget in one cell and use its
+    `.value` in another.
     """)
     return
 
