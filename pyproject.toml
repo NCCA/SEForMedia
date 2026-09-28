@@ -16,6 +16,7 @@ dependencies = [
     "anywidget>=0.11.0",
     "ipycanvas>=0.14.1",
     "ipyturtle3>=0.1.4",
+    "kagglehub>=1.0.2",
     "marimo>=0.14.17",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
@@ -31,6 +32,7 @@ dependencies = [
     "soundfile>=0.13.1",
     "torch>=2.6.0",
     "torchaudio>=2.6.0",
+    "torchcodec>=0.16.0",
     "torchvision>=0.21.0",
     "tqdm>=4.67.1",
 ]
