@@ -2,23 +2,27 @@
 
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.24.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # [Numpy](https://numpy.org/)
 
-    This notebook is a companion to the lecture slides [here](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/lectures/Lecture5/), it will be used to introduce numpy as well as other concepts. Note that we are still using Numpy 1.26.x so some of the newer features may not be available. For full documentation see [here](https://numpy.org/doc/1.26/index.html).
+    This notebook is a companion to the lecture slides [here](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/lectures/Lecture5/), it will be used to introduce numpy as well as other concepts. For full documentation see [here](https://numpy.org/doc/stable/index.html).
 
     ## Getting Started
 
-    numpy is already installed as part of the Anaconda distribution, so you should be able to import it directly. If you are using a different Python distribution you may need to install it using pip. The following code cell will import numpy and check the version you are using.
-    """
-    )
+    numpy is already installed as part of this repository via uvd, so you should be able to import it directly. If you are using a different Python distribution you may need to install it using uv.
+
+    ```bash
+    uv add numpy
+    ```
+
+    The following code cell will import numpy and check the version you are using.
+    """)
     return
 
 
@@ -32,16 +36,15 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""In the above example we import ```numpy as np``` this is a common convention as it makes it easier to type and read the code. We are creating an alias called ```np``` that contains all the numpy functions. This is a common convention in python programming."""
-    )
+    mo.md(r"""
+    In the above example we import ```numpy as np``` this is a common convention as it makes it easier to type and read the code. We are creating an alias called ```np``` that contains all the numpy functions. This is a common convention in python programming.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Arrays
 
     The core data type in numpy is the array, this is similar to a list but can be multi-dimensional. They can be created in a number of ways for example
@@ -53,8 +56,7 @@ def _(mo):
 
 
     For a full list of array creation routines, please see [here](https://numpy.org/doc/1.26/reference/routines.array-creation.html)
-    """
-    )
+    """)
     return
 
 
@@ -89,7 +91,9 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+
+    """)
     return
 
 
@@ -103,8 +107,7 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Array Shape
 
     In NumPy, an array’s shape refers to the dimensions of the array, specifying how many elements it contains along each axis. The shape of a NumPy array is represented as a tuple of integers, where each integer represents the size of the array along that dimension.
@@ -115,8 +118,7 @@ def _(mo):
 
     **1D Array (Vector):**
     - Shape: (n,) where n is the number of elements.
-    """
-    )
+    """)
     return
 
 
@@ -129,13 +131,11 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     **2D Array (Matrix):**
 
     - Shape: (n, m) where n is the number of rows and m is the number of columns.
-    """
-    )
+    """)
     return
 
 
@@ -148,12 +148,10 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     **3D Array:**
     - Shape: (n, m, p) where n is the number of matrices, m is the number of rows, and p is the number of columns in each matrix.
-    """
-    )
+    """)
     return
 
 
@@ -166,8 +164,7 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Why Do We Need Array Shapes?
 
     1.	Understanding Data Structure: Knowing the shape of an array tells you how the data is organized. For example, whether the data is a single vector, a 2D matrix, or a multi-dimensional dataset is important for operations like indexing, reshaping, or applying functions.
@@ -182,8 +179,7 @@ def _(mo):
     * 2, 5
     * 1, 10
     * 10, 1
-    """
-    )
+    """)
     return
 
 
@@ -214,15 +210,13 @@ def _(matrix_5_2, np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Exercises
 
     The following cells have been set up to help you learn how to use numpy. The comments in the cells will ask you to complete a simple numpy task. Experiment with the code and see what happens.
 
     ### Task 1
-    """
-    )
+    """)
     return
 
 
@@ -234,8 +228,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -248,8 +241,7 @@ def _(mo):
     </details>
 
     ### Task 2
-    """
-    )
+    """)
     return
 
 
@@ -261,8 +253,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -275,8 +266,7 @@ def _(mo):
     </details>
 
     ## Task 3
-    """
-    )
+    """)
     return
 
 
@@ -288,8 +278,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -302,8 +291,7 @@ def _(mo):
     </details>
 
     ## Task 4
-    """
-    )
+    """)
     return
 
 
@@ -315,8 +303,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -327,15 +314,13 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Array operations
 
     Once you have created an array, there are various operations you may want to perform on them. We'll go through some of the most common ones in the next few cells.
@@ -349,8 +334,7 @@ def _(mo):
     3. The operations is between 2 arrays of different shapes that can be "broadcast" together - more on this later
 
     These operations are applied **element-wise** meaning each element in the array is combined with its corresponding element at the same position in the other array
-    """
-    )
+    """)
     return
 
 
@@ -395,13 +379,11 @@ def _(arr_3):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Broadcasting
 
     As long as an array's dimensions are compatible with their counterparts in the other array, they can be "broadcasted" together. This means that numpy will 'strectch' the smaller dimension along its axis so that element-wise operations can be applied between them. In general, 2 arrays can be broadcast together if each dimension in one array is compatible with its counterpart in the other array. Dimensions are compatible if they are equal or one of them is equal to 1. The dimension of size 1 is expanded to fit the size of its counterpart see [broadcasting rules](https://numpy.org/doc/1.26/user/basics.broadcasting.html) for more information.
-    """
-    )
+    """)
     return
 
 
@@ -423,9 +405,9 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""![broadcasting](images/broadcast.png) (source: [numpy.org](https://numpy.org/doc/1.26/user/basics.broadcasting.html))"""
-    )
+    mo.md(r"""
+    ![broadcasting](images/broadcast.png) (source: [numpy.org](https://numpy.org/doc/1.26/user/basics.broadcasting.html))
+    """)
     return
 
 
@@ -450,13 +432,11 @@ def _(B, np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Array Products
 
     Contrary to the `*` operator, which performs element-wise multiplication between the arrays, `np.matmul` is the matrix product of the arrays.
-    """
-    )
+    """)
     return
 
 
@@ -472,9 +452,9 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Newer versions of python introduced the `@` operator which is equivalent to `np.matmul` for 2D arrays (it is an overloaded operator). For 1D arrays, it is equivalent to the dot product."""
-    )
+    mo.md(r"""
+    Newer versions of python introduced the `@` operator which is equivalent to `np.matmul` for 2D arrays (it is an overloaded operator). For 1D arrays, it is equivalent to the dot product.
+    """)
     return
 
 
@@ -487,13 +467,11 @@ def _(A_1, B_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Exercises
 
     ### Task 1
-    """
-    )
+    """)
     return
 
 
@@ -505,8 +483,7 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -519,8 +496,7 @@ def _(mo):
     </details>
 
     ### Task 2
-    """
-    )
+    """)
     return
 
 
@@ -532,8 +508,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -546,8 +521,7 @@ def _(mo):
     </details>
 
     ### Task 3
-    """
-    )
+    """)
     return
 
 
@@ -559,8 +533,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -573,8 +546,7 @@ def _(mo):
     </details>
 
     ### Task 4
-    """
-    )
+    """)
     return
 
 
@@ -594,8 +566,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -607,23 +578,20 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Functions
 
     Another useful thing we might want to do with an array is to apply a function to each element. Generally speaking, it is best to use the built-in Numpy functions to work on numpy arrays instead of defining your own. This is because Numpy functions are highly optimised for speed, which is important when working with large amounts of data. Chances are, whatever kind of mathematical operation you want to perform on a Numpy array is already built in.  A full list can be found [here](https://numpy.org/doc/1.26/reference/routines.math.html)
 
     ### Element-wise functions
     Common uses are applying trig functions to an array of values:
-    """
-    )
+    """)
     return
 
 
@@ -648,12 +616,10 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Reduce functions
     These are applied along the selected axis, consume all the elements and reduce the axis down to 1 element. If no axis is specified, the function is applied to the whole array, and reduces it to a scalar
-    """
-    )
+    """)
     return
 
 
@@ -672,13 +638,11 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Exercises
 
     ### Task 1
-    """
-    )
+    """)
     return
 
 
@@ -692,8 +656,7 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -706,8 +669,7 @@ def _(mo):
     </details>
 
     ### Task 2
-    """
-    )
+    """)
     return
 
 
@@ -719,8 +681,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -732,8 +693,7 @@ def _(mo):
     </details>
 
     ### Task 3
-    """
-    )
+    """)
     return
 
 
@@ -745,8 +705,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -757,20 +716,17 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## ```numpy.where```
 
     This allows us to conditionally modify the elements of an array, which can be useful for tasks like thresholding or masking.
-    """
-    )
+    """)
     return
 
 
@@ -784,7 +740,9 @@ def _(np):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Exercise""")
+    mo.md(r"""
+    ## Exercise
+    """)
     return
 
 
@@ -796,8 +754,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -808,8 +765,7 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
@@ -821,8 +777,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -833,20 +788,17 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Practical Example
 
     The following function will plot pairs of x and y values on a graph. We will use this to plot the results of the following exercises.
-    """
-    )
+    """)
     return
 
 
@@ -892,15 +844,13 @@ def _(np, plot_points):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Now we will define a function to generate a 2D rotation matrix. This will be used to rotate a set of points in 2D space. The rotation matrix is defined as:
 
     $$  \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix} $$
 
     Where $\theta$ is the angle of rotation in radians.
-    """
-    )
+    """)
     return
 
 
@@ -934,15 +884,13 @@ def _(get_rotation_matrix, plot_points, points):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We can add a translation to the rotation matrix to move the points to a new location. The translation matrix is defined as:
 
     $$  \begin{bmatrix} x \\ y \end{bmatrix} $$
 
     Where x and y are the amount to move the points in the x and y directions respectively.
-    """
-    )
+    """)
     return
 
 
@@ -951,6 +899,14 @@ def _(np, plot_points, points, rot_matrix):
     translate = np.array([-2, 0])
     _rotated_triangle = points @ rot_matrix + translate
     plot_points(_rotated_triangle.flatten())
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    For a more indepth tutorial on numpy and it's uses look at the NumPyForML/ folder in the repository which has even more worked examples using a marimo notebook.
+    """)
     return
 
 

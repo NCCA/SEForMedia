@@ -11,8 +11,8 @@ from pathlib import Path
 
 import IPython
 import requests
-from tqdm import tqdm
 import torch
+from tqdm import tqdm
 
 
 def in_lab() -> bool:

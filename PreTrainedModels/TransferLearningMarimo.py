@@ -128,7 +128,7 @@ def _(device):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""No to create the new layer for our model.""")
+    mo.md(r"""Now to create the new layer for our model.""")
     return
 
 

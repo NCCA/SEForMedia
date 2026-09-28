@@ -1,8 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+__marimo__/
+docs/
 *.py[cod]
 *$py.class
-*.pth # pytorch models
+# pytorch models
+*.pth
 .python-version
 ScratchCode/*
 # C extensions
@@ -239,3 +242,13 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 .vscode/*
+# Marimo cache and session files
+__marimo__/cache/
+__marimo__/sessions/
+.worktrees
+.DS_Store
+.serena
+.virtual_documents
+
+# markdown copies of the marimo notebooks, made by scripts/export_marimo_md.py
+MarkdownExports/

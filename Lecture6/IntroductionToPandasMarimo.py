@@ -2,38 +2,38 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Using Pandas""")
+    mo.md(r"""
+    # Using Pandas
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In this notebook, we will be looking at pandas, a Python library that provides many useful tools for loading, displaying, and cleaning data. Please have a look at the [official Pandas documentation](https://pandas.pydata.org/docs/reference/index.html) to learn more about any of the functions you encounter in this notebook.
 
     To aid us in showing off the functionality of this library, we will be looking at the MetObjects dataset, which comes courtesy of the [Metropolitan Museum of Art in New York](https://www.metmuseum.org/). This data can be found on GitHub [here](https://github.com/metmuseum/openaccess/tree/master) as well as on [Kaggle](https://www.kaggle.com/metmuseum/the-metropolitan-museum-of-art-open-access).
 
     For this lecture we will download the dataset from my website as a zip file then extract that into a new folder in this current directory.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Downloading the dataset
-    You can use a leading `!` in a line of Jupyter notebook code to specify that the rest of the line should be interpreted as a shell command. This is convenient for modifying files or running scripts that live on your filesystem without having to switch between the browser and terminal. Let's use this syntax to create a directory for the Met Museum dataset
-    """
-    )
+
+    We are going to use the [pathlib](https://docs.python.org/3/library/pathlib.html) library to create a folder for use, note the exits_ok parameter in mkdir, which allows us to create a new directory without throwing an error if it already exists
+    it will also create any intermediate directories that don't exist
+    """)
     return
 
 
@@ -43,17 +43,15 @@ def _():
 
     from pathlib import Path
 
-    Path.mkdir(data_dir, exist_ok=True)
-    # note the exits_ok parameter in mkdir, which allows us to create a new directory without throwing an error if it already exists
-    # it will also create any intermediate directories that don't exist
+    Path(data_dir).mkdir(exist_ok=True)
     return Path, data_dir
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Now we are going to download the dataset from my website and extract it into the data_dir folder. There are many different methods to do this, in this case we are going to use the ```requests``` library to download the file and ```zipfile``` to extract it."""
-    )
+    mo.md(r"""
+    Now we are going to download the dataset from my website and extract it into the data_dir folder. There are many different methods to do this, in this case we are going to use the ```requests``` library to download the file and ```zipfile``` to extract it.
+    """)
     return
 
 
@@ -85,9 +83,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The above function takes two parameters, one is the url of the file to download and the other is the path to save the file. We can use it as follows to download the zip file."""
-    )
+    mo.md(r"""
+    The above function takes two parameters, one is the url of the file to download and the other is the path to save the file. We can use it as follows to download the zip file.
+    """)
     return
 
 
@@ -108,9 +106,9 @@ def _(Path, data_dir, download):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Now we will unzip the dowlnoaded file into the data_dir folder. We can use the ```zipfile``` library to do this."""
-    )
+    mo.md(r"""
+    Now we will unzip the dowlnoaded file into the data_dir folder. We can use the ```zipfile``` library to do this.
+    """)
     return
 
 
@@ -126,9 +124,9 @@ def _(data_dir, zip_file):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We should now be able to see the file MetObject.csv in the data_dir folder."""
-    )
+    mo.md(r"""
+    We should now be able to see the file MetObject.csv in the data_dir folder.
+    """)
     return
 
 
@@ -137,18 +135,15 @@ def _(Path, data_dir):
     folder = Path(data_dir)
     for child in folder.iterdir():
         print(child)
-
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Setting up the environment
     Now that we have the data, we can start by importing the necessary libraries and loading the data into a pandas DataFrame. To make displaying the data easier, we can set some options for pandas to display more rows and columns before we create our first data frame.
-    """
-    )
+    """)
     return
 
 
@@ -169,13 +164,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## The DataFrame
 
     The DataFrame is the central data structure provided by Pandas, and it is this structure that we need to interrogate when we want to ask questions about our data. You can think of a DataFrame as a table with rows of records and columns that describe the fields of those records. Pandas provides built in functions for loading text files and automatically puts their contents into a DataFrame. The dataset we just downloaded (`MetObjects.csv`) is a CSV (comma separated value) file, so we need to use the `load_csv` function provided by Pandas.
-    """
-    )
+    """)
     return
 
 
@@ -195,14 +188,12 @@ def _(csv_file, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Accessing and displaying data
 
     ### Integer indexing
     Similar to Python list slices, uses 0-indexed start and end positions to return a subset of the dataframe. With a Padas dataframe, this is done via the `iloc` indexer.
-    """
-    )
+    """)
     return
 
 
@@ -216,12 +207,10 @@ def _(dataset):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Boolean Series
     A series is a 1-D array - a boolean series is one that is filled with boolean (i.e., `True` or `False`) values. We can pass boolean series into a Dataframe's `loc` indexer to keep only the values that align with `True`. Different boolean series of the same length can be combined using the following logical operators: `&` (and), `|` (or), `~` (not).
-    """
-    )
+    """)
     return
 
 
@@ -246,12 +235,10 @@ def _(dataset, medieval_art_bool_series):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Grouping by column name(s)
     We can also group the data by a list of columns. This returns a Pandas GroupBy object, which contains a dictionary of mappings from each group name to a Series of its elements
-    """
-    )
+    """)
     return
 
 
@@ -265,13 +252,11 @@ def _(dataset):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Using ```where``` to filter data
 
     Similar to Numpy arrays, Pandas dataframes also make use of the ```where``` function to conditionally modify its elements based on some criteria. ```where``` takes a dataframe condition as an argument and returns the modified dataframe - if the condition is fulfilled, it keeps the value of the field, if not, it replaces it with `NaN`. We can use this function to remove objects that do not
-    """
-    )
+    """)
     return
 
 
@@ -283,9 +268,9 @@ def _(g):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As you can see, most of the records are now NaN. We will look at how these types of situations can be fixed in the upcoming cells. Let's  print out the original dataset again so we can use it as a visual reference for the future:"""
-    )
+    mo.md(r"""
+    As you can see, most of the records are now NaN. We will look at how these types of situations can be fixed in the upcoming cells. Let's  print out the original dataset again so we can use it as a visual reference for the future:
+    """)
     return
 
 
@@ -297,8 +282,7 @@ def _(dataset):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data cleaning
     Before data can be fed into your application, it needs to be verified and checked for consistency. We can see that there are several problems with the dataset right off the bat:
     1. First row seems to contain garbage: none of the column names match up with the data types, and many are NaN
@@ -311,8 +295,7 @@ def _(mo):
 
     ### Deleting rows by index
     We can get rid of the first row (index 0) by taking a slice of the dataframe beginning at index 1 and going all the way to the end.
-    """
-    )
+    """)
     return
 
 
@@ -325,13 +308,11 @@ def _(dataset):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Removing columns
 
     Columns can be removed conditionally by checking their contents to see if they meet a certain criteria, or simply by name
-    """
-    )
+    """)
     return
 
 
@@ -344,9 +325,9 @@ def _(dataset_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can also remove columns by name. This is done by passing a list of column names to the `drop` function, along with the `axis=1` argument to specify that we are dropping columns, not rows. We can see all of the keys in the dataframe by calling the `keys` function on it."""
-    )
+    mo.md(r"""
+    We can also remove columns by name. This is done by passing a list of column names to the `drop` function, along with the `axis=1` argument to specify that we are dropping columns, not rows. We can see all of the keys in the dataframe by calling the `keys` function on it.
+    """)
     return
 
 
@@ -379,12 +360,10 @@ def _(dataset_2):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Default values
     Artists are known to often leave their work untitled. In our dataset, this is not handled very gracefully - the titles of such artworks are simple NaN. Fortunately, we have another way of dealing with missing data: assigning a default value. We can replace any instance of a NaN title with the string "Untitled"
-    """
-    )
+    """)
     return
 
 
@@ -404,18 +383,21 @@ def _(dataset_3):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Removing rows
     We can also get rid of rows that do not meet certain criteria. For example, given a subset of fields that we deem very important, we can drop all rows are NaN in any of these fields
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(dataset_3):
-    important_cols = ["Tags", "Dimensions", "Object Begin Date", "AccessionYear"]
+    important_cols = [
+        "Tags",
+        "Dimensions",
+        "Object Begin Date",
+        "AccessionYear",
+    ]
     dataset_4 = dataset_3.dropna(subset=important_cols)
     dataset_4
     return (dataset_4,)
@@ -423,14 +405,12 @@ def _(dataset_3):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Data types
     We change some data types that don't really make sense: `AccessionYear` and `Object Begin Date` were originally loaded in with mixed datatypes (some are strings, some are numbers), which makes it difficult to sort correctly.
 
     We can convert this data using the pd.to_datetime function, which will convert the data to a datetime object. This will allow us to sort the data correctly. In this case I will convert the `AccessionYear` and `Object Begin Date` columns to datetime objects. I will also ignore any errors that may arise from this conversion and set the `coerce` parameter to True. This will replace any errors with NaT values. I am only intereseed in the year, so I will extract that from the datetime object using the format string '%Y'.
-    """
-    )
+    """)
     return
 
 
@@ -448,15 +428,17 @@ def _(dataset_4, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You can see some of the data has NaT values. We can drop these for our final dataset as follows"""
-    )
+    mo.md(r"""
+    You can see some of the data has NaT values. We can drop these for our final dataset as follows
+    """)
     return
 
 
@@ -470,8 +452,7 @@ def _(dataset_4):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Dataframe interrogation
     We can now begin to ask some interesting questions about this dataset:
     1. Which department houses the oldest artwork in the museum? Use `Object Begin Date` for this task.
@@ -479,20 +460,17 @@ def _(mo):
     3. _What is the most common theme across all the paintings? Or, which tag is most common?**\*\***_
 
     _**\*\* Slightly more difficult, multi-step problem**_
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## The oldest artwork
 
     To do this we can sort the data by the "Object Begin Date" column and then take the first row. We can then print out the department that houses this artwork.
-    """
-    )
+    """)
     return
 
 
@@ -504,8 +482,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -518,20 +495,17 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Proportion of artworks by department
 
     In this case we can use the groupby function to grab the departments and then count the number of records in each department. We can then use the plot function to display this data as a pie chart.
-    """
-    )
+    """)
     return
 
 
@@ -543,8 +517,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -557,16 +530,15 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can use the build in function plot.pie to display this data as a pie chart"""
-    )
+    mo.md(r"""
+    We can use the build in function plot.pie to display this data as a pie chart
+    """)
     return
 
 
@@ -578,8 +550,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -590,19 +561,17 @@ def _(mo):
     departments.plot.pie(y="Counts",
                          explode=[0.125 for _ in range(len(departments))],
                          labels=departments['Department'],
-                         legend=None, ylabel="")
+                         legend=None, ylabel="\")
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Most common theme
 
     This is a multi stage process,  first we are going to generate an empty list to store all the tags in.
@@ -611,8 +580,7 @@ def _(mo):
     Note the tags are separated by a pipe character `|`. We can use the `str.split` function to split the tags into a list of tags.
 
     Now we can use the power of pandas to generate a new dataframe from the tags list and run some analysis on it.
-    """
-    )
+    """)
     return
 
 
@@ -624,8 +592,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <details>
 
     <summary>Solution</summary>
@@ -660,14 +627,15 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+
+    """)
     return
 
 

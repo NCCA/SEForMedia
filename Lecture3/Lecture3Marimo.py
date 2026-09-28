@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Lecture 3 Sequence, Selection, and Iteration
 
     In this lecture we are going to look at the three basic control structures in programming: sequence, selection, and iteration. We will also look at how to write functions in Python.
@@ -17,8 +16,7 @@ def _(mo):
     ## Sequences
 
     As it's name suggests, a sequence is a series of steps that are executed in order. In Python, the sequence is the default control structure. When you write a series of statements in a Python script, they are executed in order from top to bottom.  This is also true when typing in the REPL.
-    """
-    )
+    """)
     return
 
 
@@ -37,8 +35,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As you can see from the code block above, there is a lot of repitition in the code. Whilst this is not really an issue for small amounts of code, it can become a problem as the code base grows.
 
     This is where the idea of functions come into play, functions allow us to encapsulate a block of code that can be reused multiple times.
@@ -81,15 +78,14 @@ def _(mo):
     - usually this will follow a statement and the ```:``` operator to indicate the start of the block
 
     ## Example 1 a simple add function
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _():
     def add(a, b):
-        return _a + _b
+        return a + b
 
     _a = 1
     _b = 2
@@ -105,51 +101,48 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will note that the function add can take any type of input and return the result. This is because Python is a dynamically typed language. This means that the type of the variable is determined at runtime. This is different from statically typed languages like C++ or Java where the type of the variable is determined at compile time. This is a powerful feature of Python but can also lead to bugs if you are not careful. For example if you try to pass a string and a number to the add function it will throw an error."""
-    )
+    mo.md(r"""
+    You will note that the function add can take any type of input and return the result. This is because Python is a dynamically typed language. This means that the type of the variable is determined at runtime. This is different from statically typed languages like C++ or Java where the type of the variable is determined at compile time. This is a powerful feature of Python but can also lead to bugs if you are not careful. For example if you try to pass a string and a number to the add function it will throw an error.
+    """)
     return
 
 
 @app.cell
-def _():
+def _(add):
     add("hello", 2)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Functions in practice
 
     A function needs to be declared before it is called, however they can be placed in external files / modules (more on this  in a future lecture). Python 3.5 also added a feature called type hints which allows you to specify the type of the input and output of a function. This is not enforced by the interpreter but can be used by IDEs to provide better code completion and error checking.
 
     For example if we wished the ```add``` function to only use numbers we could use the following type hint.
 
+    ```python
+    def add(a: int, b: int) -> int:
+        return a + b
+    ```
+
     `
-    """
-    )
-    return
-
-
-@app.function
-def add(a: int, b: int) -> int:
-    return a + b
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""Whilst this does take more time type hints are part of modern python and should be used whenever possible.  There is a good [cheat sheet](https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html) for type hints on the mypy website."""
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
+    Whilst this does take more time type hints are part of modern python and should be used whenever possible.  There is a good [cheat sheet](https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html) for type hints on the mypy website.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Let's design a function
 
     In one of the earlier examples we used the turtle to draw two squares, This is idea for a function so we can design one but what do we need?
@@ -171,8 +164,7 @@ def _(mo):
     Which one to choose is a matter of design (the hard part), it ays to be consistent with other functions etc.
 
     ##
-    """
-    )
+    """)
     return
 
 
@@ -213,16 +205,15 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""In the cell above we have defined the square function, it can now be called from our code below. It is important that the above cell has been run before the cell below."""
-    )
+    mo.md(r"""
+    In the cell above we have defined the square function, it can now be called from our code below. It is important that the above cell has been run before the cell below.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     You will now  notice if you hover over the square function you will see the signature of the function and the type hints. This is a useful feature of Jupyter notebooks and can be used to check the type hints of a function.
 
     This is generated from the [docstring](https://www.python.org/dev/peps/pep-0257/) which is a way of documenting your code and is very useful for others (and yourself) to understand what the function does. It helps to do this when you are designing the function as it helps to clarify what the function should do. AI-Tools are also very good at generating typehints and docstrings from code, however it is always best to write these yourself.
@@ -236,21 +227,21 @@ def _(mo):
     The file [jupyter_square.py](jupyter_square.py) contains the square function, we can import this function into our script using the `import` keyword. This will allow us to use the square function in our script.
 
     The following example is going to generate a series of squares using the square function and random module to make a very bad attempt at generating Rothko style art.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As you can see I have introduced some new concepts in the above code, iteration (looping) and selection (if statements). We will start to look at these in more details and how we can combine them into more complex programs.
 
 
@@ -285,8 +276,7 @@ def _(mo):
     All other values are considered true. This is important to remember when writing `if` statements.
 
     The following example show a simple if statement in action
-    """
-    )
+    """)
     return
 
 
@@ -302,13 +292,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## elif
 
     in the previous example we had an if followed by an else, it is also possible to have an `elif` statement. This is short for else if and allows for multiple conditions to be checked. The syntax for the `elif` statement is as follows:
-    """
-    )
+    """)
     return
 
 
@@ -330,20 +318,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## try / except
 
     Note in this example we use a try / except block to catch the exception if the user enters a non number, this is a common pattern in python to catch exceptions we will look at this in more detail in a later lecture / lab.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Python Comparison Operators
     <small>given ```a=10 b=20```</small>
 
@@ -355,14 +340,15 @@ def _(mo):
     | <small>```<```    </small>                 |  <small>Checks if the value of left operand is less than the value of right operand   </small>              |  <small>(a>b) is true     </small>  |
     | <small>```>=```    </small>                |  <small>Checks if the value of left operand is greater than or equal to the value of right operand  </small>| <small> (a>=b) is not true </small> |
     | <small>```<=```    </small>                |  <small>Checks if the value of left operand is less than or equal to the value of right operand   </small>  | <small> (a<=) is true   </small>    |
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
@@ -382,8 +368,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Python Logical Operators
 
     <small>given ```a=true b=False```</small>
@@ -393,14 +378,15 @@ def _(mo):
     | <small>```and```    </small>                | <small>Logical and </small>                                     | <small>a and b is False  </small>|
     | <small>```or```  </small>                  | <small>Logical or             </small>                                                            | <small>a or b is True   </small>   |
     | <small>```not```   </small>| <small>Logical not   </small>                                    | <small>not (a and b) is True  </small>   |
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
@@ -417,8 +403,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## A note on style
 
     The following code whilst correct is not considered good style in Python.
@@ -448,8 +433,7 @@ def _(mo):
     We usually prefer to put complex sequences in functions to make the code easier to read / maintain, we can also  simplify these  using set operators such as ```in```.
 
     Python 3.10 and above also has a new feature called [match](https://docs.python.org/3/library/match.html) which is a more powerful version of the switch statement in other languages.
-    """
-    )
+    """)
     return
 
 
@@ -471,8 +455,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # iteration
 
     Iteration is the ability to repeat sections of code. Python has two main looping constructs:
@@ -486,14 +469,15 @@ def _(mo):
     A for loop is used for iterating over a sequence built in types such as ```list```, ```tuple```, ```dictionary```, ```set``` and  ```string``` will work by default.
 
     Also any iterable  object that can return one of its elements at a time can be used in a for loop. This is known as [iterable](https://docs.python.org/3/glossary.html#term-iterable).
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
@@ -515,8 +499,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## range
 
     The range function is a useful function for generating a sequence of numbers. It is common to use this in conjunction with the for loop to generate a sequence of numbers. The range function can take up to three arguments, the start, stop, and step. The syntax for the range function is as follows:
@@ -526,14 +509,15 @@ def _(mo):
     ```
 
     start is the first number in the sequence, stop is the last number in the sequence, and step is the difference between each number in the sequence. If the start and step arguments are not provided, they default to 0 and 1 respectively. The range function generates a sequence of numbers from start to stop - 1. The range function is a generator function, this means that it does not generate all the numbers at once, but generates them one at a time. This is useful when working with large sequences of numbers.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
@@ -550,13 +534,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [```break```](https://docs.python.org/3/tutorial/controlflow.html#break-and-continue-statements-and-else-clauses-on-loops)
 
     The ```break``` clause allows us to jump out of a loop, tt is usually used in conjunction with an if statement and will break out of the loop if the condition is met.
-    """
-    )
+    """)
     return
 
 
@@ -574,13 +556,11 @@ def _(random):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [```continue```](https://docs.python.org/3/tutorial/controlflow.html#break-and-continue-statements-and-else-clauses-on-loops)
 
     ```continue``` will stop the current loop and jump to the next item, this is useful if you want to skip an item in a loop.
-    """
-    )
+    """)
     return
 
 
@@ -598,13 +578,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ##  [```-```](https://docs.python.org/3/tutorial/controlflow.html#break-and-continue-statements-and-else-clauses-on-loops)
 
     It is convention in Python to use ```_```  as a general purpose "throwaway" variable name, it is very common to use this multiple times in a file or module.
-    """
-    )
+    """)
     return
 
 
@@ -619,13 +597,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## dictionary iteration
 
     The dictionary ```items()``` method returns the key and the value, we could use just ```keys()``` or ```values()``` to get the individual elements.
-    """
-    )
+    """)
     return
 
 
@@ -644,8 +620,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## the ```while``` statement
 
     The while loop is used to iterate over a block of code as long as the condition is true. The syntax for the while loop is as follows:
@@ -655,8 +630,7 @@ def _(mo):
         # code block
     ```
     The same indentation rules apply to the while loop as they do to the for loop and the if statement. The code block that is executed if the condition is true must be indented. Both the break and continue statements can be used in the while loop. The break statement will break out of the loop if the condition is met, and the continue statement will skip the current iteration of the loop.
-    """
-    )
+    """)
     return
 
 
