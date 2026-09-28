@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 __marimo__/
+Slides/
+*.onnx*
 docs/
 *.py[cod]
 *$py.class
