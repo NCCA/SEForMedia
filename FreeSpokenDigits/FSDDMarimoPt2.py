@@ -66,17 +66,27 @@ def _():
 def _(mo):
     mo.md(r"""
     Lets see if we can load one of the files and visualise it.
+
+    First let's generate a slider to make it more interactive, this will select and index for the file so we can see what the different data files look like.
     """)
     return
 
 
 @app.cell
-def _(AudioDecoder, Path, dataset_path, plt, torch):
+def _(mo):
+    file_index = mo.ui.slider(start=0, stop=3000 - 1, value=0, label="File Index")
+    file_index
+    return (file_index,)
+
+
+@app.cell
+def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
     # grab the first file in the folder
     root = Path(f"{dataset_path}/recordings")
-    _file0 = Path(sorted(root.glob("*.wav"))[0])
-
-    audio_decoder = AudioDecoder(_file0)
+    loaded_file = Path(sorted(root.glob("*.wav"))[file_index.value])
+    label = int(loaded_file.stem.split("_", 1)[0])
+    print(f"Audio number is {label}")
+    audio_decoder = AudioDecoder(loaded_file)
     samples = audio_decoder.get_all_samples()
 
     _start = audio_decoder.metadata.begin_stream_seconds
@@ -104,15 +114,77 @@ def _(AudioDecoder, Path, dataset_path, plt, torch):
         linewidth=0.4,
     )
 
-    _axes[0].set(xlabel="Source time (s)", ylabel="Amplitude", title="Left channel")
+    _axes[0].set(
+        xlabel="Source time (s)",
+        ylabel="Amplitude",
+        title=f"Left channel digit {label}",
+    )
     _axes[1].plot(_segment_time[:160].numpy(), segment.data[0, :160].numpy(), ".-")
     _axes[1].set(
         xlabel="Source time (s)",
         ylabel="Amplitude",
-        title="First 10 ms of the excerpt",
+        title=f"First 10 ms of the excerpt digit {label}",
     )
     plt.close(_fig)
     _fig
+    return label, loaded_file
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ##From audio to features
+    AudioDecoder returns a tensor with shape [channels, samples]. We request mono audio at 8 kHz, then pad short clips with zeros or trim long clips to one second.  We can then process this to give us a mel spectrogram and plot this as a feature.
+    """)
+    return
+
+
+@app.cell
+def _(AudioDecoder, loaded_file, torch):
+    from torchaudio.transforms import MelSpectrogram
+
+    mel = MelSpectrogram(
+        sample_rate=8000,
+        n_fft=256,
+        hop_length=80,
+        n_mels=64,
+    )
+    _samples = AudioDecoder(
+        loaded_file,
+        sample_rate=8000,
+        num_channels=1,
+    ).get_all_samples()
+    audio = _samples.data[:, :8000]
+    audio = torch.nn.functional.pad(audio, (0, 8000 - audio.shape[-1]))
+    feature = mel(audio).clamp_min(1e-10).log()
+    feature = (feature - feature.mean()) / feature.std().clamp_min(1e-6)
+    return (feature,)
+
+
+@app.cell
+def _(feature, label, loaded_file, mo, plt):
+    _fig, _ax = plt.subplots(figsize=(9, 3), layout="constrained")
+    _image = _ax.imshow(
+        feature[0].numpy(), origin="lower", aspect="auto", extent=[0, 1, 0, 64]
+    )
+    _ax.set(
+        xlabel="Time (s)",
+        ylabel="Mel band",
+        title=f"Normalised log-mel features: digit {label} ",
+    )
+    _fig.colorbar(_image, ax=_ax)
+    plt.close(_fig)
+    mo.vstack([mo.audio(loaded_file.read_bytes()), _fig])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    This image is basically what we are going to train our network on. Scrubbing through the files you will see that nearly all of them start at 0 but the purple elements at the end are different. This is basically the silence we added when padding the data.  The reason we do this is so we can stack our training data into equal size tensors when training.
+
+    It is possible to optimize this more but for now it will be fine.
+    """)
     return
 
 
