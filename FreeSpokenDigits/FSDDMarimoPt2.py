@@ -267,5 +267,13 @@ def _(dataloader_index, mo, plt, train_data):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    In the next notebook we will design and train a CNN to recognize our data.
+    """)
+    return
+
+
 if __name__ == "__main__":
     app.run()
