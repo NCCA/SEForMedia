@@ -31,7 +31,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The pieces of our learning task
+    ## Outline of task
 
     A **classifier** predicts which category, or **class**, an input belongs to. Our classes are low, middle and high tones. Each clip has a **label**, stored as an integer: 0, 1 or 2. A **feature** is a measurement supplied to the model; here we measure energy in groups of frequencies called mel bands, take logarithms and average over time. [Part 2](TorchAudioForMLPart2Features.py) explains these steps.
 
@@ -65,9 +65,9 @@ def _(mo):
 
 @app.cell
 def _(torch):
+    from torch import nn
     from torch.nn.utils.rnn import pad_sequence
     from torch.utils.data import DataLoader, Dataset
-    from torch import nn
 
     _clips = [torch.ones(3200), torch.ones(5600), torch.ones(4000)]
     lengths = torch.tensor([clip.numel() for clip in _clips])
@@ -217,7 +217,7 @@ def _(feature_mean, feature_std, model, test_loader, torch):
         predictions = model((test_features - feature_mean) / feature_std).argmax(dim=-1)
         test_accuracy = (predictions == test_labels).float().mean().item()
     confusion = torch.zeros(3, 3, dtype=torch.int64)
-    for _actual, _predicted in zip(test_labels, predictions):
+    for _actual, _predicted in zip(test_labels, predictions, strict=False):
         confusion[_actual, _predicted] += 1
     print(f"held-out accuracy: {test_accuracy:.1%}")
     return confusion, test_features

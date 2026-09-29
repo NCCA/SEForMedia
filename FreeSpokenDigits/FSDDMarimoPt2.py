@@ -127,14 +127,14 @@ def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
     )
     plt.close(_fig)
     _fig
-    return label, loaded_file
+    return label, loaded_file, root
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ##From audio to features
-    AudioDecoder returns a tensor with shape [channels, samples]. We request mono audio at 8 kHz, then pad short clips with zeros or trim long clips to one second.  We can then process this to give us a mel spectrogram and plot this as a feature.
+    AudioDecoder returns a tensor with shape [channels, samples]. We request mono audio at 8 kHz, then pad short clips with zeros or trim long clips to one second.  We can then process this to give us a mel spectrogram and plot this as a feature. There is a good article about why this is a good idea [here](https://towardsdatascience.com/audio-deep-learning-made-simple-part-2-why-mel-spectrograms-perform-better-aad889a93505/) I also have a full work book in the TorchAudioForML section of the repo [GitHub](https://github.com/NCCA/SEForMedia/blob/main/TorchAudioForML/TorchAudioForMLPart2Features.py)
     """)
     return
 
@@ -155,6 +155,7 @@ def _(AudioDecoder, loaded_file, torch):
         num_channels=1,
     ).get_all_samples()
     audio = _samples.data[:, :8000]
+    # padd the audio to a set size of 8000
     audio = torch.nn.functional.pad(audio, (0, 8000 - audio.shape[-1]))
     feature = mel(audio).clamp_min(1e-10).log()
     feature = (feature - feature.mean()) / feature.std().clamp_min(1e-6)
@@ -185,6 +186,84 @@ def _(mo):
 
     It is possible to optimize this more but for now it will be fine.
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## A Dataloader
+
+    We are going to develop a dataloader for this data, the filenames contain the digit, speaker and take number. We will use takes 0–4
+    for testing, as specified by the [FSDD project](https://github.com/Jakobovski/free-spoken-digit-dataset#usage). From the remaining recordings we reserve takes 5–9 for validation and train on takes 10 onwards.
+
+    As we are going to re-use this code in the next notebook I will develop it in it's own module called FSDDataLoader.py in the same folder as this notebook.
+
+    The contents of the file follow (or you can open it in the zed editor)
+    """)
+    return
+
+
+@app.cell
+def _(Path, mo):
+    _source = Path("FSDDataLoader.py").read_text(encoding="utf-8")
+    mo.md(f"```python\n{_source}\n```")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The split_recording function just splits the data in the folder as mentioned above and the SpokenDigits class is a typical Dataset class used by the data loaders. We can now generate a data set.
+    """)
+    return
+
+
+@app.cell
+def _(root):
+    from FSDDataLoader import split_recordings, SpokenDigits
+
+    recordings = sorted(root.glob("*.wav"))
+    train_paths, validation_paths, test_paths = split_recordings(recordings)
+    train_data = SpokenDigits(train_paths)
+    return (train_data,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    We can now plot the data from the data set, lets add a slider then do the plots.
+    """)
+    return
+
+
+@app.cell
+def _(mo, train_data):
+    dataloader_index = mo.ui.slider(
+        start=0, stop=len(train_data) - 1, value=0, label="Dataloader Index"
+    )
+    dataloader_index
+    return (dataloader_index,)
+
+
+@app.cell
+def _(dataloader_index, mo, plt, train_data):
+    _feature, _label = train_data[dataloader_index.value]
+    _fig, _ax = plt.subplots(figsize=(9, 3), layout="constrained")
+    _image = _ax.imshow(
+        _feature[0].numpy(),
+        origin="lower",
+        aspect="auto",
+        extent=[0, 1, 0, 64],
+    )
+    _ax.set(
+        xlabel="Time (s)",
+        ylabel="Mel band",
+        title=f"Normalised log-mel features: digit {_label}",
+    )
+    _fig.colorbar(_image, ax=_ax)
+    plt.close(_fig)
+    mo.vstack([mo.audio(train_data.paths[dataloader_index.value].read_bytes()), _fig])
     return
 
 
