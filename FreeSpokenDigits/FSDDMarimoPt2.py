@@ -37,7 +37,7 @@ def _():
     output, definitions = download_digits.run()
     dataset_path = definitions["dataset_path"]
     print(dataset_path)
-    return (dataset_path,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -76,13 +76,13 @@ def _(mo):
 def _(mo):
     file_index = mo.ui.slider(start=0, stop=3000 - 1, value=0, label="File Index")
     file_index
-    return (file_index,)
+    return
 
 
-@app.cell
-def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
+app._unparsable_cell(
+    r"""
     # grab the first file in the folder
-    root = Path(f"{dataset_path}/recordings")
+        root = Path(f"{dataset_path}/recordings")
     loaded_file = Path(sorted(root.glob("*.wav"))[file_index.value])
     label = int(loaded_file.stem.split("_", 1)[0])
     print(f"Audio number is {label}")
@@ -105,7 +105,8 @@ def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
     )
 
     _segment_time = (
-        segment.pts_seconds + torch.arange(segment.data.shape[-1]) / segment.sample_rate
+        segment.pts_seconds
+        + torch.arange(segment.data.shape[-1]) / segment.sample_rate
     )
     _fig, _axes = plt.subplots(2, 1, figsize=(10, 4), layout="constrained")
     _axes[0].plot(
@@ -119,7 +120,9 @@ def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
         ylabel="Amplitude",
         title=f"Left channel digit {label}",
     )
-    _axes[1].plot(_segment_time[:160].numpy(), segment.data[0, :160].numpy(), ".-")
+    _axes[1].plot(
+        _segment_time[:160].numpy(), segment.data[0, :160].numpy(), ".-"
+    )
     _axes[1].set(
         xlabel="Source time (s)",
         ylabel="Amplitude",
@@ -127,7 +130,9 @@ def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
     )
     plt.close(_fig)
     _fig
-    return label, loaded_file, root
+    """,
+    name="_",
+)
 
 
 @app.cell(hide_code=True)
