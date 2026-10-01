@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(
     width="full",
     app_title="ASL Processing Part 2 Convolutional Neural Network",
@@ -11,15 +11,13 @@ app = marimo.App(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # ASL Processing Part 2
 
     In the [previous notebook](./ASLPart1.ipynb), we have seen how to preprocess the data and train a model, the model began to overfit after 10 epochs. In this notebook, we will see how to use data augmentation to improve the model's performance.
 
     We will use the same data set as before, if the data set is not present run the first notebook to download the data set.
-    """
-    )
+    """)
     return
 
 
@@ -66,9 +64,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can load our data set  using pandas as before, however this time we will want to format it into a different shape (28x28 pixels) so we can run image processing on it. This is because most image processing algorithms are designed to work with images, and not flattened arrays."""
-    )
+    mo.md(r"""
+    We can load our data set  using pandas as before, however this time we will want to format it into a different shape (28x28 pixels) so we can run image processing on it. This is because most image processing algorithms are designed to work with images, and not flattened arrays.
+    """)
     return
 
 
@@ -81,13 +79,11 @@ def _(DATASET_LOCATION, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data processing
 
     To demonstrate the data processing, we will use the first image in the data set as a sample and re-shape it to 28x28 pixels.
-    """
-    )
+    """)
     return
 
 
@@ -102,8 +98,7 @@ def _(train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In this format we don't have pixel proximity locations which convulational neural networks use to learn patterns. We will use the `reshape` function from NumPy to convert the image to 28x28 pixels.
 
 
@@ -112,8 +107,7 @@ def _(mo):
     That means that we need to convert the current shape `(5, 784)` to `(5, 1, 28, 28)`. With [NumPy](https://numpy.org/doc/stable/index.html) arrays, we can pass a `-1` for any dimension we wish to remain the same.
 
     Which is 5 image of 1 channel   with 28x28 pixels.
-    """
-    )
+    """)
     return
 
 
@@ -143,15 +137,13 @@ def _(plt, sample_x, string, train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Creating a Dataset
 
     We can create our own data set class using the same method as outlined above, we will now generate the class to do this, and then use the DataLoader class to load the data in batches.
 
     As the data is in a dataframe we can set the df.copy method to copy the data into a new dataframe, this will allow us to manipulate the data without changing the original data.
-    """
-    )
+    """)
     return
 
 
@@ -179,9 +171,9 @@ def _(Dataset, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH, device, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now build our Dataloaders using the DataLoader class from PyTorch. Remember to set the train data to shuffle so the model does not learn the order of the data. We don't need to do this for the validation data as we are not training on it."""
-    )
+    mo.md(r"""
+    We can now build our Dataloaders using the DataLoader class from PyTorch. Remember to set the train data to shuffle so the model does not learn the order of the data. We don't need to do this for the validation data as we are not training on it.
+    """)
     return
 
 
@@ -201,46 +193,35 @@ def _(ASLImages, DataLoader, train_df, valid_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ## Creating a Convolution model
+    mo.vstack(
+        [
+            mo.md("""
+    ## Creating a convolutional model
 
-    A Convolutional Neural Network (CNN) is a type of deep learning model specifically designed to process and analyze visual data, like images and videos. CNNs are highly effective at tasks like image classification, object detection, and facial recognition because they can learn spatial hierarchies and patterns in visual data.
+    We use a convolutional neural network (CNN) to learn patterns in our hand images.
+    Convolution blocks learn feature maps and pooling reduces their width and height.
+    The linear layers combine these features into a score for each class.
 
-    They are made up of many layers but in general follow this pattern:
+    Shapes below are **channels × height × width**, with the batch dimension omitted.
+    """),
+            mo.mermaid("""
+    flowchart LR
+        A["Image<br/>1 × 28 × 28"] --> B["Conv block 1<br/>25 × 14 × 14"]
+        B --> C["Conv block 2<br/>50 × 7 × 7"]
+        C --> D["Conv block 3<br/>75 × 3 × 3"]
+        D --> E["Flatten<br/>675 features"]
+        E --> F["Linear<br/>512 units"]
+        F --> G["Linear<br/>25 class scores"]
+    """),
+            mo.md("""
+    Each block uses a **3 × 3 convolution → batch normalisation → ReLU → 2 × 2 max pooling**.
+    Block 2 adds dropout (0.2) before pooling. The first linear layer is followed by
+    dropout (0.3) and ReLU.
 
-    1. Convolutional Layers:
-    	- These layers use filters (small matrices) that slide over the input image to detect patterns or features, such as edges, textures, or shapes.
-    	- Each filter detects a specific feature in a local region of the image, producing a “feature map” that highlights the presence and position of that feature.
-
-    2.	Activation Function (e.g., ReLU):
-    	- After each convolution, an activation function like ReLU (Rectified Linear Unit) is applied, which introduces non-linearity to help the network learn complex patterns.
-
-    3.	Pooling Layers:
-    	- Pooling layers reduce the spatial size (width and height) of feature maps, which helps lower computation and reduces the risk of overfitting.
-    	- Max pooling is the most common type of pooling, which selects the highest value in a region, making the feature map smaller while keeping key information.
-    4.	Fully Connected Layers:
-    	- Near the end of the CNN, fully connected (FC) layers combine all learned features from previous layers to make a final prediction.
-    	- These layers “flatten” the output of the final convolutional layers and pass them to a typical neural network layer to classify the image or detect objects.
-    5.	Output Layer:
-    	- The final layer generates the prediction, often using a softmax function for classification tasks, which provides probabilities for each class.
-
-    The overall structure of our CNN is going to be as follows :
-
-    1. input layer
-    2. convolutional layer
-    3. Max pooling layer (with ReLU activation)
-    4. Convolutional layer
-    5. Dropout layer
-    6. max pooling layer
-    7. convolutional layer
-    8. max pooling layer
-    9. Flatten to Dense layer
-    10. Dense layer reduction
-    11. output. Linear layer
-
-    We can build this as follows with our Sequential model:
-    """
+    The output contains raw class scores (logits), which we pass directly to
+    `CrossEntropyLoss`. We can now build this model using `nn.Sequential`:
+    """),
+        ]
     )
     return
 
@@ -280,8 +261,7 @@ def _(IMAGE_CHANNELS, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Conv2D
 
     These are our 2D convolutional layers. Small kernels will go over the input image and detect features that are important for classification. Earlier convolutions in the model will detect simple features such as lines. Later convolutions will detect more complex features.
@@ -321,8 +301,7 @@ def _(mo):
     ## The final model
 
     We can print out the different layers of the model to see the structure of the model. Note that some of the CNN elements do not work compiled on a mac so we need to take this into account as shown below.
-    """
-    )
+    """)
     return
 
 
@@ -340,23 +319,21 @@ def _(device, model, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice as we traverse the next layers the size of the image is reduced, this is due to the max pooling layers reducing the size of the image. It is important that the size of the input and the prevous layer output match, otherwise the model will not work."""
-    )
+    mo.md(r"""
+    You will notice as we traverse the next layers the size of the image is reduced, this is due to the max pooling layers reducing the size of the image. It is important that the size of the input and the prevous layer output match, otherwise the model will not work.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training the model
 
     Whilst the model is very different the overall processes we are going to use for everything else are the same as before.
 
     First we need to define the loss and optimazation functions.
-    """
-    )
+    """)
     return
 
 
@@ -462,9 +439,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice that this is much improved from before, however there are some jumps in the validation accuracy. Let's see how well it performs on the test data."""
-    )
+    mo.md(r"""
+    You will notice that this is much improved from before, however there are some jumps in the validation accuracy. Let's see how well it performs on the test data.
+    """)
     return
 
 
@@ -492,15 +469,17 @@ def _(alphabet, model_compiled, plt, torch, valid_loader):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""![]({DATASET_LOCATION}/mnist_asl/american_sign_language.PNG)""")
+    mo.md(r"""
+    ![]({DATASET_LOCATION}/mnist_asl/american_sign_language.PNG)
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As you can see from visual inspection it is close but not 100% accurate.  We will improve on this model in the next notebook."""
-    )
+    mo.md(r"""
+    As you can see from visual inspection it is close but not 100% accurate.  We will improve on this model in the next notebook.
+    """)
     return
 
 

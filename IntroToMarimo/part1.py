@@ -2,70 +2,58 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # An introduction to marimo
 
-    This is a marimo notebook. It is a plain Python file — the one you are
-    reading right now — that opens as an interactive, reactive notebook in the
-    browser. I put it together as a quick intro for lectures and labs, so the
-    best way to read it is to run it and change things.
-
-    To run it yourself:
+    I use [marimo](https://marimo.io) for interactive examples in lectures and
+    labs. Each notebook is a Python file which we can edit in the browser.
+    Run this one from the repository root using:
 
     ```bash
-    uvx marimo edit intro_to_marimo.py
+    uv run marimo edit IntroToMarimo/part1.py
     ```
 
-    [marimo.io](https://marimo.io) has the full docs; the source lives on
-    [GitHub](https://github.com/marimo-team/marimo) and the package is on
-    [PyPI](https://pypi.org/project/marimo/).
-    """
-    )
+    Try changing the examples as we go. The [documentation](https://docs.marimo.io),
+    [source code](https://github.com/marimo-team/marimo) and
+    [PyPI package](https://pypi.org/project/marimo/) have more details.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ## Why not just use Jupyter?
+    mo.md(r"""
+    ## Why use marimo?
 
-    Jupyter is fine, and most of you already know it. The problem I keep
-    hitting when teaching with it is hidden state: you run cells out of order,
-    delete the cell that defined a variable, and the variable is still sitting
-    in memory. The notebook looks like it works, you send it to someone else,
-    and it falls over. The `.ipynb` file is also JSON with the outputs baked
-    in, which makes it miserable to diff or review in git.
+    One problem with Jupyter notebooks is running cells out of order. We can
+    change a value, forget to run a later cell and end up looking at an old
+    result. Deleting a cell can also leave its variables in memory until we
+    restart the kernel.
 
-    marimo takes a different line. It works out the dependencies between your
-    cells and keeps them consistent for you. Change a value in one cell and
-    every cell that depends on it re-runs automatically — a bit like a
-    spreadsheet. There is no run-order to get wrong because there is no hidden
-    state to get wrong.
-    """
-    )
+    marimo tracks which cells use each variable. When we change a value it
+    re-runs the cells which depend on it, much like a spreadsheet. This is
+    useful when teaching as we can change an example and see the result.
+    The notebook is also stored as Python, which makes changes easier to
+    read in git.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ## Reactivity, with a real example
+    mo.md(r"""
+    ## Reactivity
 
-    Below is a slider. Drag it. The cell underneath reads its value and
-    re-runs on its own — I have not wired up any callback or "run" button. In
-    marimo a cell that uses a variable automatically depends on the cell that
-    defines it.
-    """
-    )
+    Move the slider below and watch the area change. The next cell uses
+    `radius.value`, so marimo re-runs it when we move the slider. We don't
+    need to write a callback for this example.
+    """)
     return
 
 
@@ -81,88 +69,72 @@ def _(mo, radius):
     import math
 
     area = math.pi * radius.value**2
-    mo.md(f"A circle of radius **{radius.value}** has an area of **{area:.2f}**.")
+    mo.md(f"A circle of radius {radius.value} has an area of {area:.2f}.")
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    Notice what did *not* happen: I never told the area cell when to update.
-    marimo saw that it reads `radius`, so it re-runs it whenever `radius`
-    changes. The UI element and the Python value are the same thing.
+    mo.md(r"""
+    The area cell depends on `radius`, which is defined in the cell above.
+    The slider is a Python object and its `.value` gives us the selected number.
 
-    This is also why marimo stops you redefining the same variable in two
-    different cells — if it let you, it could not know which one to trust. It
-    feels strict at first and then you realise it is the thing quietly saving
-    you from the class of bug that eats an afternoon.
-    """
-    )
+    We must define a shared variable in only one cell. This lets marimo track
+    where it comes from and which cells need to run when it changes.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ## It is just a Python file
+    mo.md(r"""
+    ## A notebook is a Python file
 
-    Have a look at `intro_to_marimo.py` in a text editor. Each cell is an
-    ordinary Python function decorated with `@app.cell`, and the arguments to
-    that function are the variables the cell needs from elsewhere. That is how
-    marimo tracks the dependencies — it reads them straight off the function
-    signature.
+    Open `IntroToMarimo/part1.py` in a text editor. Each cell is a function
+    with an `@app.cell` decorator. The function arguments show the variables
+    it uses from other cells, whilst the return values make variables
+    available to the rest of the notebook.
 
-    Because it is real Python and not JSON:
-
-    - it diffs and reviews cleanly in git, so it works in a normal PR;
-    - you can `import` it like any other module;
-    - you can run it as a script with `python intro_to_marimo.py`;
-    - your editor, linter and type checker all understand it.
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ## Running it as an app
-
-    The same file can be served as a read-only web app, with the code hidden
-    and only the markdown, widgets and outputs on show:
+    I find this easier to review in git than an `.ipynb` file, which stores
+    JSON and can include cell outputs. We can also run the notebook as a script:
 
     ```bash
-    uvx marimo run intro_to_marimo.py
+    uv run python IntroToMarimo/part1.py
     ```
-
-    So one file is both the teaching material I edit and the interactive demo
-    I hand out. No separate export step, and no dashboard framework to learn.
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ## Where to go next
+    mo.md(r"""
+    ## Running the notebook as an app
 
-    Pick something from the [docs](https://docs.marimo.io) and change it, or
-    just start editing the cells above and watch what re-runs. A few things
-    worth trying early:
+    We can run the same file with the code hidden, leaving the text, widgets
+    and outputs visible:
 
-    - the other UI elements — `mo.ui.dropdown`, `mo.ui.text`, `mo.ui.table`;
-    - plotting, which reacts to widgets the same way the area cell did;
-    - `uvx marimo tutorial intro`, the official built-in tour.
+    ```bash
+    uv run marimo run IntroToMarimo/part1.py
+    ```
 
-    The interactive [online playground](https://marimo.app) runs entirely in
-    the browser if you want a look before installing anything.
-    """
-    )
+    I can use this to share an interactive example with you. The widgets
+    still work, but the page does not provide the notebook editor.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself
+
+    Change the slider range or use its value in another calculation. Watch
+    which cells run when you move it.
+
+    Next we will look at widgets in [part2_ui.py](part2_ui.py). You can also
+    run the built-in tutorial with `uv run marimo tutorial intro`, or try the
+    [online playground](https://marimo.app) in your browser.
+    """)
     return
 
 
