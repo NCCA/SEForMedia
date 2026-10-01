@@ -165,9 +165,9 @@ def _(encode_text):
 @app.cell
 def _(CharDataset, decode_text):
     to_be_dataset = CharDataset("To be or not to be", window_length=10)
-    for x, y in to_be_dataset:
-        print(f"x={x}, y={y}")
-        print(f"    decoded: x={decode_text(x)!r}, y={decode_text(y)!r}")
+    for _x, _y in to_be_dataset:
+        print(f"x={_x}, y={_y}")
+        print(f"    decoded: x={decode_text(_x)!r}, y={decode_text(_y)!r}")
     return
 
 
@@ -472,7 +472,13 @@ def _(
 
     device = get_device()
     torch.manual_seed(42)
-    model = ShakespeareModel(len(vocab)).to(device)
+    model_config = {
+        "n_layers": 2,
+        "embed_dim": 10,
+        "hidden_dim": 128,
+        "dropout": 0.1,
+    }
+    model = ShakespeareModel(len(vocab), **model_config).to(device)
 
     _loss_fn = torch.nn.CrossEntropyLoss()
     _optimiser = torch.optim.Adam(
@@ -481,6 +487,7 @@ def _(
     history = []
     _best_loss = float("inf")
     best_epoch = 0
+    _best_weights = None
     for _epoch in mo.status.progress_bar(
         range(training_settings.value["epochs"]), title="Training"
     ):
@@ -499,11 +506,13 @@ def _(
         print(
             f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_val_loss:.3f}, validation accuracy {_val_accuracy:.1%}"
         )
-    model.load_state_dict(_best_weights)
-    mo.md(
-        f"Training finished on **{device}**. Restored weights from epoch **{best_epoch}**."
-    )
-    return best_epoch, device, history, model
+    if _best_weights is not None:
+        model.load_state_dict(_best_weights)
+        _summary = f"Training finished on **{device}**. Restored weights from epoch **{best_epoch}**."
+    else:
+        _summary = f"Training finished on **{device}**, but the validation loss never improved (it is probably NaN). Try a lower learning rate."
+    mo.md(_summary)
+    return best_epoch, device, history, model, model_config
 
 
 @app.cell
@@ -595,8 +604,16 @@ def _(mo):
 
 
 @app.cell
-def _(device, generate_text, generation_settings, mo, model):
+def _(device, generate_text, generation_settings, mo, model, vocab):
     mo.stop(generation_settings.value is None, mo.md("Press Generate above."))
+    _unknown = sorted(set(generation_settings.value["prompt"].lower()) - set(vocab))
+    mo.stop(
+        _unknown,
+        mo.md(
+            "The prompt contains characters that aren't in `vocab`: "
+            + ", ".join(f"`{char!r}`" for char in _unknown)
+        ),
+    )
     _text = generate_text(model, device=device, **generation_settings.value)
     mo.md(f"```text\n{_text}\n```")
     return
@@ -604,7 +621,7 @@ def _(device, generate_text, generation_settings, mo, model):
 
 @app.cell
 def _(mo):
-    ckpt_path = mo.ui.text(value="shakespeare.pt", label="checkpoint file")
+    ckpt_path = mo.ui.text(value="shakespeare.pth", label="checkpoint file")
     save_btn = mo.ui.run_button(label="Save model")
     mo.hstack([ckpt_path, save_btn], justify="start")
     return ckpt_path, save_btn
@@ -617,6 +634,7 @@ def _(
     history,
     mo,
     model,
+    model_config,
     save_btn,
     torch,
     training_settings,
@@ -628,10 +646,11 @@ def _(
         {
             "model_state": {k: v.cpu() for k, v in model.state_dict().items()},
             "vocab": vocab,
+            "model_config": model_config,
             "best_epoch": best_epoch,
             "history": history,
             "settings": dict(training_settings.value),
-            "torch_version": torch.__version__,
+            "torch_version": str(torch.__version__),
         },
         _path,
     )
