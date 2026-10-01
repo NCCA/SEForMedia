@@ -16,17 +16,17 @@ def _(mo):
     mo.md(r"""
     # Introduction
 
-    In this notebook we are going to train a simple [Recurrent neural network](https://en.wikipedia.org/wiki/Recurrent_neural_network) (RNN) to convert text into a different format, in particular we will train out network to mimic text written by [William Shakespear](https://en.wikipedia.org/wiki/William_Shakespeare). This demo is based on Chapter 14 of [Hands On Machine Learning with Scikit Learn and Pytorch](https://www.oreilly.com/library/view/hands-on-machine-learning/9798341607972/) which is avaliable digitially in the library. This is in turn inspired by [this](https://karpathy.github.io/2015/05/21/rnn-effectiveness/) blogpost.
+    In this notebook we are going to train a simple [Recurrent neural network](https://en.wikipedia.org/wiki/Recurrent_neural_network) (RNN) to convert text into a different format, in particular we will train our network to mimic text written by [William Shakespeare](https://en.wikipedia.org/wiki/William_Shakespeare). This demo is based on Chapter 14 of [Hands On Machine Learning with Scikit Learn and Pytorch](https://www.oreilly.com/library/view/hands-on-machine-learning/9798341607972/) which is available digitally in the library. This is in turn inspired by [this](https://karpathy.github.io/2015/05/21/rnn-effectiveness/) blogpost.
 
     ## Dataset
 
-    There is a simple dataset we can use for our training avaliable online, it contains about 25% of Shakespeare's work and is part of the original blog post. In this example we will download it via the Hugging Face api in this repository it is already installed, however if you need to use it in your own project you need to add it
+    There is a simple dataset we can use for our training available online. It contains about 25% of Shakespeare's work and is part of the original blog post. In this example we will download it via the Hugging Face [datasets](https://huggingface.co/docs/datasets) library. In this repository it is already installed, however if you need to use it in your own project you need to add it
 
     ```bash
     uv add datasets
     ```
 
-    You will also need to have a hugging face loging and authorize it via the cli once.
+    This dataset is public so you don't need to log in to download it. For gated or private datasets you will need a Hugging Face login, and to authorise it via the cli once.
 
     ```bash
     hf auth login
@@ -65,11 +65,11 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    We as you can see the data is in the form of a json dictionary, index values with elements of text.
+    As you can see the data is in the form of a json dictionary, index values with elements of text.
 
     ## How neural networks process text
 
-    As we have seen in previous examples all a neural network wants to see is text. So we need to encode it into numbers. In general, this is done by splitting text into tokens. This can be done on different boundaries such as words, characters etc. We then assign an integer id to each token.
+    As we have seen in previous examples all a neural network wants to see is numbers. So we need to encode it into numbers. In general, this is done by splitting text into tokens. This can be done on different boundaries such as words, characters etc. We then assign an integer id to each token.
     """)
     return
 
@@ -128,7 +128,7 @@ def _(char_to_id, id_to_char):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Note the result is now lower case, be you can see how the data is converted into a tensor and back again.
+    Note the result is now lower case, but you can see how the data is converted into a tensor and back again.
 
     ## Building a Data loader.
 
@@ -188,7 +188,7 @@ def _(CharDataset, decode_text):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Now we can create some datasets from our actualy data and use it.
+    Now we can create some datasets from our actual data and use it.
     """)
     return
 
@@ -207,7 +207,7 @@ def _(CharDataset, DataLoader, test_dataset, train_dataset):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## [Embeddings](https://docs.pytorch.org/docs/2.14/generated/torch.nn.Embedding.html)
+    ## [Embeddings](https://docs.pytorch.org/docs/stable/generated/torch.nn.Embedding.html)
 
     We use nn.Embedding in a text RNN to turn each word or character ID into a vector of learnable numbers. These vectors become the inputs the RNN processes at each step. Suppose our vocabulary assigns these IDs:
 
@@ -226,7 +226,7 @@ def _(mo):
     "car" -> 2 -> [-0.8,  0.5, -0.1]
     ```
 
-    These numbers are illustrative. By default, PyTorch initialises the embedding table randomly, and training updates its values alongside the RNN’s weights. The layer retrieves a row using the token ID. [See the PyTorch Embedding documentation](https://docs.pytorch.org/docs/2.14/generated/torch.nn.Embedding.html).
+    These numbers are illustrative. By default, PyTorch initialises the embedding table randomly, and training updates its values alongside the RNN’s weights. The layer retrieves a row using the token ID. [See the PyTorch Embedding documentation](https://docs.pytorch.org/docs/stable/generated/torch.nn.Embedding.html).
 
     There are three reasons this is useful:
     - Learned features. Training can give tokens used in similar ways similar representations, helping the model share what it learns.
