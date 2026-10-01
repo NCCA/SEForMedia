@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full", app_title="ASL Part 1")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Introduction
 
     In this notebook we are going to download training data for the American Sign Language from Kaggle. This data will be processed and used to train a Convolutional Neural Network (CNN) to classify the images.
@@ -21,8 +20,7 @@ def _(mo):
     We will download the data set from [Kaggle](http://www.kaggle.com) which contains a number of different data sets and examples we can look at.
 
     As usual we will test to see if we are in the lab and download the data set to the /transfer else locally.
-    """
-    )
+    """)
     return
 
 
@@ -73,7 +71,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We can use the Utils class to download the data set then unzip it.""")
+    mo.md(r"""
+    We can use the Utils class to download the data set then unzip it.
+    """)
     return
 
 
@@ -91,13 +91,11 @@ def _(DATASET_LOCATION, Utils, pathlib, zipfile):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data
 
     Lets have a look at what we have downloaded, we can get a list of the files we have downloaded by using pathlib as follows.
-    """
-    )
+    """)
     return
 
 
@@ -110,25 +108,21 @@ def _(DATASET_LOCATION, pathlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     There are two image files showing the the signs and two CSV files for the actual test and train data.
     ![](./mnist_asl/american_sign_language.PNG)
     ![](./mnist_asl/amer_sign3.png)
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Processing the data with pandas
 
     As the data is in csv format the easiest approach to processing it is to use the pandas library. We can read the csv file into a pandas dataframe and then process the data as required.
-    """
-    )
+    """)
     return
 
 
@@ -141,9 +135,9 @@ def _(DATASET_LOCATION, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now look at the data format and begin to process it into a more useful format for training the CNN."""
-    )
+    mo.md(r"""
+    We can now look at the data format and begin to process it into a more useful format for training the CNN.
+    """)
     return
 
 
@@ -155,9 +149,9 @@ def _(train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Each row is an image which has a `label` column followed by the pixel data (28 * 28 = 784 columns). The pixel data is in the range 0 to 255. We need to extract the label and pixel data and reshape the pixel data into a 28 x 28 image. We can get the labels by using the pandas pop method and the pixel data by using the pandas iloc method."""
-    )
+    mo.md(r"""
+    Each row is an image which has a `label` column followed by the pixel data (28 * 28 = 784 columns). The pixel data is in the range 0 to 255. We need to extract the label and pixel data and reshape the pixel data into a 28 x 28 image. We can get the labels by using the pandas pop method and the pixel data by using the pandas iloc method.
+    """)
     return
 
 
@@ -182,9 +176,9 @@ def _(train_df, valid_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""If we look at the data we can see what it contains. We can use some of the pandas functions to find the min() and max() as well as sort and tabulate the data."""
-    )
+    mo.md(r"""
+    If we look at the data we can see what it contains. We can use some of the pandas functions to find the min() and max() as well as sort and tabulate the data.
+    """)
     return
 
 
@@ -200,15 +194,13 @@ def _(y_train, y_valid):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As you can see the data ranges from 0-24 so whilst the J and the Z are missing the J value index (9) is still in the dataset, so we need to specify for 25 classes not 24.
 
     ## Visualizing the data
 
     We can take a look at the data by writing a simple function to turn the nparrays into a 28 x 28 image and then display the image. Note that the labels are the numbers 0 to 24 and the letters are the alphabet minus j and z. We need to convert the labels to the letters for display purposes.
-    """
-    )
+    """)
     return
 
 
@@ -231,15 +223,14 @@ def _(plt, string, x_train, y_train):
         label = y_train[x]
         plot_image(row, alphabet[label], num_images, x)
     plt.show()
-
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now normalize our image data so it is in the range 0 to 1. We can do this by dividing the pixel data by 255 (as they are nparrays this will be element wise division)."""
-    )
+    mo.md(r"""
+    We can now normalize our image data so it is in the range 0 to 1. We can do this by dividing the pixel data by 255 (as they are nparrays this will be element wise division).
+    """)
     return
 
 
@@ -252,13 +243,11 @@ def _(train_df, valid_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Generating a Dataset
 
     As we did in the previous example we can create a dataset class to represent our data. Again this will be a simple image / label dataset.
-    """
-    )
+    """)
     return
 
 
@@ -296,8 +285,7 @@ def _(ASLDataSet, DataLoader, x_train_1, x_valid_1, y_train, y_valid):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building a Model
 
     In this example we will use a similar approach to the Digits example Where we used a Linear model.
@@ -311,8 +299,7 @@ def _(mo):
     We will define a few variables to get started:
 
     The size of the images is 28 x 28 and there are 24 classes (the alphabet minus j and z).
-    """
-    )
+    """)
     return
 
 
@@ -325,8 +312,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We can add the layers to the model using the nn.Sequential class. See if you can think of what we should do next.
 
     <details>
@@ -345,8 +331,7 @@ def _(mo):
     ```
 
     </details>
-    """
-    )
+    """)
     return
 
 
@@ -368,13 +353,11 @@ def _(input_size, n_classes, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     I have put the model in a `build_model` function so that we get a fresh, untrained model each time we press **Train** below. The model is compiled and sent to the device in the training cell.
 
     Since categorizing these ASL images is similar to categorizing MNIST's handwritten digits, we will use the same `loss_function` ([Categorical CrossEntropy](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html)) and `optimizer` ([Adam](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html)) as we used in the last example. The optimizer needs the parameters of the model, so it is created along with the model.
-    """
-    )
+    """)
     return
 
 
@@ -386,8 +369,7 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training
 
     The data in the DataLoader is already on the GPU so we can now just process it in the same way as we did in the previous example.
@@ -403,8 +385,7 @@ def _(mo):
     6. Update the `loss` and `accuracy` totals
 
     As in the MNIST example the function takes the model and optimizer and returns the mean loss per image and the accuracy, so we can keep a history to plot.
-    """
-    )
+    """)
     return
 
 
@@ -436,15 +417,13 @@ def _(loss_function, torch, train_N, train_loader):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Validate Function
 
     The core part of the validate process is to set the model to evaluation mode with the `model.eval()` function. This will turn off dropout and batch normalization. We then loop through the validation data and calculate the loss and accuracy in the same way as we did for the training data.
 
     More details of [model.eval](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval) can be found here.
-    """
-    )
+    """)
     return
 
 
@@ -466,13 +445,11 @@ def _(get_batch_accuracy, loss_function, torch, valid_N, valid_loader):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training
 
     Finally we can train the model as before. Choose the settings and press **Train**, each press builds and trains a fresh model.
-    """
-    )
+    """)
     return
 
 
@@ -527,15 +504,13 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Discussion
 
     Our models doesn't seem to be getting very good results. We can see that the training accuracy seems to a fairly high level, but the validation accuracy was not as high. This is a sign of overfitting, which means that is it guessing against a learnt data set and never generalizing to new data.
 
     As we have kept the history when training, we can plot this out to see how things went.
-    """
-    )
+    """)
     return
 
 
@@ -559,9 +534,9 @@ def _(history, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We should see that the lines are diverging, which is a sign of overfitting. We need to look at a different model to make this work better. In particular we are going to build a CNN model to see if this can improve the accuracy."""
-    )
+    mo.md(r"""
+    We should see that the lines are diverging, which is a sign of overfitting. We need to look at a different model to make this work better. In particular we are going to build a CNN model to see if this can improve the accuracy.
+    """)
     return
 
 

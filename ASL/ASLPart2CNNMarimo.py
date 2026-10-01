@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(
     width="full",
     app_title="ASL Processing Part 2 Convolutional Neural Network",
@@ -11,15 +11,13 @@ app = marimo.App(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # ASL Processing Part 2
 
     In the [previous notebook](./ASLPart1Marimo.py), we have seen how to preprocess the data and train a model, the model began to overfit after 10 epochs. In this notebook, we will see how a Convolutional Neural Network can improve the model's performance, and in the next one we will add data augmentation.
 
     We will use the same data set as before, if the data set is not present run the first notebook to download the data set.
-    """
-    )
+    """)
     return
 
 
@@ -67,9 +65,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can load our data set  using pandas as before, however this time we will want to format it into a different shape (28x28 pixels) so we can run image processing on it. This is because most image processing algorithms are designed to work with images, and not flattened arrays."""
-    )
+    mo.md(r"""
+    We can load our data set  using pandas as before, however this time we will want to format it into a different shape (28x28 pixels) so we can run image processing on it. This is because most image processing algorithms are designed to work with images, and not flattened arrays.
+    """)
     return
 
 
@@ -82,13 +80,11 @@ def _(DATASET_LOCATION, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data processing
 
     To demonstrate the data processing, we will use the first image in the data set as a sample and re-shape it to 28x28 pixels.
-    """
-    )
+    """)
     return
 
 
@@ -103,8 +99,7 @@ def _(train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In this format we don't have pixel proximity locations which convulational neural networks use to learn patterns. We will use the `reshape` function from NumPy to convert the image to 28x28 pixels.
 
 
@@ -113,8 +108,7 @@ def _(mo):
     That means that we need to convert the current shape `(5, 784)` to `(5, 1, 28, 28)`. With [NumPy](https://numpy.org/doc/stable/index.html) arrays, we can pass a `-1` for any dimension we wish to remain the same.
 
     Which is 5 image of 1 channel   with 28x28 pixels.
-    """
-    )
+    """)
     return
 
 
@@ -144,15 +138,13 @@ def _(plt, sample_x, string, train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Creating a Dataset
 
     We can create our own data set class using the same method as outlined above, we will now generate the class to do this, and then use the DataLoader class to load the data in batches.
 
     As the data is in a dataframe we can set the df.copy method to copy the data into a new dataframe, this will allow us to manipulate the data without changing the original data.
-    """
-    )
+    """)
     return
 
 
@@ -180,9 +172,9 @@ def _(Dataset, IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH, device, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now build our Dataloaders using the DataLoader class from PyTorch. Remember to set the train data to shuffle so the model does not learn the order of the data. We don't need to do this for the validation data as we are not training on it."""
-    )
+    mo.md(r"""
+    We can now build our Dataloaders using the DataLoader class from PyTorch. Remember to set the train data to shuffle so the model does not learn the order of the data. We don't need to do this for the validation data as we are not training on it.
+    """)
     return
 
 
@@ -192,18 +184,15 @@ def _(ASLImages, DataLoader, train_df, valid_df):
 
     train_data = ASLImages(train_df)
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
-    train_N = len(train_loader.dataset)
 
     valid_data = ASLImages(valid_df)
     valid_loader = DataLoader(valid_data, batch_size=BATCH_SIZE)
-    valid_N = len(valid_loader.dataset)
-    return train_N, train_loader, valid_N, valid_loader
+    return train_loader, valid_loader
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Creating a Convolution model
 
     A Convolutional Neural Network (CNN) is a type of deep learning model specifically designed to process and analyze visual data, like images and videos. CNNs are highly effective at tasks like image classification, object detection, and facial recognition because they can learn spatial hierarchies and patterns in visual data.
@@ -241,8 +230,7 @@ def _(mo):
     11. output. Linear layer
 
     We can build this as follows with our Sequential model:
-    """
-    )
+    """)
     return
 
 
@@ -286,8 +274,7 @@ def _(IMAGE_CHANNELS, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Conv2D
 
     These are our 2D convolutional layers. Small kernels will go over the input image and detect features that are important for classification. Earlier convolutions in the model will detect simple features such as lines. Later convolutions will detect more complex features.
@@ -327,8 +314,7 @@ def _(mo):
     ## The final model
 
     We can print out the different layers of the model to see the structure of the model. As before the model is built by a `build_model` function so we get a fresh one each time we train.
-    """
-    )
+    """)
     return
 
 
@@ -340,23 +326,21 @@ def _(build_model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice as we traverse the next layers the size of the image is reduced, this is due to the max pooling layers reducing the size of the image. It is important that the size of the input and the prevous layer output match, otherwise the model will not work."""
-    )
+    mo.md(r"""
+    You will notice as we traverse the next layers the size of the image is reduced, this is due to the max pooling layers reducing the size of the image. It is important that the size of the input and the prevous layer output match, otherwise the model will not work.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training the model
 
     Whilst the model is very different the overall processes we are going to use for everything else are the same as before.
 
     First we need to define the loss function, the optimizer is created with the model when we train.
-    """
-    )
+    """)
     return
 
 
@@ -368,8 +352,7 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The `train` and `validate` functions from the last notebook are the same for most of the models we are going to build, so I have moved them into the `Utils` package as `train_epoch` and `evaluate` (see [Utils/training.py](../Utils/training.py)). They work in the same way, the only difference is that the loss and accuracy are collected by a small `Metrics` class rather than in the loop itself.
 
     I also keep a copy of the weights from the epoch with the lowest validation loss and put them back at the end of training. If the model starts to overfit in later epochs we still end up with the best version we saw. `Utils.copy_weights` takes a copy of the `state_dict`, we can't just keep the `state_dict` itself as it refers to the live weights which carry on changing.
@@ -377,8 +360,7 @@ def _(mo):
     I only compile the model on CUDA, some of the CNN elements do not work compiled on a mac. Note we check `device.type` as `device` is a [torch.device](https://pytorch.org/docs/stable/tensor_attributes.html#torch.device) not a string.
 
     Choose the settings and press **Train**, each press starts a fresh model.
-    """
-    )
+    """)
     return
 
 
@@ -469,9 +451,9 @@ def _(history, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice that this is much improved from before, however there are some jumps in the validation accuracy. Let's see how well it performs on the test data."""
-    )
+    mo.md(r"""
+    You will notice that this is much improved from before, however there are some jumps in the validation accuracy. Let's see how well it performs on the test data.
+    """)
     return
 
 
@@ -499,15 +481,17 @@ def _(alphabet, device, model, plt, torch, valid_loader):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""![]({DATASET_LOCATION}/mnist_asl/american_sign_language.PNG)""")
+    mo.md(r"""
+    ![]({DATASET_LOCATION}/mnist_asl/american_sign_language.PNG)
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As you can see from visual inspection it is close but not 100% accurate. We can use `Utils.evaluate` to get the loss and accuracy over the whole validation set. We will improve on this model in the next notebook."""
-    )
+    mo.md(r"""
+    As you can see from visual inspection it is close but not 100% accurate. We can use `Utils.evaluate` to get the loss and accuracy over the whole validation set. We will improve on this model in the next notebook.
+    """)
     return
 
 
