@@ -113,10 +113,10 @@ def _(mo):
 def _(char_to_id, id_to_char):
     import torch
 
-    def encode_text(text: str) -> torch.tensor:
+    def encode_text(text: str) -> torch.Tensor:
         return torch.tensor([char_to_id[char] for char in text.lower()])
 
-    def decode_text(char_ids: torch.tensor) -> str:
+    def decode_text(char_ids: torch.Tensor) -> str:
         return "".join([id_to_char[char_id.item()] for char_id in char_ids])
 
     _encoded = encode_text("To be or Not to Be")
@@ -140,18 +140,32 @@ def _(mo):
 
 
 @app.cell
-def _(encode_text):
+def _(encode_text, torch):
     from torch.utils.data import Dataset, DataLoader
 
     class CharDataset(Dataset):
-        def __init__(self, text, window_length):
+        """
+        Every window of the text paired with the same window shifted one character on.
+
+        Attributes
+        ----------
+            encoded_text : torch.Tensor
+                the whole text as character ids
+            window_length : int
+                the number of characters in each window
+        """
+
+        def __init__(self, text: str, window_length: int) -> None:
             self.encoded_text = encode_text(text)
             self.window_length = window_length
 
-        def __len__(self):
+        def __len__(self) -> int:
             return len(self.encoded_text) - self.window_length
 
-        def __getitem__(self, idx):
+        def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+            # slicing past the end of a tensor doesn't fail, it just gives a shorter
+            # window. A for loop over the dataset (as in the next cell) keeps calling
+            # __getitem__ until it gets an IndexError, so without this it never stops.
             if idx >= len(self):
                 raise IndexError("dataset index out of range")
             end = idx + self.window_length
@@ -273,26 +287,34 @@ def _(mo):
 
 @app.cell
 def _(nn, torch, vocab):
-    def get_device() -> torch.device:
-        """
-        Returns the appropriate device for the current environment.
-        """
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        elif torch.backends.mps.is_available():  # mac metal backend
-            return torch.device("mps")
-        else:
-            return torch.device("cpu")
+    import sys
+
+    sys.path.append("../")
+    from Utils import get_device
 
     class ShakespeareModel(nn.Module):
+        """
+        Character level model, an embedding feeding a stacked GRU then a linear layer
+        giving a score for every character in the vocabulary.
+
+        Attributes
+        ----------
+            embed : nn.Embedding
+                turns each character id into embed_dim learned values
+            gru : nn.GRU
+                n_layers of GRU, each with a hidden state of hidden_dim values
+            output : nn.Linear
+                maps each GRU output to one score per vocabulary entry
+        """
+
         def __init__(
             self,
-            vocab_size,
-            n_layers=2,
-            embed_dim=10,
-            hidden_dim=128,
-            dropout=0.1,
-        ):
+            vocab_size: int,
+            n_layers: int = 2,
+            embed_dim: int = 10,
+            hidden_dim: int = 128,
+            dropout: float = 0.1,
+        ) -> None:
             super().__init__()
             self.embed = nn.Embedding(vocab_size, embed_dim)
             self.gru = nn.GRU(
@@ -304,7 +326,20 @@ def _(nn, torch, vocab):
             )
             self.output = nn.Linear(hidden_dim, vocab_size)
 
-        def forward(self, X):
+        def forward(self, X: torch.Tensor) -> torch.Tensor:
+            """
+            Score every possible next character at every position.
+
+            Parameters
+            ----------
+                X : torch.Tensor
+                    character ids with shape [batch, sequence]
+
+            Returns
+            -------
+                torch.Tensor
+                    logits with shape [batch, vocab, sequence], the layout nn.CrossEntropyLoss expects
+            """
             embeddings = self.embed(X)
             outputs, _states = self.gru(embeddings)
             return self.output(outputs).permute(0, 2, 1)
@@ -574,6 +609,11 @@ def _(decode_text, encode_text, torch):
                 values below 1 sharpen the distribution, above 1 flatten it
             device : torch.device
                 the device the model is on
+
+        Returns
+        -------
+            str
+                the lower case prompt followed by the generated characters
         """
         model.eval()
         text = prompt.lower()
