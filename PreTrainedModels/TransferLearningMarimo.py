@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full", app_title="Transfer Learning")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Transfer Learning
 
     The process of transfer learning involves taking a pre-trained model and adapting the model to a new, different data set. In this notebook, we will demonstrate how to use transfer learning to train a model to perform image classification on a data set that is different from the data set on which the pre-trained model was trained.
@@ -18,8 +17,7 @@ def _(mo):
     Transfer learning is really useful when we have a small dataset to train against, and the pre-trained model has been trained on a larger dataset because a small dataset will memorize the data quickly and not work on the new data.
 
     In the previous notebook, we trained a model on the vgg16 model or animal images, we will use the same model to train on the new images.
-    """
-    )
+    """)
     return
 
 
@@ -69,15 +67,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Dataset download
 
     In this example (based on the nVidia deep learning course) we are going to download a dataset of a specific dog (Bo the president dog) and a cat. The dataset is available at the following link: https://www.kaggle.com/api/v1/datasets/download/thomaschxu/doggydata
 
     We will then train our model to classify if it is the specific dog or something else.
-    """
-    )
+    """)
     return
 
 
@@ -94,23 +90,21 @@ def _(DATASET_LOCATION, Utils, pathlib):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # VGG16 Model
 
     we are going to use the vgg16 model which has a 1000 categories, we can now add the new trainable layers to the pre-trained model.
 
     They will take the features from the pre-trained layers and turn them into predictions on the new dataset. We will add two layers to the model.  Then, we'll add a `Linear` layer connecting all `1000` of VGG16's outputs to `1` neuron to predict if we have the correct dog or not.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We will now download the pre-trained model and as before and do the setup"""
-    )
+    mo.md(r"""
+    We will now download the pre-trained model and as before and do the setup
+    """)
     return
 
 
@@ -128,9 +122,9 @@ def _(device):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Now to create the new layer for our model. I have put this in a `build_dog_model` function so that each time we press **Train** we get a new, untrained final layer on top of the same pre-trained VGG16. The final [Flatten](https://pytorch.org/docs/stable/generated/torch.nn.Flatten.html) turns the `[batch, 1]` output into `[batch]`, which is the shape `BCEWithLogitsLoss` expects for our labels (previously I used `torch.squeeze` but that also removes the batch dimension if the last batch only has one image in it)."""
-    )
+    mo.md(r"""
+    Now to create the new layer for our model. I have put this in a `build_dog_model` function so that each time we press **Train** we get a new, untrained final layer on top of the same pre-trained VGG16. The final [Flatten](https://pytorch.org/docs/stable/generated/torch.nn.Flatten.html) turns the `[batch, 1]` output into `[batch]`, which is the shape `BCEWithLogitsLoss` expects for our labels (previously I used `torch.squeeze` but that also removes the batch dimension if the last batch only has one image in it).
+    """)
     return
 
 
@@ -153,9 +147,9 @@ def _(device, nn, vgg_model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can verify that the VGG layers are frozen,by looping through the model parameters and checking the `requires_grad` attribute."""
-    )
+    mo.md(r"""
+    We can verify that the VGG layers are frozen,by looping through the model parameters and checking the `requires_grad` attribute.
+    """)
     return
 
 
@@ -168,7 +162,9 @@ def _(dog_model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""for now we do not want to train the VGG layers, we will freeze them.""")
+    mo.md(r"""
+    for now we do not want to train the VGG layers, we will freeze them.
+    """)
     return
 
 
@@ -181,9 +177,9 @@ def _(vgg_model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As we are now classifying only two classes, we will use the binary cross entropy loss. The Adam optimizer is created with the model when we train."""
-    )
+    mo.md(r"""
+    As we are now classifying only two classes, we will use the binary cross entropy loss. The Adam optimizer is created with the model when we train.
+    """)
     return
 
 
@@ -195,9 +191,9 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The vgg model has been trained on the ImageNet dataset, this data has a specific format which we need to use. We can get the transforms from the model."""
-    )
+    mo.md(r"""
+    The vgg model has been trained on the ImageNet dataset, this data has a specific format which we need to use. We can get the transforms from the model.
+    """)
     return
 
 
@@ -209,12 +205,10 @@ def _(weights):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We can read in the data (which is in JPG format and infer the labels from the folder structure) and then apply the transforms to the data. The data lives in two folders one for valid and one for train. Within this set we have a folder called bo and one called not_bo.
     We can see this here
-    """
-    )
+    """)
     return
 
 
@@ -263,20 +257,18 @@ def _(DATASET_LOCATION, DataLoader, MyDataset):
     train_path = DATASET_LOCATION + "data/presidential_doggy_door/train/"
     train_data = MyDataset(train_path)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    train_N = len(train_loader.dataset)
 
     valid_path = DATASET_LOCATION + "data/presidential_doggy_door/valid/"
     valid_data = MyDataset(valid_path)
     valid_loader = DataLoader(valid_data, batch_size=batch_size)
-    valid_N = len(valid_loader.dataset)
-    return train_N, train_loader, valid_N, valid_loader
+    return train_loader, valid_loader
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""we can also add colour jitter to our transforms now as we have colour input images."""
-    )
+    mo.md(r"""
+    we can also add colour jitter to our transforms now as we have colour input images.
+    """)
     return
 
 
@@ -307,8 +299,7 @@ def _(device, transforms):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training
 
     I use `Utils.train_epoch` and `Utils.evaluate` (see [Utils/training.py](../Utils/training.py)) as in the ASL notebooks, passing the random transforms in as the `transform` so they are only applied to the training data.
@@ -316,8 +307,7 @@ def _(mo):
     As we are using `BCEWithLogitsLoss` there is only one output per image rather than one per class, so taking the `argmax` to get the prediction won't work. Instead `Utils.binary_predict` says the image is class 1 (`not_bo`) if the output is above 0, which is the same as the sigmoid of the output being above 0.5. We pass this in as the `predict` parameter.
 
     I keep the weights from the epoch with the lowest validation loss. Only the new final layer is trained as VGG16 is frozen, so each epoch is fairly quick even though the model is large. Choose the settings and press **Train**, each press starts with a new final layer.
-    """
-    )
+    """)
     return
 
 
@@ -416,9 +406,9 @@ def _(history, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now save the model and test it. Saving overwrites `dog_model.pth` so it only happens when you press the button."""
-    )
+    mo.md(r"""
+    We can now save the model and test it. Saving overwrites `dog_model.pth` so it only happens when you press the button.
+    """)
     return
 
 
@@ -462,9 +452,9 @@ def _(Image, device, model, plt, pre_trans, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can test against some of the data we used to train the model and see how well it performs."""
-    )
+    mo.md(r"""
+    We can test against some of the data we used to train the model and see how well it performs.
+    """)
     return
 
 
@@ -486,9 +476,9 @@ def _(DATASET_LOCATION, make_prediction):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The labels are 0 for `bo` and 1 for `not_bo`, so a negative number means the model thinks it is Bo and a positive number means it is not. If the first image gives a negative number and the second a positive one the model is working well."""
-    )
+    mo.md(r"""
+    The labels are 0 for `bo` and 1 for `not_bo`, so a negative number means the model thinks it is Bo and a positive number means it is not. If the first image gives a negative number and the second a positive one the model is working well.
+    """)
     return
 
 

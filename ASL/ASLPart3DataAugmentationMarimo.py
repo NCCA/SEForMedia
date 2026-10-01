@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full", app_title="ASL CNN Data Augmentation")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # ASL CNN Data Augmentation
 
     In the [previous notebook](ASLPart2CNNMarimo.py), we built a CNN model to classify the ASL dataset. In this notebook, we will look at how we can use data augmentation to improve the performance of our model.
@@ -25,8 +24,7 @@ def _(mo):
     ## Loading data
 
     The following code was outlined in the previous two examples.
-    """
-    )
+    """)
     return
 
 
@@ -116,18 +114,15 @@ def _(Dataset, device, torch):
 def _(ASLImages, BATCH_SIZE, DataLoader, train_df, valid_df):
     train_data = ASLImages(train_df)
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
-    train_N = len(train_loader.dataset)
 
     valid_data = ASLImages(valid_df)
     valid_loader = DataLoader(valid_data, batch_size=BATCH_SIZE)
-    valid_N = len(valid_loader.dataset)
-    return train_N, train_loader, valid_N, valid_loader
+    return train_loader, valid_loader
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building a Model
 
     We going to use exactly the same model as in the previous notebook, however this model had a lot of repetition in the code, especially with the Convolution layers. We can re-factor this to be our own custom class and then add this as a layer in the base Sequential model, to do this we need to look at this code and see what parameters are changing and what we can make more generic.
@@ -151,8 +146,7 @@ def _(mo):
     ```
 
     We can see that the only thing that is changing is the number of input channels and the number of output channels and the use  of dropouts. We can make this more generic by passing in these parameters as arguments to the class and then using them to create the layers.
-    """
-    )
+    """)
     return
 
 
@@ -178,9 +172,9 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The forward method just needs to be updated to use the class variables that we have created, so it will evaluate the same as before."""
-    )
+    mo.md(r"""
+    The forward method just needs to be updated to use the class variables that we have created, so it will evaluate the same as before.
+    """)
     return
 
 
@@ -210,15 +204,13 @@ def _(ConvBlock, IMAGE_CHANNELS, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # [Torchvision Transforms](https://pytorch.org/vision/0.9/transforms.html)
 
     We have used these before for simple transforms such as scaling, we will now look in more depth at some other transforms we can apply to augment our data and provide variance to the input data.
 
     We will start by extracting an image from the data to process and see what the results are.
-    """
-    )
+    """)
     return
 
 
@@ -238,7 +230,9 @@ def _(IMAGE_CHANNELS, IMAGE_HEIGHT, IMAGE_WIDTH, torch, train_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We can define a simple image plot functions to display the images.""")
+    mo.md(r"""
+    We can define a simple image plot functions to display the images.
+    """)
     return
 
 
@@ -259,13 +253,11 @@ def _(plt, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     [RandomResizeCrop](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.RandomResizedCrop)
 
     This transform will apply both a crop and a resize to the image, the crop will be random and the resize will be to the size specified. It needs to know the aspect ratio of the image to be able to crop it correctly, however in our case it is 1:1 as the image is square.
-    """
-    )
+    """)
     return
 
 
@@ -292,15 +284,13 @@ def _(IMAGE_HEIGHT, IMAGE_WIDTH, plot_image, plt, transforms, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     You can see the results are very subtle, but the image has changed enough to provide variance to the input data.
 
     ## [RandomHorizontalFlip](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.RandomHorizontalFlip)
 
     We can also randomly flip our images both horizontally and vertically, this will depend upon the data and what we are trying to do. In our case we are only going to flip the images horizontally, as this is the only way that the ASL data can be flipped and still be valid. (Note ASL is typically done with the dominant hand so both left or right handed is fine).
-    """
-    )
+    """)
     return
 
 
@@ -313,13 +303,11 @@ def _(plot_multiple, transforms, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [RandomRotation](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.RandomRotation)
 
     We can also rotate the images by a random amount, but like the flipping we must be careful with this as the ASL data is very specific and we don't want to rotate the images too much as it will make the data invalid. We will limit the rotation to 20 degrees in either direction.
-    """
-    )
+    """)
     return
 
 
@@ -332,8 +320,7 @@ def _(plot_multiple, transforms, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Notice how this has added borders to the image, this is because the image has been rotated and the corners are now empty and set to an empty (black) pixel value.
 
     ## [ColorJitter](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.ColorJitter)
@@ -345,8 +332,7 @@ def _(mo):
         - hue
 
     The saturation and hue apply to color images, so we will only use the first 2 for this example as we are using grayscale images.
-    """
-    )
+    """)
     return
 
 
@@ -363,13 +349,11 @@ def _(plot_multiple, transforms, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [Compose](https://pytorch.org/vision/0.9/transforms.html#torchvision.transforms.Compose)
 
     It is possible to combine all of these transforms into a single transform using the `Compose` class, this will apply all of the transforms in the order that they are passed in.
-    """
-    )
+    """)
     return
 
 
@@ -392,8 +376,7 @@ def _(IMAGE_HEIGHT, IMAGE_WIDTH, plot_multiple, transforms, x_0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training
 
     We will now train our model as before, however now we can pass in the transformation to our model, this will then apply it to each image before it is passed into the model.
@@ -403,8 +386,7 @@ def _(mo):
     The validation remains the same as before and we don't add any transformations to the validation data, as we want to see how the model performs on the original data.
 
     Augmentation makes each epoch harder for the model, so it needs more of them, I have set the default to 20. Choose the settings and press **Train**, each press starts a fresh model.
-    """
-    )
+    """)
     return
 
 
@@ -504,7 +486,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We can plot our results as before and see how the model performs.""")
+    mo.md(r"""
+    We can plot our results as before and see how the model performs.
+    """)
     return
 
 
@@ -528,8 +512,7 @@ def _(history, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The results are much better, and it is not showing the signs of overfitting we had before. The validation accuracy is now much closer to the training accuracy and the model is performing much better.
 
     The training accuracy may be lower, and that's ok. Compared to before, the model is being exposed to a much larger variety of data.
@@ -537,8 +520,7 @@ def _(mo):
     ## Saving the model
 
     We save both the `state_dict` and the full model, the [real time capture demo](RealTimeCapture/) loads `asl_model_full.pth`. Saving overwrites the previous files, so it only happens when you press the button. The same button exports the ONNX version at the end of this notebook.
-    """
-    )
+    """)
     return
 
 
@@ -562,13 +544,11 @@ def _(mo, model, save_btn, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Testing the model.
 
     We can now test the model as before and see how it performs on the test data.
-    """
-    )
+    """)
     return
 
 
@@ -647,9 +627,9 @@ def _(DATASET_LOCATION, F, Image, plt, torch, transforms):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""<!-- Now lets feed this into our model and see how it does. The signs are in alphabetical order, so the first sign is A, the second is B and so on. -->"""
-    )
+    mo.md(r"""
+    <!-- Now lets feed this into our model and see how it does. The signs are in alphabetical order, so the first sign is A, the second is B and so on. -->
+    """)
     return
 
 
@@ -665,15 +645,13 @@ def _(alphabet, device, model, tensor_images, torch):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Saving to ONXX
 
     The ONXX ( Open Neural Network Exchange.) format is a way of exchanging models in an open format. Torch allows us to export using this as well as it's own format. We need to ensure the onxx tools are installed (```uv add onnx onnxruntime onnxscript```) in our own projects.
 
     We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving. I use a [deepcopy](https://docs.python.org/3/library/copy.html#copy.deepcopy) as `model.to("cpu")` would move the trained model itself and break the cells above if they re-run. As this overwrites `asl_model.onnx` it only runs when you press **Save model** above.
-    """
-    )
+    """)
     return
 
 

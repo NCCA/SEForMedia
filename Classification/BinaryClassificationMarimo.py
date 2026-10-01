@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Classification
 
     In the [previous notebook](SimpleClassification.ipynb) we build a simple Linear model to try and classify a simple circle dataset. We discovered that it could not do this well. We will now try to build a more complex model to see if we can improve the performance.
@@ -17,8 +16,7 @@ def _(mo):
     ## Getting started
 
     We are going to start by importing our base libraries and setting the random seed for reproducibility.
-    """
-    )
+    """)
     return
 
 
@@ -36,13 +34,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data generation
 
     We will use the  ```make_circles``` function from the ```sklearn.datasets``` module to generate our data. This function generates a large circle containing a smaller circle in 2D. A simple toy dataset to visualize clustering and classification algorithms.
-    """
-    )
+    """)
     return
 
 
@@ -62,7 +58,9 @@ def _(make_circles):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Let's see the dataset""")
+    mo.md(r"""
+    Let's see the dataset
+    """)
     return
 
 
@@ -77,13 +75,11 @@ def _(plt, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data Preprocessing
 
     We now need to convert our data into tensors and generate our test / train split. We will use the typical 80:20 split for this.
-    """
-    )
+    """)
     return
 
 
@@ -102,8 +98,7 @@ def _(torch, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building a Model
 
     In the previous example we tried to use a line to fit data that is not linear. We will now try to use a non linear activation function to see if we can fit our data better.
@@ -111,8 +106,7 @@ def _(mo):
     PyTorch has a number of [non linear activation](https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity) functions we can use.
 
     In this example we will use the [ReLU](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) function defined in  [`torch.nn.ReLU()`](https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html)).
-    """
-    )
+    """)
     return
 
 
@@ -137,9 +131,9 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We will still inherit from the nn.Module but change the shape of our model to include a hidden layer with a ReLU activation function."""
-    )
+    mo.md(r"""
+    We will still inherit from the nn.Module but change the shape of our model to include a hidden layer with a ReLU activation function.
+    """)
     return
 
 
@@ -167,28 +161,25 @@ def _(device, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As you can now see this is a far more complex model than the previous one. If you uncomment the .state_dict() line you can see the weights and biases of the model and there are many more than before."""
-    )
+    mo.md(r"""
+    As you can now see this is a far more complex model than the previous one. If you uncomment the .state_dict() line you can see the weights and biases of the model and there are many more than before.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We will use this model (basically forward is written for us now) this is really easy and for simple tasks ideal. However for more complex models we will need to use the more manual method and define our own forward function.
 
     We can now see what our untrained model does.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Loss Function and Optimizer
 
     As we are dealing with a binary classification problem we can choose a suitable function from the [PyTorch documentation](https://pytorch.org/docs/stable/nn.html#loss-functions).
@@ -200,8 +191,7 @@ def _(mo):
     They are both similar however the BCEWithLogitsLoss is more numerically stable and has a built in sigmoid function.
 
     We will use the Stochastic Gradient Descent (SGD) optimizer to train our model as in the previous lab.
-    """
-    )
+    """)
     return
 
 
@@ -215,9 +205,9 @@ def _(model, nn, optim):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Next we need to see how close our function is to the actual labels we can generate a function to do this this is know as an evaluation function and is basically the opposite of the loss function but it can sometimes be more useful to see how well the model is doing."""
-    )
+    mo.md(r"""
+    Next we need to see how close our function is to the actual labels we can generate a function to do this this is know as an evaluation function and is basically the opposite of the loss function but it can sometimes be more useful to see how well the model is doing.
+    """)
     return
 
 
@@ -233,13 +223,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training the Model
 
     We will now train the model using the training data. We will use the same training loop as in the previous lab but using the new data sets, we will now also copy the data to the device to help speed up the training process.
-    """
-    )
+    """)
     return
 
 
@@ -284,9 +272,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This is much better accuracy around 80% which is much better than the previous model. Let's make some predictions and see how well the model is doing."""
-    )
+    mo.md(r"""
+    This is much better accuracy around 80% which is much better than the previous model. Let's make some predictions and see how well the model is doing.
+    """)
     return
 
 
@@ -301,9 +289,9 @@ def _(X_test_1, model, torch, y_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can use the same code we used in the previous lab to plot the decision boundary."""
-    )
+    mo.md(r"""
+    We can use the same code we used in the previous lab to plot the decision boundary.
+    """)
     return
 
 
@@ -331,15 +319,17 @@ def _(X, device, model, np, plt, torch, y_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This is much better, you can see for the most part the model has correctly classified the data. With a little more training and a few tweaks we could probably get this to >90% accuracy."""
-    )
+    mo.md(r"""
+    This is much better, you can see for the most part the model has correctly classified the data. With a little more training and a few tweaks we could probably get this to >90% accuracy.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 

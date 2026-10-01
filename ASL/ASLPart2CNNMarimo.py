@@ -192,45 +192,37 @@ def _(ASLImages, DataLoader, train_df, valid_df):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    ## Creating a Convolution model
+    mo.vstack(
+        [
+            mo.md("""
+    ## Creating a convolutional model
 
-    A Convolutional Neural Network (CNN) is a type of deep learning model specifically designed to process and analyze visual data, like images and videos. CNNs are highly effective at tasks like image classification, object detection, and facial recognition because they can learn spatial hierarchies and patterns in visual data.
+    We use a convolutional neural network (CNN) to learn patterns in our hand images.
+    Convolution blocks learn feature maps and pooling reduces their width and height.
+    The linear layers combine these features into a score for each class.
 
-    They are made up of many layers but in general follow this pattern:
+    Shapes below are **channels × height × width**, with the batch dimension omitted.
+    """),
+            mo.mermaid("""
+    flowchart LR
+        A["Image<br/>1 × 28 × 28"] --> B["Conv block 1<br/>25 × 14 × 14"]
+        B --> C["Conv block 2<br/>50 × 7 × 7"]
+        C --> D["Conv block 3<br/>75 × 3 × 3"]
+        D --> E["Flatten<br/>675 features"]
+        E --> F["Linear<br/>512 units"]
+        F --> G["Linear<br/>25 class scores"]
+    """),
+            mo.md("""
+    Each block uses a **3 × 3 convolution → batch normalisation → ReLU → 2 × 2 max pooling**.
+    Block 2 adds dropout (0.2) before pooling. The first linear layer is followed by
+    dropout (0.3) and ReLU.
 
-    1. Convolutional Layers:
-    	- These layers use filters (small matrices) that slide over the input image to detect patterns or features, such as edges, textures, or shapes.
-    	- Each filter detects a specific feature in a local region of the image, producing a “feature map” that highlights the presence and position of that feature.
-
-    2.	Activation Function (e.g., ReLU):
-    	- After each convolution, an activation function like ReLU (Rectified Linear Unit) is applied, which introduces non-linearity to help the network learn complex patterns.
-
-    3.	Pooling Layers:
-    	- Pooling layers reduce the spatial size (width and height) of feature maps, which helps lower computation and reduces the risk of overfitting.
-    	- Max pooling is the most common type of pooling, which selects the highest value in a region, making the feature map smaller while keeping key information.
-    4.	Fully Connected Layers:
-    	- Near the end of the CNN, fully connected (FC) layers combine all learned features from previous layers to make a final prediction.
-    	- These layers “flatten” the output of the final convolutional layers and pass them to a typical neural network layer to classify the image or detect objects.
-    5.	Output Layer:
-    	- The final layer generates the prediction, often using a softmax function for classification tasks, which provides probabilities for each class.
-
-    The overall structure of our CNN is going to be as follows :
-
-    1. input layer
-    2. convolutional layer
-    3. Max pooling layer (with ReLU activation)
-    4. Convolutional layer
-    5. Dropout layer
-    6. max pooling layer
-    7. convolutional layer
-    8. max pooling layer
-    9. Flatten to Dense layer
-    10. Dense layer reduction
-    11. output. Linear layer
-
-    We can build this as follows with our Sequential model:
-    """)
+    The output contains raw class scores (logits), which we pass directly to
+    `CrossEntropyLoss`. We can now build this model using `nn.Sequential`, wrapped
+    in a `build_model` function so that each press of **Train** gives us a fresh model:
+    """),
+        ]
+    )
     return
 
 

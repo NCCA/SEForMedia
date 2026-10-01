@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Overview
 
     In the previous examples we have loaded the data from source and processed it ourselves. This helps us to get a deeper understanding of how the whole process works, and how we would go about training our own models.
@@ -17,8 +16,7 @@ def _(mo):
     It is however, quite common to download datasets directly using the [`datasets`](https://pytorch.org/vision/stable/datasets.html#) library. This is a library that provides a simple way to download and load datasets for processing, it also includes many common datasets that are used in the research community and can be used to extend existing models or to train new models.
 
     In this example we will show how this works be using same process we used for the manual MNIST dataset, but this time we will use the `datasets` library to download the data for us.
-    """
-    )
+    """)
     return
 
 
@@ -43,9 +41,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We will attempt to download the data into the /transfer folder if in the labs, else we will place it locally. In this case we will put it into a folder called mnist_data."""
-    )
+    mo.md(r"""
+    We will attempt to download the data into the /transfer folder if in the labs, else we will place it locally. In this case we will put it into a folder called mnist_data.
+    """)
     return
 
 
@@ -63,9 +61,9 @@ def _(Utils):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""we can now use the dataloaders to download the datasets to the above location."""
-    )
+    mo.md(r"""
+    we can now use the dataloaders to download the datasets to the above location.
+    """)
     return
 
 
@@ -78,9 +76,9 @@ def _(DATASET_LOCATION, torchvision):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice that the data is downloaded to the location specified and the data is loaded in the same way as before. However the loader returns a class called `torch.utils.data.DataLoader` which is a class that provides an iterator over the dataset. This is useful as it allows us to iterate over the dataset in a for loop, and also provides a way to shuffle the data and load it in batches."""
-    )
+    mo.md(r"""
+    You will notice that the data is downloaded to the location specified and the data is loaded in the same way as before. However the loader returns a class called `torch.utils.data.DataLoader` which is a class that provides an iterator over the dataset. This is useful as it allows us to iterate over the dataset in a for loop, and also provides a way to shuffle the data and load it in batches.
+    """)
     return
 
 
@@ -109,21 +107,19 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice that the data is stored as a PIL image and an integer. This is unlike the data we loaded in the previous demo which was the raw bytes. Basically the data loader class has done some pre-processing for us, and has loaded the data in a format that is ready to be used by the model. This is a common feature of the `datasets` library, and is one of the reasons why it is so popular."""
-    )
+    mo.md(r"""
+    You will notice that the data is stored as a PIL image and an integer. This is unlike the data we loaded in the previous demo which was the raw bytes. Basically the data loader class has done some pre-processing for us, and has loaded the data in a format that is ready to be used by the model. This is a common feature of the `datasets` library, and is one of the reasons why it is so popular.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Transforms
 
     The data loader class also allows us to apply transformations to the data. This is useful as it allows us to apply pre-processing to the data before it is loaded into the model. This can be useful for normalizing the data, or for augmenting the data to increase the size of the dataset.
-    """
-    )
+    """)
     return
 
 
@@ -139,9 +135,9 @@ def _(torch, train_set, transforms, valid_set):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""As before we need to generate a full dataloader to batch our data. However is is now much simpler as we don't need to write our own class to do it as the data is already in the correct format."""
-    )
+    mo.md(r"""
+    As before we need to generate a full dataloader to batch our data. However is is now much simpler as we don't need to write our own class to do it as the data is already in the correct format.
+    """)
     return
 
 
@@ -158,13 +154,11 @@ def _(DataLoader, train_set, valid_set):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building the Model
 
     We will use the same model we used in the [previous notebook](ReadDigitsTraining.ipynb) to train the model.
-    """
-    )
+    """)
     return
 
 
@@ -189,15 +183,13 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The model is wrapped in a `build_model` function so that each time we press **Train** below we get a fresh, untrained model rather than carrying on from the last run.
 
     # Loss and Optimizer
 
     Next we can create our loss function. We will use the same loss function and optimizer as before, but the optimizer needs the parameters of the model it is updating, so it is created inside the training cell along with the model.
-    """
-    )
+    """)
     return
 
 
@@ -209,15 +201,13 @@ def _(nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training
 
     In the [previous notebook](ReadDigitsTrainingMarimo.py) we wrote our own `train_epoch` and `evaluate` functions. As they are the same for most of the models we are going to build, I have moved them into the `Utils` package (see [Utils/training.py](../Utils/training.py)) and we can use them from there. Each returns the mean loss and the accuracy for one pass over the data.
 
     Choose the settings and press **Train**. Submitting again starts a fresh model.
-    """
-    )
+    """)
     return
 
 
@@ -307,13 +297,11 @@ def _(device, model, torch, train_set):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Conclusion
 
     As you can see the processes are very similar, just the model loading and prep are a little simpler.
-    """
-    )
+    """)
     return
 
 

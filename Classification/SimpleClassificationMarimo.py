@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Classification
 
     In this demo we are going to build a simple network to do binary classification, we will generate the test data ourselves using the [sklearn](https://scikit-learn.org/stable/index.html) library then we will train the network to classify the data.
@@ -17,8 +16,7 @@ def _(mo):
     ## Getting started
 
     We are going to start by importing our base libraries and setting the random seed for reproducibility.
-    """
-    )
+    """)
     return
 
 
@@ -36,13 +34,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data generation
 
     We will use the  ```make_circles``` function from the ```sklearn.datasets``` module to generate our data. This function generates a large circle containing a smaller circle in 2D. A simple toy dataset to visualize clustering and classification algorithms.
-    """
-    )
+    """)
     return
 
 
@@ -66,13 +62,11 @@ def _(make_circles):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     You can see that the data has two components, the first one is the data itself as x,y co-ordinates and the second one is the labels. We will use the data to train our network and the labels to evaluate it.
 
     We can plot this to see the data in full.
-    """
-    )
+    """)
     return
 
 
@@ -87,21 +81,19 @@ def _(plt, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You will notice we are using a colourmap here for more details on colourmaps see the [matplotlib documentation](https://matplotlib.org/stable/tutorials/colors/colormaps.html) and to see all the colourmaps use ```list(matplotlib.colormaps)``` in your python console."""
-    )
+    mo.md(r"""
+    You will notice we are using a colourmap here for more details on colourmaps see the [matplotlib documentation](https://matplotlib.org/stable/tutorials/colors/colormaps.html) and to see all the colourmaps use ```list(matplotlib.colormaps)``` in your python console.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data Preprocessing
 
     We now need to convert our data into tensors and generate our test / train split. We will use the typical 80:20 split for this.
-    """
-    )
+    """)
     return
 
 
@@ -120,13 +112,11 @@ def _(torch, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building a Model
 
     We are going to build a simple model and in this case we will also use the GPU if it is available. To do this we will use the get_device function outlined in the lab. This will make the code work across different devices.
-    """
-    )
+    """)
     return
 
 
@@ -151,13 +141,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We are going to use the same linear model we used in the previous lab. We will use the ```nn.Linear``` class to create a linear layer rather than constructing it ourselves. We will still inherit from nn.Module and use the super() function to initialise the parent class.
 
     We will then define the forward function to pass the data through the model.
-    """
-    )
+    """)
     return
 
 
@@ -184,8 +172,7 @@ def _(device, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     You will notice that we are taking an input with 2 features and expanding it to 5 features. This is a common technique in neural networks to allow the model to learn more complex patterns (this does not always work and can lead to overfitting). This is a hyperparameter and can be tuned to improve the model.
 
     It is important that the next layer has the same number of features as the previous layer has output. This is why the next layer has 5 input features.
@@ -195,8 +182,7 @@ def _(mo):
     This mode of building a model is fine for simple models but can become cumbersome for more complex models. PyTorch provides the ```nn.Sequential``` class to allow us to build models more easily. We can pass the layers as arguments to the ```nn.Sequential``` class and it will build the model for us.
 
     The model above can be built using ```nn.Sequential``` as follows:
-    """
-    )
+    """)
     return
 
 
@@ -213,13 +199,11 @@ def _(device, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We will use this model (basically forward is written for us now) this is really easy and for simple tasks ideal. However for more complex models we will need to use the more manual method and define our own forward function.
 
     We can now see what our untrained model does.
-    """
-    )
+    """)
     return
 
 
@@ -235,8 +219,7 @@ def _(X_test, device, model_1, y_test):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     note the output is in the form of a tensor (and has negative values) not the binary output we want. We will need to convert this to a binary output but we will train our model first.
 
     ## Loss Function and Optimizer
@@ -250,8 +233,7 @@ def _(mo):
     They are both similar however the BCEWithLogitsLoss is more numerically stable and has a built in sigmoid function.
 
     We will use the Stochastic Gradient Descent (SGD) optimizer to train our model as in the previous lab.
-    """
-    )
+    """)
     return
 
 
@@ -264,9 +246,9 @@ def _(model_1, nn, optim):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Next we need to see how close our function is to the actual labels we can generate a function to do this this is know as an evaluation function and is basically the opposite of the loss function but it can sometimes be more useful to see how well the model is doing."""
-    )
+    mo.md(r"""
+    Next we need to see how close our function is to the actual labels we can generate a function to do this this is know as an evaluation function and is basically the opposite of the loss function but it can sometimes be more useful to see how well the model is doing.
+    """)
     return
 
 
@@ -282,13 +264,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training the Model
 
     We will now train the model using the training data. We will use the same training loop as in the previous lab but using the new data sets, we will now also copy the data to the device to help speed up the training process.
-    """
-    )
+    """)
     return
 
 
@@ -333,8 +313,7 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As you can see from this result the model is not very good but what has happened?
     ## Plotting the Decision Boundary
 
@@ -349,8 +328,7 @@ def _(mo):
     3. `xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))`  This line creates a meshgrid using `numpy`. It generates two 2D arrays (`xx` and `yy`) that represent all combinations of x and y values within the specified ranges. The `np.linspace` function creates 100 evenly spaced values between `x_min` and `x_max`, and between `y_min` and `y_max`.
 
     This will then allow us to plot into this grid to get the values we need.
-    """
-    )
+    """)
     return
 
 
@@ -378,8 +356,7 @@ def _(X, device, model_1, np, plt, torch, y_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As we can see using the linear model to classify non-linear data doesn't work that well and at best we can cut the data in half hence the 50% accuracy.
 
     This is know as underfitting as it can't (at present) learn any patterns from this data.
@@ -401,8 +378,7 @@ def _(mo):
     7. https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
     8. https://pytorch.org/docs/stable/generated/torch.nn.Module.html
     9. https://pytorch.org/docs/stable/generated/torch.optim.SGD.html
-    """
-    )
+    """)
     return
 
 
