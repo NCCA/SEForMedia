@@ -43,7 +43,7 @@ There is no test suite. `Lecture4/Colour/test_colour.py` and `Lecture4/ClassMeth
 
 Three kinds of thing live side by side:
 
-- **Slides** in `Slides/<Topic>/` — reveal.js, one `slides.md` per deck split on `\n---\n` (horizontal) and `\n--\n` (vertical), with a fixed `index.html` that loads it from Jon's web space. Edit `slides.md`; `index.html` is boilerplate. Deck titles carry the lecture number (`Slides/Numpy/slides.md` is Lecture 5), which does *not* line up with the `LectureN/` folder numbering — the folders stop at 7 while the decks run to 10.
+- **Slides** in `Slides/<Topic>/` — reveal.js, one `slides.md` per deck split on `\n---\n` (horizontal) and `\n--\n` (vertical), with a fixed `index.html` that loads it from Jon's web space. Edit `slides.md`; `index.html` is boilerplate. Deck titles carry the lecture number (`Slides/Numpy/slides.md` is Lecture 5), which does _not_ line up with the `LectureN/` folder numbering — the folders stop at 7 while the decks run to 10.
 - **Notebooks** in `LectureN/`, `ASL/`, `MNIST/`, `Classification/` and friends. Most exist twice: a Jupyter `X.ipynb` and a marimo `XMarimo.py`. The marimo version is the one being actively maintained (see `TODO.md`), so when changing notebook content, change both or say which you skipped. `IntroToMarimo/` explains marimo to students and is the reference for house style: markdown cells are `@app.cell(hide_code=True)` wrapping `mo.md(r"""...""")`.
 - **Standalone apps and script sets** — `MNIST/Sketch/` (Qt sketchpad that feeds a trained model), `ASL/RealTimeCapture/` (webcam ASL demo, needs OpenCV installed separately), `Seminars/Arguments` and `Seminars/Files` (argparse/click and file IO exercises as starter and solution pairs), `NumPyForML/` and `PyTorchForML/` (numbered marimo notebook series with their own READMEs), `Neuron/nn_from_scratch.py`.
 
@@ -61,7 +61,7 @@ Trained weights (`*.pth`) and `ScratchCode/` are gitignored, so notebooks must b
 
 ## Branches
 
-Teaching happens on the academic-year branch — currently `26-27`, previously `Academic_Year24-25`. `main` lags well behind and is not the integration target; branch from and target the current year branch unless told otherwise.
+Teaching happens on the main branch,
 
 ## Writing style
 
