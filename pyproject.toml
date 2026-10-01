@@ -14,10 +14,12 @@ license = {file = "LICENSE"}
 version = "0.0.1"
 dependencies = [
     "anywidget>=0.11.0",
+    "datasets>=5.0.1",
     "ipycanvas>=0.14.1",
     "ipyturtle3>=0.1.4",
     "kagglehub>=1.0.2",
     "marimo>=0.14.17",
+    "marimo-lens>=0.2.3",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
     "onnx>=1.19.0",
@@ -25,6 +27,7 @@ dependencies = [
     "onnxscript>=0.4.0",
     "pandas>=2.2.3",
     "polars>=1.24.0",
+    "pydantic-ai-slim>=2.52.0",
     "pyqt5>=5.15.11",
     "qtpy>=2.4.3",
     "requests>=2.32.5",
@@ -36,6 +39,9 @@ dependencies = [
     "torchvision>=0.21.0",
     "tqdm>=4.67.1",
 ]
+# always enforce latest marimo
+[tool.uv]
+upgrade-package = ["marimo"]
 
 [[tool.uv.index]]
 name = "pytorch-cu124"
