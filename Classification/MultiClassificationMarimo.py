@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Multi Label Classification
 
     In the [previous notebook](BinaryClassification.ipynb) we build a model to do binary classification. In this notebook we are going to build a model to do multi label classification.
@@ -17,8 +16,7 @@ def _(mo):
     ## Getting started
 
     We are going to start by importing our base libraries and setting the random seed for reproducibility.
-    """
-    )
+    """)
     return
 
 
@@ -36,13 +34,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data generation
 
     We will use the  ```make_blobs``` function from the ```sklearn.datasets``` module to generate our data.
-    """
-    )
+    """)
     return
 
 
@@ -68,7 +64,9 @@ def _(make_blobs):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Let's see the dataset""")
+    mo.md(r"""
+    Let's see the dataset
+    """)
     return
 
 
@@ -83,13 +81,11 @@ def _(plt, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Data Preprocessing
 
     We now need to convert our data into tensors and generate our test / train split. We will use the typical 80:20 split for this.
-    """
-    )
+    """)
     return
 
 
@@ -108,13 +104,11 @@ def _(torch, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Building a Model
 
     We are going to setup our model in a similar way as before, however this time we have more than one output. To make  it easier to write our forward pass we are going to use the ```torch.nn.Sequential``` class which will call the forward method of each module in the order they are passed to the constructor.
-    """
-    )
+    """)
     return
 
 
@@ -139,9 +133,9 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We will still inherit from the nn.Module but change the shape of our model to include a hidden layer with a ReLU activation function."""
-    )
+    mo.md(r"""
+    We will still inherit from the nn.Module but change the shape of our model to include a hidden layer with a ReLU activation function.
+    """)
     return
 
 
@@ -170,13 +164,11 @@ def _(CLASSES, FEATURES, device, nn):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Loss Function and Optimizer
 
     This time as we are dealing with more than one output we need to use the CrossEntropyLoss function. This is a combination of the softmax activation function and the negative log likelihood loss function.
-    """
-    )
+    """)
     return
 
 
@@ -190,7 +182,9 @@ def _(model, nn, optim):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We can now look at the basic output of the untrained model.""")
+    mo.md(r"""
+    We can now look at the basic output of the untrained model.
+    """)
     return
 
 
@@ -206,9 +200,9 @@ def _(X_train, device, model, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""The softmax function is used to convert the output of the model into a probability distribution, this should sum to 1. We can then find the class with the highest probability using the argmax function to determine the predicted class."""
-    )
+    mo.md(r"""
+    The softmax function is used to convert the output of the model into a probability distribution, this should sum to 1. We can then find the class with the highest probability using the argmax function to determine the predicted class.
+    """)
     return
 
 
@@ -231,13 +225,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Training the Model
 
     We will now train the model using the training data. We will use the same training loop as in the previous lab but using the new data sets, we will now also copy the data to the device to help speed up the training process.
-    """
-    )
+    """)
     return
 
 
@@ -308,9 +300,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This is much better accuracy around 80% which is much better than the previous model. Let's make some predictions and see how well the model is doing."""
-    )
+    mo.md(r"""
+    This is much better accuracy around 80% which is much better than the previous model. Let's make some predictions and see how well the model is doing.
+    """)
     return
 
 
@@ -325,9 +317,9 @@ def _(X_test_device, model, torch, y_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can use the same code we used in the previous lab to plot the decision boundary."""
-    )
+    mo.md(r"""
+    We can use the same code we used in the previous lab to plot the decision boundary.
+    """)
     return
 
 
@@ -355,15 +347,17 @@ def _(X, device, model, np, plt, torch, y_1):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This works well. Try re-running the model with the ReLU activation function removed and see how this affects the decision boundary."""
-    )
+    mo.md(r"""
+    This works well. Try re-running the model with the ReLU activation function removed and see how this affects the decision boundary.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 

@@ -47,7 +47,7 @@ Three kinds of thing live side by side:
 - **Notebooks** in `LectureN/`, `ASL/`, `MNIST/`, `Classification/` and friends. Most exist twice: a Jupyter `X.ipynb` and a marimo `XMarimo.py`. The marimo version is the one being actively maintained (see `TODO.md`), so when changing notebook content, change both or say which you skipped. `IntroToMarimo/` explains marimo to students and is the reference for house style: markdown cells are `@app.cell(hide_code=True)` wrapping `mo.md(r"""...""")`.
 - **Standalone apps and script sets** — `MNIST/Sketch/` (Qt sketchpad that feeds a trained model), `ASL/RealTimeCapture/` (webcam ASL demo, needs OpenCV installed separately), `Seminars/Arguments` and `Seminars/Files` (argparse/click and file IO exercises as starter and solution pairs), `NumPyForML/` and `PyTorchForML/` (numbered marimo notebook series with their own READMEs), `Neuron/nn_from_scratch.py`.
 
-Qt code uses `qtpy` for PyQt5/PySide compatibility. `MainWindow.py` files are generated from `MainWindow.ui` by `pyuic5` — edit the `.ui` in Designer and regenerate, never hand-edit the generated file.
+Qt code PySide6
 
 ## Utils and the sys.path convention
 

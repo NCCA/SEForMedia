@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.24.2"
 app = marimo.App(width="full", app_title="Pre Trained Models")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Pre-trained Models
 
     In this notebook we are going to look at a pre-trained model. As we have seen so far, it is fairly easy to train models however we need large classified datasets to do so. This is not always possible. In such cases, we can use pre-trained models. These models are trained on large datasets and can be used to extract features from images. We can then use these features to train a classifier on a smaller dataset so specialized tasks.
@@ -17,8 +16,7 @@ def _(mo):
     There are many sources of pre-trained models, for example nVidia provide a number [here](https://catalog.ngc.nvidia.com/models) or the [open neural network exchange](https://onnx.ai/models) provides a number of models.
 
     In this notebook we are going to use a pre-trained model from the [torchvision](https://pytorch.org/docs/stable/torchvision/index.html) library. This library provides a number of pre-trained models that can be used for transfer learning (the process of using a pre-trained model to extract features from images and then training a classifier on top of these features).
-    """
-    )
+    """)
     return
 
 
@@ -43,8 +41,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Objectives
 
     In this demo we are going to use a pre-trained model and then use it to identify the class of an image, in this case we will use Cats and Dogs as the source and identify if the image is a cat or a dog or something else.
@@ -61,8 +58,7 @@ def _(mo):
     We can see the available models  [here](https://pytorch.org/vision/stable/models.html).
 
     Many of these  models would work for our exercise (try later and see what changes), we are going to use [VGG16](https://pytorch.org/vision/stable/models/vgg.html) and use the [default weights](https://pytorch.org/vision/stable/models/generated/torchvision.models.vgg19.html#torchvision.models.VGG19_Weights).
-    """
-    )
+    """)
     return
 
 
@@ -79,9 +75,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Now we have downloaded the model, we can send it to the device and look at the model architecture."""
-    )
+    mo.md(r"""
+    Now we have downloaded the model, we can send it to the device and look at the model architecture.
+    """)
     return
 
 
@@ -93,15 +89,13 @@ def _(device, model):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     As you can see this is a large model with many layers. The core components we are interested in are the in_features and the out_features. The in_features is the number of features that the model expects as input, in this case 4096. The out_features is the number of classes that the model can classify, in this case 1000.
 
     ## Input size
 
     We will need to process our images to the correct size for the input. Because PyTorch models are dynamically built, the model itself does not know what its input shape should be, however the  `weights` come with their own transforms so we can extract this information from the model (as with other models).
-    """
-    )
+    """)
     return
 
 
@@ -114,8 +108,7 @@ def _(torch, weights):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This is equivalent to the following:
 
     ```Python
@@ -141,26 +134,25 @@ def _(mo):
     The full ImageNet dataset has over 20,000 categories, the competition and resulting pre-trained models just use a subset of 1000 of these categories.
 
     The dogs are categories 151 through 268. The cats are categories 281 through 285. So we can use this to extract the category of the image. (note the list above is indexed from 1 but our tensors will be zero indexed).
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Image Input
 
     We will start with a simple image of a cat and a dog, first let's define a function to show the base images.
-    """
-    )
+    """)
     return
 
 
@@ -177,7 +169,9 @@ def _(matplotlib, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Here are the input images, a cute cat and puppy :-)""")
+    mo.md(r"""
+    Here are the input images, a cute cat and puppy :-)
+    """)
     return
 
 
@@ -195,13 +189,11 @@ def _(show_image):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Processing the inputs
 
     Whilst these images are cute, they are not what the ML model expects. We need to process them to the correct size and format. We can use the `pre_trans` function to do this.
-    """
-    )
+    """)
     return
 
 
@@ -227,7 +219,9 @@ def _(device, torch, tv_io, weights):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Lets see how they look now.""")
+    mo.md(r"""
+    Lets see how they look now.
+    """)
     return
 
 
@@ -249,21 +243,19 @@ def _(F, plt, processed_image_cat, processed_image_dog, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Not so cute now. The  strange colouring is due to the `Normalize` Transform, and the photo appears zoomed in because of `CenterCrop`."""
-    )
+    mo.md(r"""
+    Not so cute now. The  strange colouring is due to the `Normalize` Transform, and the photo appears zoomed in because of `CenterCrop`.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Using the Model
 
     We can now use the model and make a prediction, as the output is very large (1000 classes) we need to get some way of knowing what the model is predicting. There are various version of this dataset classification online, in this case I have downloaded it in json format, which we can load easily in python.
-    """
-    )
+    """)
     return
 
 
@@ -277,9 +269,9 @@ def _(json):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can now write a function to read our predictions by passing in an image."""
-    )
+    mo.md(r"""
+    We can now write a function to read our predictions by passing in an image.
+    """)
     return
 
 
@@ -320,13 +312,11 @@ def _(get_prediction):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Cat or Dog
 
     We can now write a function to determine if we have a cat or dog, or something else.
-    """
-    )
+    """)
     return
 
 
@@ -364,8 +354,7 @@ def _(cat_or_dog):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ok so that guess is not close, but we can see that the model is working.
 
     ## Summary
@@ -373,8 +362,7 @@ def _(mo):
     So we have used a pre-trained model, in the next example we will train it on a new data set to specialize it.
 
     Now we are finished let's clear the GPU cache.
-    """
-    )
+    """)
     return
 
 

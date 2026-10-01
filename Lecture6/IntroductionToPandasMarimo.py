@@ -43,7 +43,7 @@ def _():
 
     from pathlib import Path
 
-    Path(data_dir).mkdir(parents=True, exist_ok=True)
+    Path(data_dir).mkdir(exist_ok=True)
     # note the exits_ok parameter in mkdir, which allows us to create a new directory without throwing an error if it already exists
     # it will also create any intermediate directories that don't exist
     return Path, data_dir
@@ -431,7 +431,7 @@ def _(dataset_4, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
@@ -636,7 +636,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
