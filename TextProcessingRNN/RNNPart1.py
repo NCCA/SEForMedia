@@ -290,7 +290,7 @@ def _(nn, torch, vocab):
     import sys
 
     sys.path.append("../")
-    from Utils import get_device
+    from Utils import copy_weights, evaluate, get_device, train_epoch
 
     class ShakespeareModel(nn.Module):
         """
@@ -347,7 +347,7 @@ def _(nn, torch, vocab):
     torch.manual_seed(42)
     _model = ShakespeareModel(len(vocab)).to(get_device())
     _model
-    return ShakespeareModel, get_device
+    return ShakespeareModel, copy_weights, evaluate, get_device, train_epoch
 
 
 @app.cell(hide_code=True)
@@ -388,7 +388,7 @@ def _(mo):
     mo.md(r"""
     ## Training and Evaluation
 
-    The training loop is almost the same as the one I used for the [Free Spoken Digits](../FreeSpokenDigits/FSDDMarimoPt3.py) CNN. The main difference is what counts as a "sample". The digits model made one prediction per recording. This model makes one prediction for *every character* in the window, so a batch of 512 windows of 50 characters gives 25,600 predictions. The `_Metrics` class therefore counts with `targets.numel()` rather than the batch size.
+    The training loop is almost the same as the one I used for the [Free Spoken Digits](../FreeSpokenDigits/FSDDMarimoPt3.py) CNN. In fact it is so similar that I have moved `train_epoch`, `evaluate` and the metrics class into [Utils/training.py](../Utils/training.py) so both notebooks can share them. The main difference is what counts as a "sample". The digits model made one prediction per recording. This model makes one prediction for *every character* in the window, so a batch of 512 windows of 50 characters gives 25,600 predictions. The `Metrics` class therefore counts with `targets.numel()` rather than the batch size, which for the digits is the same thing.
 
     The logits come out of the model as `[batch, vocab, sequence]` (this is why we did the `permute` in `forward`), and the targets are `[batch, sequence]`. [`CrossEntropyLoss`](https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) expects the class scores in dimension 1, so `argmax(1)` gives us the predicted character at each position.
 
@@ -397,75 +397,12 @@ def _(mo):
     return
 
 
-@app.cell
-def _(mo, torch):
-    class _Metrics:
-        """Running totals for character-weighted loss and accuracy."""
-
-        def __init__(self) -> None:
-            self.total_loss, self.correct, self.count = 0.0, 0, 0
-
-        def update(
-            self,
-            loss: torch.Tensor,
-            logits: torch.Tensor,
-            targets: torch.Tensor,
-        ) -> None:
-            n = targets.numel()
-            self.count += n
-            self.total_loss += loss.item() * n
-            self.correct += (logits.argmax(1) == targets).sum().item()
-
-        def result(self) -> tuple[float, float]:
-            return self.total_loss / self.count, self.correct / self.count
-
-    def train_epoch(
-        model: torch.nn.Module,
-        loader: torch.utils.data.DataLoader,
-        loss_fn: torch.nn.Module,
-        optimiser: torch.optim.Optimizer,
-        device: torch.device,
-    ) -> tuple[float, float]:
-        """One pass over the data with weight updates; returns (loss, accuracy)."""
-        model.train()
-        metrics = _Metrics()
-        for windows, targets in mo.status.progress_bar(
-            loader, title="Batches", remove_on_exit=True
-        ):
-            windows, targets = windows.to(device), targets.to(device)
-            optimiser.zero_grad()
-            logits = model(windows)
-            loss = loss_fn(logits, targets)
-            loss.backward()
-            optimiser.step()
-            metrics.update(loss, logits, targets)
-        return metrics.result()
-
-    @torch.inference_mode()
-    def evaluate(
-        model: torch.nn.Module,
-        loader: torch.utils.data.DataLoader,
-        loss_fn: torch.nn.Module,
-        device: torch.device,
-    ) -> tuple[float, float]:
-        """One pass over the data without gradients; returns (loss, accuracy)."""
-        model.eval()
-        metrics = _Metrics()
-        for windows, targets in loader:
-            windows, targets = windows.to(device), targets.to(device)
-            logits = model(windows)
-            metrics.update(loss_fn(logits, targets), logits, targets)
-        return metrics.result()
-
-    return evaluate, train_epoch
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Training the RNN
 
-    The training text is about a million characters long, and every position is the start of a window, so one epoch is around 2,000 batches. On a lab GPU each epoch takes a few seconds; on a laptop CPU it will be *much* slower, so start with a couple of epochs to see if it's working. There is a progress bar for the batches in each epoch so you can tell it hasn't hung.
+    The training text is about a million characters long, and every position is the start of a window, so one epoch is around 2,000 batches. On a lab GPU each epoch takes a few seconds; on a laptop CPU it will be *much* slower, so start with a couple of epochs to see if it's working. I wrap the training loader in a second progress bar for the batches in each epoch so you can tell it hasn't hung, `train_epoch` just iterates over whatever it is given so this works without any changes to it.
 
     As before, I keep the weights from the epoch with the lowest validation loss. Choose the settings and press **Train**; submitting again starts a fresh model.
     """)
@@ -493,6 +430,7 @@ def _(mo):
 @app.cell
 def _(
     ShakespeareModel,
+    copy_weights,
     evaluate,
     get_device,
     mo,
@@ -527,17 +465,18 @@ def _(
         range(training_settings.value["epochs"]), title="Training"
     ):
         _train_loss, _train_accuracy = train_epoch(
-            model, train_loader, _loss_fn, _optimiser, device
+            model,
+            mo.status.progress_bar(train_loader, title="Batches", remove_on_exit=True),
+            _loss_fn,
+            _optimiser,
+            device,
         )
         _val_loss, _val_accuracy = evaluate(model, valid_loader, _loss_fn, device)
         history.append((_train_loss, _val_loss, _train_accuracy, _val_accuracy))
         if _val_loss < _best_loss:
             _best_loss = _val_loss
             best_epoch = _epoch + 1
-            _best_weights = {
-                name: value.detach().cpu().clone()
-                for name, value in model.state_dict().items()
-            }
+            _best_weights = copy_weights(model)
         print(
             f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_val_loss:.3f}, validation accuracy {_val_accuracy:.1%}"
         )

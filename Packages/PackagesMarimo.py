@@ -22,12 +22,13 @@ def _(mo):
     Utils/
     ├── __init__.py
     ├── functions.py
-    └── TorchUtils.py
+    ├── TorchUtils.py
+    └── training.py
     ```
 
     ```__init__.py```  is essential in making a directory a package. It can be empty or contain initialization code, and it allows Utils to be imported as a package.
 
-    At present the package contains two modules, ```functions.py``` and ```TorchUtils.py```. These modules contain functions that we can use in our code.
+    At present the package contains three modules, ```functions.py```, ```TorchUtils.py``` and ```training.py``` (the training and evaluation loop used by the later machine learning notebooks). These modules contain functions that we can use in our code.
 
     ## Python Path
 

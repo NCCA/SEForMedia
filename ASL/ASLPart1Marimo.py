@@ -352,43 +352,36 @@ def _(mo):
 
 @app.cell
 def _(input_size, n_classes, nn):
-    model = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(input_size, 512),  # Input
-        nn.ReLU(),  # Activation for input
-        nn.Linear(512, 512),  # Hidden
-        nn.ReLU(),  # Activation for hidden
-        nn.Linear(512, n_classes),  # Output
-    )
-    return (model,)
+    def build_model() -> nn.Sequential:
+        return nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(input_size, 512),  # Input
+            nn.ReLU(),  # Activation for input
+            nn.Linear(512, 512),  # Hidden
+            nn.ReLU(),  # Activation for hidden
+            nn.Linear(512, n_classes),  # Output
+        )
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""We can compile and send the model to the device.""")
-    return
-
-
-@app.cell
-def _(device, model, torch):
-    model_compiled = torch.compile(model.to(device))
-    model_compiled.to(device)
-    return (model_compiled,)
+    build_model()
+    return (build_model,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""Since categorizing these ASL images is similar to categorizing MNIST's handwritten digits, we will use the same `loss_function` ([Categorical CrossEntropy](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html)) and `optimizer` ([Adam](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html)) as we used in the last example."""
+        r"""
+    I have put the model in a `build_model` function so that we get a fresh, untrained model each time we press **Train** below. The model is compiled and sent to the device in the training cell.
+
+    Since categorizing these ASL images is similar to categorizing MNIST's handwritten digits, we will use the same `loss_function` ([Categorical CrossEntropy](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html)) and `optimizer` ([Adam](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html)) as we used in the last example. The optimizer needs the parameters of the model, so it is created along with the model.
+    """
     )
     return
 
 
 @app.cell
-def _(Adam, model_compiled, nn):
+def _(nn):
     loss_function = nn.CrossEntropyLoss()
-    optimizer = Adam(model_compiled.parameters())
-    return loss_function, optimizer
+    return (loss_function,)
 
 
 @app.cell(hide_code=True)
@@ -408,38 +401,37 @@ def _(mo):
     4. Compute the gradient with [backward](https://pytorch.org/docs/stable/generated/torch.Tensor.backward.html)
     5. Update our model parameters with the `optimizer`'s [step](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.step.html) function.
     6. Update the `loss` and `accuracy` totals
+
+    As in the MNIST example the function takes the model and optimizer and returns the mean loss per image and the accuracy, so we can keep a history to plot.
     """
     )
     return
 
 
 @app.cell
-def _(loss_function, model_compiled, optimizer, train_N, train_loader):
+def _(loss_function, torch, train_N, train_loader):
     def get_batch_accuracy(output, y, N):
         pred = output.argmax(dim=1, keepdim=True)
         correct = pred.eq(y.view_as(pred)).sum().item()
         return correct / N
 
-    train_accuracy = []
-    train_loss = []
-
-    def train():
+    def train(
+        model: torch.nn.Module, optimizer: torch.optim.Optimizer
+    ) -> tuple[float, float]:
         loss = 0
         accuracy = 0
-        model_compiled.train()
+        model.train()
         for x, y in train_loader:
-            output = model_compiled(x)
+            output = model(x)
             optimizer.zero_grad()
             batch_loss = loss_function(output, y)
             batch_loss.backward()
             optimizer.step()
-            loss = loss + batch_loss.item()
+            loss = loss + batch_loss.item() * len(y)
             accuracy = accuracy + get_batch_accuracy(output, y, train_N)
-        train_accuracy.append(accuracy)
-        train_loss.append(loss)
-        print("Train - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
+        return loss / train_N, accuracy
 
-    return get_batch_accuracy, train, train_accuracy, train_loss
+    return get_batch_accuracy, train
 
 
 @app.cell(hide_code=True)
@@ -450,38 +442,26 @@ def _(mo):
 
     The core part of the validate process is to set the model to evaluation mode with the `model.eval()` function. This will turn off dropout and batch normalization. We then loop through the validation data and calculate the loss and accuracy in the same way as we did for the training data.
 
-    More details of [model.evaluate](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval) can be found here.
+    More details of [model.eval](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.eval) can be found here.
     """
     )
     return
 
 
 @app.cell
-def _(
-    get_batch_accuracy,
-    loss_function,
-    model_compiled,
-    torch,
-    valid_N,
-    valid_loader,
-):
-    valid_accuracy = []
-    valid_loss = []
-
-    def validate():
+def _(get_batch_accuracy, loss_function, torch, valid_N, valid_loader):
+    def validate(model: torch.nn.Module) -> tuple[float, float]:
         loss = 0
         accuracy = 0
-        model_compiled.eval()
-        with torch.no_grad():
+        model.eval()
+        with torch.inference_mode():
             for x, y in valid_loader:
-                output = model_compiled(x)
-                loss = loss + loss_function(output, y).item()
+                output = model(x)
+                loss = loss + loss_function(output, y).item() * len(y)
                 accuracy = accuracy + get_batch_accuracy(output, y, valid_N)
-        valid_accuracy.append(accuracy)
-        valid_loss.append(loss)
-        print("Valid - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
+        return loss / valid_N, accuracy
 
-    return valid_accuracy, valid_loss, validate
+    return (validate,)
 
 
 @app.cell(hide_code=True)
@@ -490,21 +470,59 @@ def _(mo):
         r"""
     ## Training
 
-    Finally we can train the model as before.
+    Finally we can train the model as before. Choose the settings and press **Train**, each press builds and trains a fresh model.
     """
     )
     return
 
 
 @app.cell
-def _(train, validate):
-    epochs = 10
+def _(mo):
+    training_settings = mo.ui.dictionary(
+        {
+            "epochs": mo.ui.number(start=1, stop=100, value=10, label="Epochs"),
+            "learning_rate": mo.ui.number(
+                start=0.0001,
+                stop=0.1,
+                step=0.0001,
+                value=0.001,
+                label="Learning rate",
+            ),
+        }
+    ).form(submit_button_label="Train")
+    training_settings
+    return (training_settings,)
 
-    for epoch in range(epochs):
-        print("Epoch: {}".format(epoch))
-        train()
-        validate()
-    return
+
+@app.cell
+def _(
+    Adam,
+    build_model,
+    device,
+    mo,
+    torch,
+    train,
+    training_settings,
+    validate,
+):
+    mo.stop(training_settings.value is None, mo.md("Press Train above to begin."))
+
+    torch.manual_seed(42)
+    model = build_model().to(device)
+    _model_compiled = torch.compile(model)
+    _optimizer = Adam(model.parameters(), lr=training_settings.value["learning_rate"])
+    history = []
+    for _epoch in mo.status.progress_bar(
+        range(training_settings.value["epochs"]), title="Training"
+    ):
+        _train_loss, _train_accuracy = train(_model_compiled, _optimizer)
+        _valid_loss, _valid_accuracy = validate(_model_compiled)
+        history.append((_train_loss, _valid_loss, _train_accuracy, _valid_accuracy))
+        print(
+            f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_valid_loss:.3f}, validation accuracy {_valid_accuracy:.1%}"
+        )
+    mo.md(f"Training finished on **{device}**.")
+    return history, model
 
 
 @app.cell(hide_code=True)
@@ -515,30 +533,27 @@ def _(mo):
 
     Our models doesn't seem to be getting very good results. We can see that the training accuracy seems to a fairly high level, but the validation accuracy was not as high. This is a sign of overfitting, which means that is it guessing against a learnt data set and never generalizing to new data.
 
-    As we have accumulated the data when training, we can plot this out to see how things went.
+    As we have kept the history when training, we can plot this out to see how things went.
     """
     )
     return
 
 
 @app.cell
-def _(plt, train_accuracy, train_loss, valid_accuracy, valid_loss):
-    # Lets plot the data
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_accuracy, label="Train")
-    plt.plot(valid_accuracy, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Accuracy")
-    plt.legend()
-    plt.show()
-
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_loss, label="Train")
-    plt.plot(valid_loss, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Loss")
-    plt.legend()
-    plt.show()
+def _(history, plt):
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 3), layout="constrained")
+    _epochs = range(1, len(history) + 1)
+    for _index, _name in enumerate(["Loss", "Accuracy"]):
+        for _offset, _label in enumerate(["Training", "Validation"]):
+            _axes[_index].plot(
+                _epochs,
+                [_row[2 * _index + _offset] for _row in history],
+                label=_label,
+            )
+        _axes[_index].set(xlabel="Epoch", ylabel=_name)
+        _axes[_index].legend()
+    plt.close(_fig)
+    _fig
     return
 
 

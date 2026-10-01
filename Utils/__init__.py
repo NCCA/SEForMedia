@@ -8,6 +8,14 @@ from .functions import (
     accuracy,
 )
 from .TorchUtils import get_device
+from .training import (
+    Metrics,
+    argmax_predict,
+    binary_predict,
+    copy_weights,
+    evaluate,
+    train_epoch,
+)
 
 __all__ = [
     "get_device",
@@ -17,4 +25,10 @@ __all__ = [
     "get_batch_accuracy",
     "accuracy",
     "unzip_file",
+    "Metrics",
+    "argmax_predict",
+    "binary_predict",
+    "copy_weights",
+    "evaluate",
+    "train_epoch",
 ]

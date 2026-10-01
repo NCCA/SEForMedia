@@ -51,9 +51,13 @@ Qt code uses `qtpy` for PyQt5/PySide compatibility. `MainWindow.py` files are ge
 
 ## Utils and the sys.path convention
 
-`Utils/` is the one shared package: `in_lab()` (hostname check for NCCA lab machines), `download`, `unzip_file`, `get_device`, `accuracy`, `get_batch_accuracy`. Notebooks reach it with `sys.path.append("../")` before `from Utils import ...`, because they run from their own folder rather than the repo root. Keep that pattern when adding a notebook that needs it — `Packages/PackagesMarimo.py` teaches `sys.path` using exactly this example, so it is deliberate rather than an accident to tidy up.
+`Utils/` is the one shared package: `in_lab()` (hostname check for NCCA lab machines), `download`, `unzip_file`, `get_device`, `accuracy`, `get_batch_accuracy`, and in `Utils/training.py` the shared `Metrics`, `train_epoch`, `evaluate` and `copy_weights` used by the training notebooks. Notebooks reach it with `sys.path.append("../")` before `from Utils import ...`, because they run from their own folder rather than the repo root. Keep that pattern when adding a notebook that needs it — `Packages/PackagesMarimo.py` teaches `sys.path` using exactly this example, so it is deliberate rather than an accident to tidy up.
 
 Code that has to work both in the labs and at home should branch on `in_lab()` (dataset paths, cache locations) rather than hardcoding one machine's layout.
+
+## Training loops
+
+Notebooks that train a model use a `mo.ui.dictionary(...).form(submit_button_label="Train")` for epochs and learning rate, `mo.stop` until it is submitted, build a fresh model and optimiser inside the training cell (so models are made by a `build_model()` function, not a module-level instance), show `mo.status.progress_bar`, return a `history` list for a separate plot cell, and put any `torch.save` behind a `mo.ui.run_button`. `FreeSpokenDigits/FSDDMarimoPt3.py` is the reference. `MNIST/ReadDigitsTrainingMarimo.py`, `ASL/ASLPart1Marimo.py` and `FSDDMarimoPt3.py` write the loop out in the notebook because they teach it; later notebooks import `train_epoch` / `evaluate` from `Utils`. `device` is a `torch.device`, so compare `device.type == "cuda"`, never `device == "cuda"` (always False).
 
 ## Data and models
 

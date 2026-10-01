@@ -12,7 +12,7 @@ def _(mo):
         r"""
     # ASL CNN Data Augmentation
 
-    In the [previous notebook](ASLPart2CNN.ipynb), we built a CNN model to classify the ASL dataset. In this notebook, we will look at how we can use data augmentation to improve the performance of our model.
+    In the [previous notebook](ASLPart2CNNMarimo.py), we built a CNN model to classify the ASL dataset. In this notebook, we will look at how we can use data augmentation to improve the performance of our model.
 
     The validation accuracy is still lagging behind the training accuracy, which is a sign of overfitting and the model getting confused.
 
@@ -185,28 +185,27 @@ def _(mo):
 
 
 @app.cell
-def _(Adam, ConvBlock, IMAGE_CHANNELS, device, nn, torch):
+def _(ConvBlock, IMAGE_CHANNELS, nn):
     flattened_img_size = 75 * 3 * 3
     N_CLASSES = 25
-    # Input 1 x 28 x 28
-    model = nn.Sequential(
-        ConvBlock(IMAGE_CHANNELS, 25, 0),  # 25 x 14 x 14
-        ConvBlock(25, 50, 0.2),  # 50 x 7 x 7
-        ConvBlock(50, 75, 0),  # 75 x 3 x 3
-        # Flatten to Dense Layers
-        nn.Flatten(),
-        nn.Linear(flattened_img_size, 512),
-        nn.Dropout(0.3),
-        nn.ReLU(),
-        nn.Linear(512, N_CLASSES),
-    )
 
-    if device == "cuda":
-        model = torch.compile(model.to(device))
-    model.to(device)
+    def build_model() -> nn.Sequential:
+        # Input 1 x 28 x 28
+        return nn.Sequential(
+            ConvBlock(IMAGE_CHANNELS, 25, 0),  # 25 x 14 x 14
+            ConvBlock(25, 50, 0.2),  # 50 x 7 x 7
+            ConvBlock(50, 75, 0),  # 75 x 3 x 3
+            # Flatten to Dense Layers
+            nn.Flatten(),
+            nn.Linear(flattened_img_size, 512),
+            nn.Dropout(0.3),
+            nn.ReLU(),
+            nn.Linear(512, N_CLASSES),
+        )
+
     loss_function = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters())
-    return loss_function, model, optimizer
+    build_model()
+    return build_model, loss_function
 
 
 @app.cell(hide_code=True)
@@ -399,105 +398,108 @@ def _(mo):
 
     We will now train our model as before, however now we can pass in the transformation to our model, this will then apply it to each image before it is passed into the model.
 
-    As we are re-using a lot of code now, I have moved the get_batch_accuracy function into the Utils module and will use that instead. Note later we will also move the train / validate functions here too.
+    As we are re-using a lot of code now I have moved the training and evaluation functions into the Utils module (see [Utils/training.py](../Utils/training.py)), they are the same ones we used in the last notebook. `Utils.train_epoch` has an optional `transform` parameter which is applied to each batch before it goes into the model. `RandomResizedCrop` doesn't work on the mac (MPS) backend so it is left out there.
+
+    The validation remains the same as before and we don't add any transformations to the validation data, as we want to see how the model performs on the original data.
+
+    Augmentation makes each epoch harder for the model, so it needs more of them, I have set the default to 20. Choose the settings and press **Train**, each press starts a fresh model.
     """
     )
     return
 
 
 @app.cell
+def _(IMAGE_HEIGHT, IMAGE_WIDTH, device, transforms):
+    random_transforms = transforms.Compose(
+        [
+            transforms.RandomRotation(30),
+            *(
+                [
+                    transforms.RandomResizedCrop(
+                        (IMAGE_WIDTH, IMAGE_HEIGHT), scale=(0.9, 1), ratio=(1, 1)
+                    )
+                ]
+                if device.type != "mps"
+                else []
+            ),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.2, contrast=0.5),
+        ]
+    )
+    return (random_transforms,)
+
+
+@app.cell
+def _(mo):
+    training_settings = mo.ui.dictionary(
+        {
+            "epochs": mo.ui.number(start=1, stop=100, value=20, label="Epochs"),
+            "learning_rate": mo.ui.number(
+                start=0.0001,
+                stop=0.1,
+                step=0.0001,
+                value=0.001,
+                label="Learning rate",
+            ),
+        }
+    ).form(submit_button_label="Train")
+    training_settings
+    return (training_settings,)
+
+
+@app.cell
 def _(
-    IMAGE_HEIGHT,
-    IMAGE_WIDTH,
+    Adam,
     Utils,
+    build_model,
     device,
     loss_function,
-    model,
-    optimizer,
-    train_N,
+    mo,
+    random_transforms,
+    torch,
     train_loader,
-    transforms,
+    training_settings,
+    valid_loader,
 ):
-    train_accuracy = []
-    train_loss = []
-    if device == "cuda" or device == "cpu":
-        _random_transforms = transforms.Compose(
-            [
-                transforms.RandomRotation(30),
-                transforms.RandomResizedCrop(
-                    (IMAGE_WIDTH, IMAGE_HEIGHT), scale=(0.9, 1), ratio=(1, 1)
-                ),
-                transforms.RandomHorizontalFlip(),
-                transforms.ColorJitter(brightness=0.2, contrast=0.5),
-            ]
+    mo.stop(training_settings.value is None, mo.md("Press Train above to begin."))
+
+    torch.manual_seed(42)
+    model = build_model().to(device)
+    _model_compiled = torch.compile(model) if device.type == "cuda" else model
+    _optimizer = Adam(model.parameters(), lr=training_settings.value["learning_rate"])
+    history = []
+    _best_loss = float("inf")
+    best_epoch = 0
+    _best_weights = None
+    for _epoch in mo.status.progress_bar(
+        range(training_settings.value["epochs"]), title="Training"
+    ):
+        _train_loss, _train_accuracy = Utils.train_epoch(
+            _model_compiled,
+            train_loader,
+            loss_function,
+            _optimizer,
+            device,
+            transform=random_transforms,
         )
+        _valid_loss, _valid_accuracy = Utils.evaluate(
+            _model_compiled, valid_loader, loss_function, device
+        )
+        history.append((_train_loss, _valid_loss, _train_accuracy, _valid_accuracy))
+        if _valid_loss < _best_loss:
+            _best_loss = _valid_loss
+            best_epoch = _epoch + 1
+            _best_weights = Utils.copy_weights(model)
+        print(
+            f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_valid_loss:.3f}, validation accuracy {_valid_accuracy:.1%}"
+        )
+    if _best_weights is not None:
+        model.load_state_dict(_best_weights)
+        _summary = f"Training finished on **{device}**. Restored weights from epoch **{best_epoch}**."
     else:
-        _random_transforms = transforms.Compose(
-            [
-                transforms.RandomRotation(30),
-                transforms.RandomHorizontalFlip(),
-                transforms.ColorJitter(brightness=0.2, contrast=0.5),
-            ]
-        )
-
-    def train():
-        loss = 0
-        accuracy = 0
-        model.train()
-        for x, y in train_loader:
-            output = model(_random_transforms(x))
-            optimizer.zero_grad()
-            batch_loss = loss_function(output, y)
-            batch_loss.backward()
-            optimizer.step()
-            loss += batch_loss.item()
-            accuracy += Utils.get_batch_accuracy(output, y, train_N)
-        train_accuracy.append(accuracy)
-        train_loss.append(loss)
-        print("Train - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
-
-    return train, train_accuracy, train_loss
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""The validation remains the same as before and we don't add any transformations to the validation data, as we want to see how the model performs on the original data."""
-    )
-    return
-
-
-@app.cell
-def _(Utils, loss_function, model, torch, valid_N, valid_loader):
-    valid_accuracy = []
-    valid_loss = []
-
-    def validate():
-        loss = 0
-        accuracy = 0
-
-        model.eval()
-        with torch.no_grad():
-            for x, y in valid_loader:
-                output = model(x)
-                loss += loss_function(output, y).item()
-                accuracy += Utils.get_batch_accuracy(output, y, valid_N)
-        valid_accuracy.append(accuracy)
-        valid_loss.append(loss)
-        print("Valid - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
-
-    return valid_accuracy, valid_loss, validate
-
-
-@app.cell
-def _(train, validate):
-    epochs = 20
-
-    for epoch in range(epochs):
-        print("Epoch: {}".format(epoch))
-        train()
-        validate()
-    return
+        _summary = f"Training finished on **{device}**, but the validation loss never improved (it is probably NaN). Try a lower learning rate."
+    mo.md(_summary)
+    return history, model
 
 
 @app.cell(hide_code=True)
@@ -507,23 +509,20 @@ def _(mo):
 
 
 @app.cell
-def _(plt, train_accuracy, train_loss, valid_accuracy, valid_loss):
-    # Lets plot the data
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_accuracy, label="Train")
-    plt.plot(valid_accuracy, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Accuracy")
-    plt.legend()
-    plt.show()
-
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_loss, label="Train")
-    plt.plot(valid_loss, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Loss")
-    plt.legend()
-    plt.show()
+def _(history, plt):
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 3), layout="constrained")
+    _epochs = range(1, len(history) + 1)
+    for _index, _name in enumerate(["Loss", "Accuracy"]):
+        for _offset, _label in enumerate(["Training", "Validation"]):
+            _axes[_index].plot(
+                _epochs,
+                [_row[2 * _index + _offset] for _row in history],
+                label=_label,
+            )
+        _axes[_index].set(xlabel="Epoch", ylabel=_name)
+        _axes[_index].legend()
+    plt.close(_fig)
+    _fig
     return
 
 
@@ -535,20 +534,41 @@ def _(mo):
 
     The training accuracy may be lower, and that's ok. Compared to before, the model is being exposed to a much larger variety of data.
 
-    ## Testing the model.
+    ## Saving the model
 
-    We can now test the model as before and see how it performs on the test data.
+    We save both the `state_dict` and the full model, the [real time capture demo](RealTimeCapture/) loads `asl_model_full.pth`. Saving overwrites the previous files, so it only happens when you press the button. The same button exports the ONNX version at the end of this notebook.
     """
     )
     return
 
 
 @app.cell
-def _(model, torch):
+def _(mo):
+    save_btn = mo.ui.run_button(label="Save model")
+    save_btn
+    return (save_btn,)
+
+
+@app.cell
+def _(mo, model, save_btn, torch):
+    mo.stop(not save_btn.value, mo.md("Press Save model to save the trained model."))
     # Save the model
     torch.save(model.state_dict(), "asl_model.pth")
     # Also save the full model
     torch.save(model, "asl_model_full.pth")
+    mo.md("Saved `asl_model.pth` and `asl_model_full.pth`.")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    ## Testing the model.
+
+    We can now test the model as before and see how it performs on the test data.
+    """
+    )
     return
 
 
@@ -635,7 +655,8 @@ def _(mo):
 
 @app.cell
 def _(alphabet, device, model, tensor_images, torch):
-    with torch.no_grad():
+    model.eval()
+    with torch.inference_mode():
         for _i in range(23):
             _pred = model(tensor_images[_i].unsqueeze(0).to(device))
             print(f"{alphabet[_pred.argmax().item()]} ", sep="", end="")
@@ -650,17 +671,20 @@ def _(mo):
 
     The ONXX ( Open Neural Network Exchange.) format is a way of exchanging models in an open format. Torch allows us to export using this as well as it's own format. We need to ensure the onxx tools are installed (```uv add onnx onnxruntime onnxscript```) in our own projects.
 
-    We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving.
+    We need to ensure everything is on the same device, so in the case I copy the model to the cpu before saving. I use a [deepcopy](https://docs.python.org/3/library/copy.html#copy.deepcopy) as `model.to("cpu")` would move the trained model itself and break the cells above if they re-run. As this overwrites `asl_model.onnx` it only runs when you press **Save model** above.
     """
     )
     return
 
 
 @app.cell
-def _(IMAGE_CHANNELS, model, torch):
+def _(IMAGE_CHANNELS, mo, model, save_btn, torch):
+    import copy
+
+    mo.stop(not save_btn.value)
     # Create a dummy input with the correct shape
     dummy_input = torch.randn(1, IMAGE_CHANNELS, 28, 28)
-    onxx_model = model.to("cpu")
+    onxx_model = copy.deepcopy(model).to("cpu").eval()
     # Export the model
     exported_model = torch.onnx.export(
         onxx_model,

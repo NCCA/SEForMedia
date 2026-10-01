@@ -450,34 +450,30 @@ def _(input_size, nn):
 def _(mo):
     mo.md(
         r"""
-    ## Compiling the Model
+    ## Building the Model
 
-    A [Sequential](https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html) model expects a sequence of arguments, not a list, so we can use the [* operator](https://docs.python.org/3/reference/expressions.html#expression-lists) to unpack our list of layers into a sequence. We can print the model to verify these layers loaded correctly. We can also send our model to the GPU using the to(device) method. We can verify where the model is by using the .device attribute.
+    A [Sequential](https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html) model expects a sequence of arguments, not a list, so we can use the [* operator](https://docs.python.org/3/reference/expressions.html#expression-lists) to unpack our list of layers into a sequence. We can print the model to verify these layers loaded correctly.
+
+    Each layer in `layers_3` is an object holding its own weights, so if we built two models from the same list they would share the weights. I want a fresh, untrained model each time we press **Train** below, so I have wrapped the same layers in a `build_model` function which makes new ones each time it is called.
     """
     )
     return
 
 
 @app.cell
-def _(device, layers_3, nn):
-    model = nn.Sequential(*layers_3)
-    model.to(device)
-    next(model.parameters()).device
-    return (model,)
+def _(input_size, nn):
+    def build_model(n_classes: int = 10) -> nn.Sequential:
+        return nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(input_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, n_classes),
+        )
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""PyTorch 2.0 introduced the ability to [compile]([here](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html).) the model using the `compile` method which can give faster performance."""
-    )
-    return
-
-
-@app.cell
-def _(model, torch):
-    model_compiled = torch.compile(model)
-    return (model_compiled,)
+    build_model()
+    return (build_model,)
 
 
 @app.cell(hide_code=True)
@@ -507,15 +503,9 @@ def _(nn):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""The optimizer is used to update the model's weights based on the data it sees and the loss function. We will use the [Adam](https://pytorch.org/docs/stable/optim.html) optimizer, which is a popular optimizer in deep learning. It needs to know the models parameters so it can update them."""
+        r"""The optimizer is used to update the model's weights based on the data it sees and the loss function. We will use the [Adam](https://pytorch.org/docs/stable/optim.html) optimizer, which is a popular optimizer in deep learning. It needs to know the models parameters so it can update them, so we create it in the training cell below at the same time as the model."""
     )
     return
-
-
-@app.cell
-def _(Adam, model_compiled):
-    optimizer = Adam(model_compiled.parameters())
-    return (optimizer,)
 
 
 @app.cell(hide_code=True)
@@ -565,27 +555,33 @@ def _(mo):
     ## The Training Loop
 
     We now generate a function that will train the model for a single epoch. This is similar to the approch we used in the the Linear example but we have added a few more steps to calculate the accuracy of the model.
+
+    The loss function gives us the mean loss for each batch, so I multiply it by the number of images in the batch and divide by `train_N` at the end. This gives the mean loss per image for the whole epoch, which we can compare with the validation loss even though the two datasets are different sizes.
+
+    The function takes the model and optimizer as parameters and returns the loss and accuracy, rather than printing them, so we can keep a history and plot it.
     """
     )
     return
 
 
 @app.cell
-def _(device, loss_function, model_compiled, optimizer, train_N, train_loader):
-    def train():
+def _(device, loss_function, torch, train_N, train_loader):
+    def train(
+        model: torch.nn.Module, optimizer: torch.optim.Optimizer
+    ) -> tuple[float, float]:
         loss = 0
         accuracy = 0
-        model_compiled.train()
+        model.train()
         for x, y in train_loader:
             x, y = (x.to(device), y.to(device))
-            output = model_compiled(x)
+            output = model(x)
             optimizer.zero_grad()
             batch_loss = loss_function(output, y)
             batch_loss.backward()
             optimizer.step()
-            loss = loss + batch_loss.item()
+            loss = loss + batch_loss.item() * len(y)
             accuracy = accuracy + get_batch_accuracy(output, y, train_N)
-        print("Train - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
+        return loss / train_N, accuracy
 
     return (train,)
 
@@ -596,25 +592,27 @@ def _(mo):
         r"""
     ## Validation
 
-    Once the model has done a training step we need to see how close we are to the correct answer. We can do this by running the model on the validation data and calculating the loss and accuracy of the model on the validation data. Agin we will use a function to do this.
+    Once the model has done a training step we need to see how close we are to the correct answer. We can do this by running the model on the validation data and calculating the loss and accuracy of the model on the validation data. Again we will use a function to do this.
+
+    [torch.inference_mode](https://pytorch.org/docs/stable/generated/torch.inference_mode.html) turns off gradient tracking as we are not going to update the weights here.
     """
     )
     return
 
 
 @app.cell
-def _(device, loss_function, model_compiled, torch, valid_N, valid_loader):
-    def validate():
+def _(device, loss_function, torch, valid_N, valid_loader):
+    def validate(model: torch.nn.Module) -> tuple[float, float]:
         loss = 0
         accuracy = 0
-        model_compiled.eval()
-        with torch.no_grad():
+        model.eval()
+        with torch.inference_mode():
             for x, y in valid_loader:
                 x, y = (x.to(device), y.to(device))
-                output = model_compiled(x)
-                loss = loss + loss_function(output, y).item()
+                output = model(x)
+                loss = loss + loss_function(output, y).item() * len(y)
                 accuracy = accuracy + get_batch_accuracy(output, y, valid_N)
-        print("Valid - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
+        return loss / valid_N, accuracy
 
     return (validate,)
 
@@ -625,20 +623,88 @@ def _(mo):
         r"""
     ## The Training loop
 
-    We can now create a training loop that will train the model for a number of epochs. An `epoch` is one complete pass through the entire dataset. Let's train and validate the model for 5 `epochs` to see how it learns.
+    We can now create a training loop that will train the model for a number of epochs. An `epoch` is one complete pass through the entire dataset.
+
+    PyTorch 2.0 introduced the ability to [compile](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) the model using `torch.compile` which can give faster performance. The compiled model shares its weights with the original, so we train the compiled one and keep `model` for saving later (the names in the compiled model's `state_dict` are changed).
+
+    Choose the number of epochs and the learning rate and press **Train**. Each time you press it a fresh model is built, so you can try different settings and compare. I would start with 5 epochs to see how it learns.
     """
     )
     return
 
 
 @app.cell
-def _(train, validate):
-    epochs = 10
+def _(mo):
+    training_settings = mo.ui.dictionary(
+        {
+            "epochs": mo.ui.number(start=1, stop=100, value=5, label="Epochs"),
+            "learning_rate": mo.ui.number(
+                start=0.0001,
+                stop=0.1,
+                step=0.0001,
+                value=0.001,
+                label="Learning rate",
+            ),
+        }
+    ).form(submit_button_label="Train")
+    training_settings
+    return (training_settings,)
 
-    for epoch in range(epochs):
-        print("Epoch: {}".format(epoch))
-        train()
-        validate()
+
+@app.cell
+def _(
+    Adam,
+    build_model,
+    device,
+    mo,
+    torch,
+    train,
+    training_settings,
+    validate,
+):
+    mo.stop(training_settings.value is None, mo.md("Press Train above to begin."))
+
+    torch.manual_seed(42)
+    model = build_model().to(device)
+    model_compiled = torch.compile(model)
+    _optimizer = Adam(model.parameters(), lr=training_settings.value["learning_rate"])
+    history = []
+    for _epoch in mo.status.progress_bar(
+        range(training_settings.value["epochs"]), title="Training"
+    ):
+        _train_loss, _train_accuracy = train(model_compiled, _optimizer)
+        _valid_loss, _valid_accuracy = validate(model_compiled)
+        history.append((_train_loss, _valid_loss, _train_accuracy, _valid_accuracy))
+        print(
+            f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_valid_loss:.3f}, validation accuracy {_valid_accuracy:.1%}"
+        )
+    mo.md(f"Training finished on **{device}**.")
+    return history, model, model_compiled
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""As we kept the history we can plot the loss and accuracy for each epoch. If the validation loss starts going up whilst the training loss keeps going down the model is overfitting."""
+    )
+    return
+
+
+@app.cell
+def _(history, plt):
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 3), layout="constrained")
+    _epochs = range(1, len(history) + 1)
+    for _index, _name in enumerate(["Loss", "Accuracy"]):
+        for _offset, _label in enumerate(["Training", "Validation"]):
+            _axes[_index].plot(
+                _epochs,
+                [_row[2 * _index + _offset] for _row in history],
+                label=_label,
+            )
+        _axes[_index].set(xlabel="Epoch", ylabel=_name)
+        _axes[_index].legend()
+    plt.close(_fig)
+    _fig
     return
 
 
@@ -651,8 +717,10 @@ def _(mo):
 
 
 @app.cell
-def _(device, model_compiled, test_images_tensor):
-    prediction = model_compiled(test_images_tensor[0].to(device).unsqueeze(0))
+def _(device, model_compiled, test_images_tensor, torch):
+    model_compiled.eval()
+    with torch.inference_mode():
+        prediction = model_compiled(test_images_tensor[0].to(device).unsqueeze(0))
     prediction
     return (prediction,)
 
@@ -684,29 +752,41 @@ def _(mo):
 
     ## Saving the Model
 
-    We can save the model using the ```torch.save``` function. We can save the model to a file called `digits.pth` in the current directory. Note we save the original uncompiled model for simplicity as when compiled names get changed. We can always re-compile later if required.
+    We can save the model using the ```torch.save``` function. We can save the model to a file called `mnist_model.pth` in the current directory. Note we save the original uncompiled model for simplicity as when compiled names get changed. We can always re-compile later if required.
+
+    To prove the save worked I build a brand new model with `build_model`, load the saved weights into it and make the same prediction. Saving overwrites any previous file, so it only happens when you press the button.
     """
     )
     return
 
 
 @app.cell
+def _(mo):
+    save_btn = mo.ui.run_button(label="Save model")
+    save_btn
+    return (save_btn,)
+
+
+@app.cell
 def _(
+    build_model,
     device,
     display_image,
-    layers_3,
+    mo,
     model,
-    nn,
+    save_btn,
     test_images,
     test_images_tensor,
     torch,
 ):
+    mo.stop(not save_btn.value, mo.md("Press Save model to save and reload."))
     torch.save(model.state_dict(), "mnist_model.pth")
-    model2 = nn.Sequential(*layers_3)
+    model2 = build_model()
     model2.load_state_dict(torch.load("mnist_model.pth"))
     model2.to(device)
     model2.eval()
-    prediction_1 = model2(test_images_tensor[0].to(device).unsqueeze(0))
+    with torch.inference_mode():
+        prediction_1 = model2(test_images_tensor[0].to(device).unsqueeze(0))
     torch.save(test_images_tensor[0], "test_image.pth")
     display_image(test_images[0], prediction_1.argmax(dim=1, keepdim=True).item())
     return
@@ -721,12 +801,23 @@ def _(mo):
 
 
 @app.cell
-def _(device, display_image, model, test_images, test_images_tensor, torch):
-    torch.save(model, "minst_model_full.pth")
-    model3 = torch.load("minst_model_full.pth", weights_only=False)
+def _(
+    device,
+    display_image,
+    mo,
+    model,
+    save_btn,
+    test_images,
+    test_images_tensor,
+    torch,
+):
+    mo.stop(not save_btn.value)
+    torch.save(model, "mnist_model_full.pth")
+    model3 = torch.load("mnist_model_full.pth", weights_only=False)
     model3.to(device)
     model3.eval()
-    prediction_2 = model3(test_images_tensor[0].to(device).unsqueeze(0))
+    with torch.inference_mode():
+        prediction_2 = model3(test_images_tensor[0].to(device).unsqueeze(0))
     display_image(test_images[0], prediction_2.argmax(dim=1, keepdim=True).item())
     return
 

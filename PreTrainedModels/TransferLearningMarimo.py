@@ -128,17 +128,27 @@ def _(device):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Now to create the new layer for our model.""")
+    mo.md(
+        r"""Now to create the new layer for our model. I have put this in a `build_dog_model` function so that each time we press **Train** we get a new, untrained final layer on top of the same pre-trained VGG16. The final [Flatten](https://pytorch.org/docs/stable/generated/torch.nn.Flatten.html) turns the `[batch, 1]` output into `[batch]`, which is the shape `BCEWithLogitsLoss` expects for our labels (previously I used `torch.squeeze` but that also removes the batch dimension if the last batch only has one image in it)."""
+    )
     return
 
 
 @app.cell
 def _(device, nn, vgg_model):
     N_CLASSES = 1
-    dog_model = nn.Sequential(vgg_model, nn.Linear(1000, N_CLASSES))
 
-    dog_model.to(device)
-    return (dog_model,)
+    def build_dog_model() -> nn.Sequential:
+        return nn.Sequential(
+            vgg_model,
+            nn.Linear(1000, N_CLASSES),
+            # [batch, 1] -> [batch] so the output matches the shape of the labels
+            nn.Flatten(start_dim=0),
+        ).to(device)
+
+    dog_model = build_dog_model()
+    dog_model
+    return build_dog_model, dog_model
 
 
 @app.cell(hide_code=True)
@@ -172,17 +182,15 @@ def _(vgg_model):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""As we are now classifying only two classes, we will use the binary cross entropy loss, we will use the Adam optimizer and load our model to the device."""
+        r"""As we are now classifying only two classes, we will use the binary cross entropy loss. The Adam optimizer is created with the model when we train."""
     )
     return
 
 
 @app.cell
-def _(device, dog_model, nn, optim):
+def _(nn):
     loss_function = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(dog_model.parameters())
-    dog_model_1 = dog_model.to(device)
-    return dog_model_1, loss_function, optimizer
+    return (loss_function,)
 
 
 @app.cell(hide_code=True)
@@ -285,7 +293,7 @@ def _(device, transforms):
                         (IMG_WIDTH, IMG_HEIGHT), scale=(0.8, 1), ratio=(1, 1)
                     )
                 ]
-                if device == "cuda"
+                if device.type == "cuda"
                 else []
             ),
             transforms.RandomHorizontalFlip(),
@@ -300,103 +308,137 @@ def _(device, transforms):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""as we are using BinaryCrossEntropyLoss we need to modify our batch_accuracy function to take into account the fact that we are only predicting one class."""
+        r"""
+    ## Training
+
+    I use `Utils.train_epoch` and `Utils.evaluate` (see [Utils/training.py](../Utils/training.py)) as in the ASL notebooks, passing the random transforms in as the `transform` so they are only applied to the training data.
+
+    As we are using `BCEWithLogitsLoss` there is only one output per image rather than one per class, so taking the `argmax` to get the prediction won't work. Instead `Utils.binary_predict` says the image is class 1 (`not_bo`) if the output is above 0, which is the same as the sigmoid of the output being above 0.5. We pass this in as the `predict` parameter.
+
+    I keep the weights from the epoch with the lowest validation loss. Only the new final layer is trained as VGG16 is frozen, so each epoch is fairly quick even though the model is large. Choose the settings and press **Train**, each press starts with a new final layer.
+    """
     )
     return
 
 
 @app.cell
-def _(device, torch):
-    def get_batch_accuracy(output, y, N):
-        zero_tensor = torch.tensor([0]).to(device)
-        pred = torch.gt(output, zero_tensor)
-        correct = pred.eq(y.view_as(pred)).sum().item()
-        return correct / N
-
-    return (get_batch_accuracy,)
+def _(mo):
+    training_settings = mo.ui.dictionary(
+        {
+            "epochs": mo.ui.number(start=1, stop=100, value=10, label="Epochs"),
+            "learning_rate": mo.ui.number(
+                start=0.0001,
+                stop=0.1,
+                step=0.0001,
+                value=0.001,
+                label="Learning rate",
+            ),
+        }
+    ).form(submit_button_label="Train")
+    training_settings
+    return (training_settings,)
 
 
 @app.cell
 def _(
-    get_batch_accuracy,
+    Utils,
+    build_dog_model,
+    device,
     loss_function,
-    optimizer,
+    mo,
+    optim,
     random_trans,
     torch,
-    train_N,
     train_loader,
+    training_settings,
+    valid_loader,
 ):
-    def train(model):
-        loss = 0
-        accuracy = 0
-        model.train()
-        for x, y in train_loader:
-            output = torch.squeeze(model(random_trans(x)))
-            optimizer.zero_grad()
-            batch_loss = loss_function(output, y)
-            batch_loss.backward()
-            optimizer.step()
-            loss = loss + batch_loss.item()
-            accuracy = accuracy + get_batch_accuracy(output, y, train_N)
-        print("Train - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
+    mo.stop(training_settings.value is None, mo.md("Press Train above to begin."))
 
-    return (train,)
+    torch.manual_seed(42)
+    model = build_dog_model()
+    _optimizer = optim.Adam(
+        model.parameters(), lr=training_settings.value["learning_rate"]
+    )
+    history = []
+    _best_loss = float("inf")
+    best_epoch = 0
+    _best_weights = None
+    for _epoch in mo.status.progress_bar(
+        range(training_settings.value["epochs"]), title="Training"
+    ):
+        _train_loss, _train_accuracy = Utils.train_epoch(
+            model,
+            train_loader,
+            loss_function,
+            _optimizer,
+            device,
+            transform=random_trans,
+            predict=Utils.binary_predict,
+        )
+        _valid_loss, _valid_accuracy = Utils.evaluate(
+            model, valid_loader, loss_function, device, predict=Utils.binary_predict
+        )
+        history.append((_train_loss, _valid_loss, _train_accuracy, _valid_accuracy))
+        if _valid_loss < _best_loss:
+            _best_loss = _valid_loss
+            best_epoch = _epoch + 1
+            _best_weights = Utils.copy_weights(model)
+        print(
+            f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_valid_loss:.3f}, validation accuracy {_valid_accuracy:.1%}"
+        )
+    if _best_weights is not None:
+        model.load_state_dict(_best_weights)
+        _summary = f"Training finished on **{device}**. Restored weights from epoch **{best_epoch}**."
+    else:
+        _summary = f"Training finished on **{device}**, but the validation loss never improved (it is probably NaN). Try a lower learning rate."
+    mo.md(_summary)
+    return history, model
 
 
 @app.cell
-def _(get_batch_accuracy, loss_function, torch, valid_N, valid_loader):
-    def validate(model):
-        loss = 0
-        accuracy = 0
-        model.eval()
-        with torch.no_grad():
-            for x, y in valid_loader:
-                output = torch.squeeze(model(x))
-                loss = loss + loss_function(output, y.float()).item()
-                accuracy = accuracy + get_batch_accuracy(output, y, valid_N)
-        print("Valid - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
-
-    return (validate,)
+def _(history, plt):
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 3), layout="constrained")
+    _epochs = range(1, len(history) + 1)
+    for _index, _name in enumerate(["Loss", "Accuracy"]):
+        for _offset, _label in enumerate(["Training", "Validation"]):
+            _axes[_index].plot(
+                _epochs,
+                [_row[2 * _index + _offset] for _row in history],
+                label=_label,
+            )
+        _axes[_index].set(xlabel="Epoch", ylabel=_name)
+        _axes[_index].legend()
+    plt.close(_fig)
+    _fig
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""Now for the training. We will train the model for 10 epochs and then save the model."""
+        r"""We can now save the model and test it. Saving overwrites `dog_model.pth` so it only happens when you press the button."""
     )
     return
 
 
 @app.cell
-def _(dog_model_1, train, validate):
-    epochs = 10
-    for epoch in range(epochs):
-        print("Epoch: {}".format(epoch))
-        train(dog_model_1)
-        validate(dog_model_1)
-    return
-
-
-@app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
-    return
+    save_btn = mo.ui.run_button(label="Save model")
+    save_btn
+    return (save_btn,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""We can now save the model and test it.""")
+@app.cell
+def _(mo, model, save_btn, torch):
+    mo.stop(not save_btn.value)
+    torch.save(model.state_dict(), "dog_model.pth")
+    mo.md("Saved `dog_model.pth`.")
     return
 
 
 @app.cell
-def _(dog_model_1, torch):
-    torch.save(dog_model_1.state_dict(), "dog_model.pth")
-    return
-
-
-@app.cell
-def _(Image, device, dog_model_1, plt, pre_trans):
+def _(Image, device, model, plt, pre_trans, torch):
     import matplotlib.image as mpimg
 
     def show_image(image_path):
@@ -409,7 +451,9 @@ def _(Image, device, dog_model_1, plt, pre_trans):
         image = Image.open(file_path)
         image = pre_trans(image).to(device)
         image = image.unsqueeze(0)
-        output = dog_model_1(image)
+        model.eval()
+        with torch.inference_mode():
+            output = model(image)
         prediction = output.item()
         return prediction
 
@@ -443,7 +487,7 @@ def _(DATASET_LOCATION, make_prediction):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""A Negative number means that the model is predicting the correct class so we can see that the model is working well."""
+        r"""The labels are 0 for `bo` and 1 for `not_bo`, so a negative number means the model thinks it is Bo and a positive number means it is not. If the first image gives a negative number and the second a positive one the model is working well."""
     )
     return
 

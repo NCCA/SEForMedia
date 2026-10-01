@@ -15,7 +15,7 @@ def _(mo):
         r"""
     # ASL Processing Part 2
 
-    In the [previous notebook](./ASLPart1.ipynb), we have seen how to preprocess the data and train a model, the model began to overfit after 10 epochs. In this notebook, we will see how to use data augmentation to improve the model's performance.
+    In the [previous notebook](./ASLPart1Marimo.py), we have seen how to preprocess the data and train a model, the model began to overfit after 10 epochs. In this notebook, we will see how a Convolutional Neural Network can improve the model's performance, and in the next one we will add data augmentation.
 
     We will use the same data set as before, if the data set is not present run the first notebook to download the data set.
     """
@@ -55,6 +55,7 @@ def _():
         DATASET_LOCATION,
         DataLoader,
         Dataset,
+        Utils,
         device,
         nn,
         pd,
@@ -251,31 +252,36 @@ def _(IMAGE_CHANNELS, nn):
     kernel_size = 3
     flattened_img_size = 75 * 3 * 3
 
-    model = nn.Sequential(
-        # First convolution
-        nn.Conv2d(IMAGE_CHANNELS, 25, kernel_size, stride=1, padding=1),  # 25 x 28 x 28
-        nn.BatchNorm2d(25),
-        nn.ReLU(),
-        nn.MaxPool2d(2, stride=2),  # 25 x 14 x 14
-        # Second convolution
-        nn.Conv2d(25, 50, kernel_size, stride=1, padding=1),  # 50 x 14 x 14
-        nn.BatchNorm2d(50),
-        nn.ReLU(),
-        nn.Dropout(0.2),
-        nn.MaxPool2d(2, stride=2),  # 50 x 7 x 7
-        # Third convolution
-        nn.Conv2d(50, 75, kernel_size, stride=1, padding=1),  # 75 x 7 x 7
-        nn.BatchNorm2d(75),
-        nn.ReLU(),
-        nn.MaxPool2d(2, stride=2),  # 75 x 3 x 3
-        # Flatten to Dense
-        nn.Flatten(),
-        nn.Linear(flattened_img_size, 512),
-        nn.Dropout(0.3),
-        nn.ReLU(),
-        nn.Linear(512, n_classes),
-    )
-    return (model,)
+    def build_model() -> nn.Sequential:
+        return nn.Sequential(
+            # First convolution
+            nn.Conv2d(
+                IMAGE_CHANNELS, 25, kernel_size, stride=1, padding=1
+            ),  # 25 x 28 x 28
+            nn.BatchNorm2d(25),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),  # 25 x 14 x 14
+            # Second convolution
+            nn.Conv2d(25, 50, kernel_size, stride=1, padding=1),  # 50 x 14 x 14
+            nn.BatchNorm2d(50),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.MaxPool2d(2, stride=2),  # 50 x 7 x 7
+            # Third convolution
+            nn.Conv2d(50, 75, kernel_size, stride=1, padding=1),  # 75 x 7 x 7
+            nn.BatchNorm2d(75),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),  # 75 x 3 x 3
+            # Flatten to Dense
+            nn.Flatten(),
+            nn.Linear(flattened_img_size, 512),
+            nn.Dropout(0.3),
+            nn.ReLU(),
+            nn.Linear(512, n_classes),
+        )
+
+    build_model()
+    return (build_model,)
 
 
 @app.cell(hide_code=True)
@@ -320,22 +326,16 @@ def _(mo):
 
     ## The final model
 
-    We can print out the different layers of the model to see the structure of the model. Note that some of the CNN elements do not work compiled on a mac so we need to take this into account as shown below.
+    We can print out the different layers of the model to see the structure of the model. As before the model is built by a `build_model` function so we get a fresh one each time we train.
     """
     )
     return
 
 
 @app.cell
-def _(device, model, torch):
-    if device == "cuda":
-        model_compiled = torch.compile(model.to(device))
-    else:
-        model_compiled = model.to(device)
-    model_compiled.to(device)
-
-    print(model_compiled)
-    return (model_compiled,)
+def _(build_model):
+    print(build_model())
+    return
 
 
 @app.cell(hide_code=True)
@@ -354,109 +354,116 @@ def _(mo):
 
     Whilst the model is very different the overall processes we are going to use for everything else are the same as before.
 
-    First we need to define the loss and optimazation functions.
+    First we need to define the loss function, the optimizer is created with the model when we train.
     """
     )
     return
 
 
 @app.cell
-def _(Adam, model_compiled, nn):
+def _(nn):
     loss_function = nn.CrossEntropyLoss()
-    optimizer = Adam(model_compiled.parameters())
-    return loss_function, optimizer
+    return (loss_function,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    The `train` and `validate` functions from the last notebook are the same for most of the models we are going to build, so I have moved them into the `Utils` package as `train_epoch` and `evaluate` (see [Utils/training.py](../Utils/training.py)). They work in the same way, the only difference is that the loss and accuracy are collected by a small `Metrics` class rather than in the loop itself.
+
+    I also keep a copy of the weights from the epoch with the lowest validation loss and put them back at the end of training. If the model starts to overfit in later epochs we still end up with the best version we saw. `Utils.copy_weights` takes a copy of the `state_dict`, we can't just keep the `state_dict` itself as it refers to the live weights which carry on changing.
+
+    I only compile the model on CUDA, some of the CNN elements do not work compiled on a mac. Note we check `device.type` as `device` is a [torch.device](https://pytorch.org/docs/stable/tensor_attributes.html#torch.device) not a string.
+
+    Choose the settings and press **Train**, each press starts a fresh model.
+    """
+    )
+    return
 
 
 @app.cell
-def _(loss_function, model_compiled, optimizer, train_N, train_loader):
-    def get_batch_accuracy(output, y, N):
-        pred = output.argmax(dim=1, keepdim=True)
-        correct = pred.eq(y.view_as(pred)).sum().item()
-        return correct / N
-
-    train_accuracy = []
-    train_loss = []
-
-    def train():
-        loss = 0
-        accuracy = 0
-        model_compiled.train()
-        for x, y in train_loader:
-            output = model_compiled(x)
-            optimizer.zero_grad()
-            batch_loss = loss_function(output, y)
-            batch_loss.backward()
-            optimizer.step()
-            loss = loss + batch_loss.item()
-            accuracy = accuracy + get_batch_accuracy(output, y, train_N)
-        train_accuracy.append(accuracy)
-        train_loss.append(loss)
-        print("Train - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
-
-    return get_batch_accuracy, train, train_accuracy, train_loss
+def _(mo):
+    training_settings = mo.ui.dictionary(
+        {
+            "epochs": mo.ui.number(start=1, stop=100, value=10, label="Epochs"),
+            "learning_rate": mo.ui.number(
+                start=0.0001,
+                stop=0.1,
+                step=0.0001,
+                value=0.001,
+                label="Learning rate",
+            ),
+        }
+    ).form(submit_button_label="Train")
+    training_settings
+    return (training_settings,)
 
 
 @app.cell
 def _(
-    get_batch_accuracy,
+    Adam,
+    Utils,
+    build_model,
+    device,
     loss_function,
-    model_compiled,
+    mo,
     torch,
-    valid_N,
+    train_loader,
+    training_settings,
     valid_loader,
 ):
-    valid_accuracy = []
-    valid_loss = []
+    mo.stop(training_settings.value is None, mo.md("Press Train above to begin."))
 
-    def validate():
-        loss = 0
-        accuracy = 0
-        model_compiled.eval()
-        with torch.no_grad():
-            for x, y in valid_loader:
-                output = model_compiled(x)
-                loss = loss + loss_function(output, y).item()
-                accuracy = accuracy + get_batch_accuracy(output, y, valid_N)
-        valid_accuracy.append(accuracy)
-        valid_loss.append(loss)
-        print("Valid - Loss: {:.4f} Accuracy: {:.4f}".format(loss, accuracy))
-
-    return valid_accuracy, valid_loss, validate
+    torch.manual_seed(42)
+    model = build_model().to(device)
+    _model_compiled = torch.compile(model) if device.type == "cuda" else model
+    _optimizer = Adam(model.parameters(), lr=training_settings.value["learning_rate"])
+    history = []
+    _best_loss = float("inf")
+    best_epoch = 0
+    _best_weights = None
+    for _epoch in mo.status.progress_bar(
+        range(training_settings.value["epochs"]), title="Training"
+    ):
+        _train_loss, _train_accuracy = Utils.train_epoch(
+            _model_compiled, train_loader, loss_function, _optimizer, device
+        )
+        _valid_loss, _valid_accuracy = Utils.evaluate(
+            _model_compiled, valid_loader, loss_function, device
+        )
+        history.append((_train_loss, _valid_loss, _train_accuracy, _valid_accuracy))
+        if _valid_loss < _best_loss:
+            _best_loss = _valid_loss
+            best_epoch = _epoch + 1
+            _best_weights = Utils.copy_weights(model)
+        print(
+            f"Epoch {_epoch + 1}: train loss {_train_loss:.3f}, validation loss {_valid_loss:.3f}, validation accuracy {_valid_accuracy:.1%}"
+        )
+    if _best_weights is not None:
+        model.load_state_dict(_best_weights)
+        _summary = f"Training finished on **{device}**. Restored weights from epoch **{best_epoch}**."
+    else:
+        _summary = f"Training finished on **{device}**, but the validation loss never improved (it is probably NaN). Try a lower learning rate."
+    mo.md(_summary)
+    return history, model
 
 
 @app.cell
-def _(
-    plt,
-    train,
-    train_accuracy,
-    train_loss,
-    valid_accuracy,
-    valid_loss,
-    validate,
-):
-    epochs = 10
-
-    for epoch in range(epochs):
-        print("Epoch: {}".format(epoch))
-        train()
-        validate()
-
-    # Lets plot the data
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_accuracy, label="Train")
-    plt.plot(valid_accuracy, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Accuracy")
-    plt.legend()
-    plt.show()
-
-    plt.figure(figsize=(5, 2))
-    plt.plot(train_loss, label="Train")
-    plt.plot(valid_loss, label="Valid")
-    plt.xlabel("Epoch")
-    plt.title("Loss")
-    plt.legend()
-    plt.show()
+def _(history, plt):
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 3), layout="constrained")
+    _epochs = range(1, len(history) + 1)
+    for _index, _name in enumerate(["Loss", "Accuracy"]):
+        for _offset, _label in enumerate(["Training", "Validation"]):
+            _axes[_index].plot(
+                _epochs,
+                [_row[2 * _index + _offset] for _row in history],
+                label=_label,
+            )
+        _axes[_index].set(xlabel="Epoch", ylabel=_name)
+        _axes[_index].legend()
+    plt.close(_fig)
+    _fig
     return
 
 
@@ -469,11 +476,11 @@ def _(mo):
 
 
 @app.cell
-def _(alphabet, model_compiled, plt, torch, valid_loader):
-    model_compiled.eval()
-    with torch.no_grad():
+def _(alphabet, device, model, plt, torch, valid_loader):
+    model.eval()
+    with torch.inference_mode():
         x, y = next(iter(valid_loader))
-        output = model_compiled(x)
+        output = model(x.to(device))
         pred = output.argmax(dim=1, keepdim=True)
         num_images = 10
         plt.figure(figsize=(10, 10))
@@ -499,23 +506,15 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        r"""As you can see from visual inspection it is close but not 100% accurate.  We will improve on this model in the next notebook."""
+        r"""As you can see from visual inspection it is close but not 100% accurate. We can use `Utils.evaluate` to get the loss and accuracy over the whole validation set. We will improve on this model in the next notebook."""
     )
     return
 
 
 @app.cell
-def _(model_compiled, torch, train_loader):
-    model_compiled.eval()
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for _x, _y in train_loader:
-            _output = model_compiled(_x)
-            _pred = _output.argmax(dim=1, keepdim=True)
-            correct = correct + _pred.eq(_y.view_as(_pred)).sum().item()
-            total = total + _y.size(0)
-    print(f"Accuracy: {correct / total}")
+def _(Utils, device, loss_function, model, valid_loader):
+    _loss, _accuracy = Utils.evaluate(model, valid_loader, loss_function, device)
+    print(f"Validation loss: {_loss:.3f}, accuracy: {_accuracy:.1%}")
     return
 
 
