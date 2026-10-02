@@ -1,22 +1,57 @@
 #!/usr/bin/env uv run marimo edit --watch
+# /// script
+# dependencies = [
+#     "marimo>=0.25.0",
+#     "matplotlib==3.11.2",
+#     "numpy==2.5.3",
+#     "marimo-studio[deno]==0.2.3"
+# ]
+# requires-python = ">=3.10,<3.15"
+#
+# [tool.marimo-studio]
+# default = "dashboard"
+#
+# [tool.marimo-studio.cells]
+# cell-3 = {ref = "cell:v1:b70f4bc405ba68ab801659d35fa88aae97fb0156a27afc7c838fc2a5dac8f499:bf7c76ac499129ce0adb34e1375feedb4fc5dc2042fc5da0088f1a9785deea6a:0"}
+# cell-4 = {ref = "cell:v1:0efc32db0bf211ab1cad11a701cd47b126ac6f46f3b5bf28c067d7c29c7d9b69:9057329b03a706532c47b6ce3c50c5e8c8a147968a63f0e14694f9fefcb3adbd:0"}
+# cell-6 = {ref = "cell:v1:2ef36e9b31725ebe790967a7eeaa626ae37f4b904b6f37a310f5562441a7d845:844664b444c484db40c4c8aaa9c2a3d04c71ea903eef554f97f4522cad576ca3:0"}
+# cell-9 = {ref = "cell:v1:ebcf4bc055d29c0e79b74bc5635f2670b3ff6d3a3be47866d9062052caf1eacb:326a1bacf0b250e1fe3c45315207e69f7d4ed4a4e096aa36cfb349655a79bd82:0"}
+# cell-11 = {ref = "cell:v1:14e9993ac5f1b3bf4c5c5acf0f981768843950c5230e04fc3434096d9c3ef54e:d3a56e37446070acef70aedc7e1756413eced18c9ee16f35db40e4560b6b928e:0"}
+# cell-13 = {ref = "cell:v1:d7dab4f89ee6eacf4de87a79503f1f7fa8d36d58ac4e96c19781a777d917d650:e3a09c9767c13a3c9d6aacfbbbc9734e751d6feacf105b72efc4a373917e485c:0"}
+# cell-15 = {ref = "cell:v1:166983a48b886c5b0ee3c6ec4bb1640b4fe723b0bee06881e06bfaf1230f25c3:c1c8373001a5bb3871973589ec613519a90d5ebca99b44ccb8cf0d8f5e802d94:0"}
+# cell-17 = {ref = "cell:v1:ca6577628f5666d186d05f6352f3e0d549e3237bbdd23e22d29f7b6111d14c01:86a63702aa03971d043fb832fe9e54ad28408362b09597e1710a5ba911877993:0"}
+# cell-18 = {ref = "cell:v1:487ffdc0f892c4ac57fa5816a8d89e8873d9ecf27bf91fbe610cc96ec4fe8075:487ffdc0f892c4ac57fa5816a8d89e8873d9ecf27bf91fbe610cc96ec4fe8075:0"}
+# cell-20 = {ref = "cell:v1:891181779c9ebf700f4554b1ae98a5633d59c64cbf3076af7697aa9934ac4a88:891181779c9ebf700f4554b1ae98a5633d59c64cbf3076af7697aa9934ac4a88:0"}
+# cell-21 = {ref = "cell:v1:3f0ec4c78da17b11b1dd29219a035eb2e4353db47978d21c18387b4068ce2288:3f0ec4c78da17b11b1dd29219a035eb2e4353db47978d21c18387b4068ce2288:0"}
+# cell-22 = {ref = "cell:v1:723c4fe13a9c37819dfb839252cfc9fe951eb0f08b84f2cb75c407fc10df002c:2332cd2387be417b186da14fa709656db4fed16d232d9f385ff7269206564dcf:0"}
+# cell-23 = {ref = "cell:v1:124d5f4173db94373f9e6bdb763f503b896bef4ce58d04dadf3aac4ec55fda54:8ef4d7dc950aba754a4bc5cbaa93b45c4f38bdc7ae862b670e879e58c9add66a:0"}
+# cell-25 = {ref = "cell:v1:dbddae155ac5e1f106e26073e5229cd6e3f145af35349e7f3303a4f4c6613442:4aa99eebbb54052b3112c35fbe16259721626807a96e59ff027a2667a70bed3f:0"}
+# cell-27 = {ref = "cell:v1:fbd091b7e60b1a66fbee45773c20cafa32237d83b1c9bed175f5afe8ee78d54b:31641b68319b67d2d111dc80653521e043cee9c9f153b764096021735738f6f1:0"}
+# cell-28 = {ref = "cell:v1:045b8ffda887696a6198803f869ddeccb78f87c484836b74d5865915ae32a860:045b8ffda887696a6198803f869ddeccb78f87c484836b74d5865915ae32a860:0"}
+# cell-31 = {ref = "cell:v1:463645fc6cf260ea79de8ca1aee35e0d767a7d98d23e34c733b0cbc788af143f:463645fc6cf260ea79de8ca1aee35e0d767a7d98d23e34c733b0cbc788af143f:0"}
+# cell-32 = {ref = "cell:v1:c7590d45da24b6c4ee31994037519d2df20efbbe3a38b6c1323f49b13fad538e:c7590d45da24b6c4ee31994037519d2df20efbbe3a38b6c1323f49b13fad538e:0"}
+# cell-33 = {ref = "cell:v1:be62ea5a7e8f3c116191089a8766453c3e2657a26e752adad510736876eb4165:ab262850499f6fc24ec7117439c91f074a0b55050ee965fce80ae9742560af59:0"}
+# ///
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.25.0"
 app = marimo.App(width="medium", app_title="Neural Networks From Scratch")
+
+with app.setup:
+    import marimo as mo
 
 
 @app.cell
 def _():
-    import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
 
-    return mo, np, plt
+    return np, plt
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     # Neural Networks From Scratch
 
@@ -34,7 +69,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     ## Stage 1 — A Single Neuron (fixed weights)
 
@@ -56,7 +91,7 @@ def _(np):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md(r"""
     A single neuron multiplies each input by a weight, adds a bias, and
     squashes the result through the **sigmoid** to get an output between
@@ -82,7 +117,7 @@ def _(np):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     Tune the weights below by hand to make a single neuron solve **AND**
     or **OR** — you just need to find a line that separates the 1s from
@@ -94,7 +129,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _():
     gate_picker_1 = mo.ui.dropdown(
         options=["AND", "OR", "XOR"], value="AND", label="Gate"
     )
@@ -110,7 +145,6 @@ def _(
     b_slider,
     gate_picker_1,
     gates,
-    mo,
     neuron,
     np,
     plot_boundary,
@@ -205,7 +239,7 @@ def _(np, plt, sigmoid):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     ## Stage 2 — Learning the weights (gradient descent)
     """)
@@ -239,7 +273,7 @@ def _(np):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md(r"""
     ### TODO: implement `compute_gradient`
 
@@ -276,7 +310,7 @@ def compute_gradient(X, y, w, b):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.accordion(
         {
             "🔑 Reveal solution — `compute_gradient`": mo.md(
@@ -343,7 +377,7 @@ def _(bce_loss, neuron, np):
 
 
 @app.cell
-def _(mo):
+def _():
     gate_picker_2 = mo.ui.dropdown(
         options=["AND", "OR", "XOR"], value="OR", label="Gate"
     )
@@ -388,7 +422,7 @@ def _(
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     ## Stage 3 — Where a single neuron breaks
 
@@ -402,7 +436,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     ## Stage 4 — A two-layer network solves XOR
     """)
@@ -423,7 +457,7 @@ def _(sigmoid):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md(r"""
     ### TODO: implement `compute_gradients_mlp`
 
@@ -455,7 +489,7 @@ def compute_gradients_mlp(X, y, W1, b1, W2, b2):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.accordion(
         {
             "🔑 Reveal solution — `compute_gradients_mlp`": mo.md(
@@ -596,7 +630,7 @@ def _(bce_loss, forward_mlp, np):
 
 
 @app.cell
-def _(mo):
+def _():
     hidden_slider = mo.ui.slider(1, 8, step=1, value=2, label="Hidden units")
     lr_slider_2 = mo.ui.slider(0.01, 3.0, step=0.01, value=1.0, label="Learning rate")
     epochs_slider_2 = mo.ui.slider(200, 8000, step=200, value=3000, label="Epochs")
@@ -634,7 +668,7 @@ def _(
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md("""
     ## Wrap-up
 

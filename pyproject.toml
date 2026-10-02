@@ -14,11 +14,13 @@ license = {file = "LICENSE"}
 version = "0.0.1"
 dependencies = [
     "anywidget>=0.11.0",
+    "deno>=2.9.7",
     "ipycanvas>=0.14.1",
     "ipyturtle3>=0.1.4",
     "kagglehub>=1.0.2",
     "marimo>=0.14.17",
     "marimo-lens>=0.2.3",
+    "marimo-studio>=0.2.3",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
     "onnx>=1.19.0",
@@ -62,6 +64,7 @@ torchvision = [
 [dependency-groups]
 dev = [
     "ipykernel>=6.16.2",
+    "playwright>=1.63.0",
 ]
 
 [tool.marimo.display]
