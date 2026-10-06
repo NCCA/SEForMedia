@@ -14,6 +14,7 @@ license = {file = "LICENSE"}
 version = "0.0.1"
 dependencies = [
     "anywidget>=0.11.0",
+    "datasets>=5.1.0",
     "deno>=2.9.7",
     "ipycanvas>=0.14.1",
     "ipyturtle3>=0.1.4",

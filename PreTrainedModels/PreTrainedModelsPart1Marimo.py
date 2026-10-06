@@ -164,13 +164,13 @@ def _(mo):
 
 @app.cell
 def _(mo, show_image):
-    show_image(mo.notebook_dir() / "images"/"dog.jpg")
+    show_image(mo.notebook_dir() / "images" / "dog.jpg")
     return
 
 
 @app.cell
 def _(mo, show_image):
-    show_image(mo.notebook_dir()/"images"/"cat.jpg")
+    show_image(mo.notebook_dir() / "images" / "cat.jpg")
     return
 
 
@@ -197,9 +197,13 @@ def _(device, mo, torch, tv_io, weights):
         image = image.unsqueeze(0)
         return image.to(device)
 
-    processed_image_dog = load_and_process_image(mo.notebook_dir() / "images" / "dog.jpg")
+    processed_image_dog = load_and_process_image(
+        mo.notebook_dir() / "images" / "dog.jpg"
+    )
     print("Processed image shape: ", processed_image_dog.shape)
-    processed_image_cat = load_and_process_image(mo.notebook_dir() / "images" /"cat.jpg")
+    processed_image_cat = load_and_process_image(
+        mo.notebook_dir() / "images" / "cat.jpg"
+    )
     print("Processed image shape: ", processed_image_dog.shape)
     return load_and_process_image, processed_image_cat, processed_image_dog
 
@@ -251,9 +255,6 @@ def _(json, mo):
     vgg_classes = json.load(open(mo.notebook_dir() / "imagenet_class_index.json"))
     for i in range(10):
         print(f"{i} : {vgg_classes[str(i)]}")
-
-
-    
     return (vgg_classes,)
 
 
@@ -267,7 +268,7 @@ def _(mo):
 
 @app.cell
 def _(load_and_process_image, show_image, torch, vgg_classes):
-    def get_prediction(model,image_path):
+    def get_prediction(model, image_path):
         # Show image
         show_image(image_path)
         # Load and pre-process image
@@ -290,13 +291,13 @@ def _(load_and_process_image, show_image, torch, vgg_classes):
 
 @app.cell
 def _(get_prediction, mo, model):
-    get_prediction(model,mo.notebook_dir()/ "images" / "dog.jpg")
+    get_prediction(model, mo.notebook_dir() / "images" / "dog.jpg")
     return
 
 
 @app.cell
 def _(get_prediction, mo, model):
-    get_prediction(model,mo.notebook_dir() / "images"/"cat.jpg")
+    get_prediction(model, mo.notebook_dir() / "images" / "cat.jpg")
     return
 
 
@@ -312,7 +313,7 @@ def _(mo):
 
 @app.cell
 def _(load_and_process_image, vgg_classes):
-    def cat_or_dog(model,image_path):
+    def cat_or_dog(model, image_path):
         image = load_and_process_image(image_path)
         idx = model(image).argmax(dim=1).item()
         if 151 <= idx <= 268 or 281 <= idx <= 285:
@@ -325,20 +326,20 @@ def _(load_and_process_image, vgg_classes):
 
 @app.cell
 def _(cat_or_dog, mo, model):
-    cat_or_dog(model,mo.notebook_dir() / "images"/"dog.jpg")
-    cat_or_dog(model,mo.notebook_dir() / "images"/"cat.jpg")
+    cat_or_dog(model, mo.notebook_dir() / "images" / "dog.jpg")
+    cat_or_dog(model, mo.notebook_dir() / "images" / "cat.jpg")
     return
 
 
 @app.cell
 def _(mo, show_image):
-    show_image(mo.notebook_dir()/"images"/"fish.jpg")
+    show_image(mo.notebook_dir() / "images" / "fish.jpg")
     return
 
 
 @app.cell
 def _(cat_or_dog, mo, model):
-    cat_or_dog(model,mo.notebook_dir()/"images"/"fish.jpg")
+    cat_or_dog(model, mo.notebook_dir() / "images" / "fish.jpg")
     return
 
 
@@ -350,8 +351,6 @@ def _(mo):
     ## Summary
 
     So we have used a pre-trained model, in the next example we will train it on a new data set to specialize it.
-
-    Now we are finished let's clear the GPU cache.
     """)
     return
 
