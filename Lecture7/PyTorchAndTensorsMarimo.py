@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="true")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # PyTorch and Tensors
 
     We can define tensors with different shapes. In general we have
@@ -23,8 +22,7 @@ def _(mo):
     | n    | n-Tensor    | `torch.randn(2, 3, 4, 5)` |
 
     The following code will generate a simple tensor.
-    """
-    )
+    """)
     return
 
 
@@ -42,13 +40,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # 1D Tensors
 
     A 1D tensor is basically a vector, we can produce one like this.
-    """
-    )
+    """)
     return
 
 
@@ -62,13 +58,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## 2D Tensors
 
     A 2d tensor is a matrix, we can produce one like this.
-    """
-    )
+    """)
     return
 
 
@@ -84,13 +78,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## 3 Tensor
 
     This tensor has 3 dimensions, note how when printing the output is truncated.
-    """
-    )
+    """)
     return
 
 
@@ -104,13 +96,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## N Tensor
 
     An N tensor is a tensor with N dimensions. These are typically created for existing data or functions as it is quite complex to generate higher order ones easily.
-    """
-    )
+    """)
     return
 
 
@@ -124,8 +114,7 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Generating Tensors
 
     There are a number of ways to generate tensors and pytorch comes with a number of functions to help us generate them.
@@ -133,8 +122,7 @@ def _(mo):
     ### torch.tensor(data)
 
     This method will generate a tensor from data passed in which could be a standard python container (list,tuple) or numpy array as follows.
-    """
-    )
+    """)
     return
 
 
@@ -152,13 +140,11 @@ def _(np, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## from similar values
 
     As with numpy we can create arrays as zeros, ones of full values
-    """
-    )
+    """)
     return
 
 
@@ -177,13 +163,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## ranges
 
     As with numpy there are a number of range based functions to generate tensors, most of them are of the format start,stop, step
-    """
-    )
+    """)
     return
 
 
@@ -198,13 +182,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Identity and Diagonal
 
     We can generate identity and diagonal matrices as follows, not there are other methods to set diagonals as well.
-    """
-    )
+    """)
     return
 
 
@@ -222,15 +204,13 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Random Tensors
 
     We can generate random tensors as follows, note that the random number generation is based on the current random seed. The two core functions are the rand and randn functions which give us random values between 0 and 1 and random values from a normal distribution respectively.
 
     We also have integer functions as well as random permutations, which can be useful for shuffling data.
-    """
-    )
+    """)
     return
 
 
@@ -249,9 +229,9 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We can generate normal distributions based around a mean and standard deviation as follows."""
-    )
+    mo.md(r"""
+    We can generate normal distributions based around a mean and standard deviation as follows.
+    """)
     return
 
 
@@ -264,21 +244,19 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""There are more functions available in the documentation which can be found [here](https://pytorch.org/docs/stable/torch.html#creation-ops)"""
-    )
+    mo.md(r"""
+    There are more functions available in the documentation which can be found [here](https://pytorch.org/docs/stable/torch.html#creation-ops)
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Device
 
     The following function will determine which device we have available. If we have properly installed PyTorch and setup for CUDA it should show ```cuda``` as the device. On mac you may get mps for the metal device (note not all things work with this), else we will get CPU, which is slower but should work fine.
-    """
-    )
+    """)
     return
 
 
@@ -302,9 +280,9 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""When we create tensors we can specify the device we want to use, this is useful for training on GPUs."""
-    )
+    mo.md(r"""
+    When we create tensors we can specify the device we want to use, this is useful for training on GPUs.
+    """)
     return
 
 
@@ -317,9 +295,9 @@ def _(device, torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""If we want to move a tensor to a different device we can use the to function as follows."""
-    )
+    mo.md(r"""
+    If we want to move a tensor to a different device we can use the to function as follows.
+    """)
     return
 
 
@@ -332,25 +310,21 @@ def _(tensor_6):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     It is our job to manage the device we are using, if we try to use a tensor on a device that is not available we will get an error. Typically we will generate data on the CPU side (i.e. loading / processing it) and then move it to the GPU for training.
 
     Later on when we have a trained model we can move it back to the CPU for inference.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Saving and Loading Tensors
 
     We can save and load tensors and groups of tensors to a file using the .save and .load functions. This will save data in a binary format by default.
-    """
-    )
+    """)
     return
 
 
@@ -365,9 +339,9 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""You can also save multiple tensors or other objects by placing them in a dictionary and then saving the dictionary as follows."""
-    )
+    mo.md(r"""
+    You can also save multiple tensors or other objects by placing them in a dictionary and then saving the dictionary as follows.
+    """)
     return
 
 
@@ -392,13 +366,11 @@ def _(torch):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Loading Images
 
     We can load images as tensors using the PIL library and then convert them to tensors. As this is quite a common operation PyTorch provides a function to do this for us in the torchvision library.
-    """
-    )
+    """)
     return
 
 
@@ -416,7 +388,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We can now convert this back to an image and display it as follows.""")
+    mo.md(r"""
+    We can now convert this back to an image and display it as follows.
+    """)
     return
 
 
@@ -431,9 +405,9 @@ def _(image, np, plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""It is quite common to convert an image into a tensor and then process it (such as normalizing it) before passing it to a model for training or inference."""
-    )
+    mo.md(r"""
+    It is quite common to convert an image into a tensor and then process it (such as normalizing it) before passing it to a model for training or inference.
+    """)
     return
 
 
@@ -457,23 +431,21 @@ def _(Image, plt, transforms):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We will look at more advanced image processing options in a later lectures / lab."""
-    )
+    mo.md(r"""
+    We will look at more advanced image processing options in a later lectures / lab.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Other Tensor Data Formats
 
     We can load tensors from other formats including numpy, pandas and csv files, as well as things like audio and video. These are typically done using the appropriate libraries and then converting the data to tensors such as torch.audio or torch.video
 
     In a future lecture we will look at how we can load batches of data for training using the DataLoader class.
-    """
-    )
+    """)
     return
 
 

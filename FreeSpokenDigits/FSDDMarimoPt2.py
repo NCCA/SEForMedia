@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full")
 
 
@@ -37,7 +37,7 @@ def _():
     output, definitions = download_digits.run()
     dataset_path = definitions["dataset_path"]
     print(dataset_path)
-    return
+    return (dataset_path,)
 
 
 @app.cell(hide_code=True)
@@ -76,13 +76,13 @@ def _(mo):
 def _(mo):
     file_index = mo.ui.slider(start=0, stop=3000 - 1, value=0, label="File Index")
     file_index
-    return
+    return (file_index,)
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _(AudioDecoder, Path, dataset_path, file_index, plt, torch):
     # grab the first file in the folder
-        root = Path(f"{dataset_path}/recordings")
+    root = Path(f"{dataset_path}/recordings")
     loaded_file = Path(sorted(root.glob("*.wav"))[file_index.value])
     label = int(loaded_file.stem.split("_", 1)[0])
     print(f"Audio number is {label}")
@@ -130,9 +130,7 @@ app._unparsable_cell(
     )
     plt.close(_fig)
     _fig
-    """,
-    name="_",
-)
+    return label, loaded_file, root
 
 
 @app.cell(hide_code=True)

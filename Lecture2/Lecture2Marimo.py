@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Lecture 1 Introduction to Python
 
     This notebook contains the code for the Lecture 1 Introduction to Python. These demos are to be used in conjunction with the lecture slides to explore the concepts of Python programming language.
@@ -17,8 +16,7 @@ def _(mo):
     ## Keywords
 
     Run the following example to see the keywords this version of python uses.
-    """
-    )
+    """)
     return
 
 
@@ -34,8 +32,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Identifiers
 
     Identifiers are the names given to entities like classes, functions, variables etc. in Python. It helps differentiate one entity from another. It is important to note that Python is case-sensitive.
@@ -43,21 +40,21 @@ def _(mo):
         Donald Knuth
 
     We should try to make our names easy to read and understand, this may be specific to a problem domain or using the "traditional" or "accepted" names for things (more on this when we talk about machine learning etc). Try to be clear and concise with your names.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Identifier rules
     - Must Begin with a Letter or an Underscore (****): Identifiers cannot start with a number. They must start with a letter (A-Z or a-z) or an underscore ().
     - Can Contain Letters, Digits, and Underscores:
@@ -65,8 +62,7 @@ def _(mo):
     - Case Sensitive:
         - Identifiers are case-sensitive, meaning var, Var, and VAR would be treated as different identifiers.
     - No Reserved Keywords: Identifiers cannot be the same as Python’s reserved keywords
-    """
-    )
+    """)
     return
 
 
@@ -89,8 +85,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We will discuss more examples of naming and identifiers as we progress through the course.
 
     ## Data Types
@@ -111,8 +106,7 @@ def _(mo):
     - int (signed integers)
     - float (floating point real values)
     - complex (complex numbers)
-    """
-    )
+    """)
     return
 
 
@@ -130,8 +124,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## [operations on numbers](https://docs.python.org/3/library/stdtypes.html#typesnumeric)
 
     We can use the typical arithmetic operators to perform operations on these numbers (and most python number types). The simple operations are shown below (and there are more complex operations available in the python documentation).
@@ -147,8 +140,7 @@ def _(mo):
     | ``` -x``` | x negated |
     | ``` +x``` | x unchanged |
     | ``` x**y``` | x to the power y |
-    """
-    )
+    """)
     return
 
 
@@ -170,13 +162,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In python integers are of unlimited size, so you can perform operations on very large numbers without worrying about overflow (unlike python 2 or other programming languages).
 
     Python 3 division will result in a float, to get the integer division you can use the // operator.
-    """
-    )
+    """)
     return
 
 
@@ -191,13 +181,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Floating Point (Real) numbers
 
     To represent fractions we use floating point numbers we need to be explicit as to the type of the number. We can use the float() function to convert integers to floats if required.
-    """
-    )
+    """)
     return
 
 
@@ -215,15 +203,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""Floats can be problematic, as they are actually approximations (following the IEEE 754 standard). This can lead to some strange behavior when comparing floats."""
-    )
+    mo.md(r"""
+    Floats can be problematic, as they are actually approximations (following the IEEE 754 standard). This can lead to some strange behavior when comparing floats.
+    """)
     return
 
 
@@ -242,9 +232,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""If we really need to check floating point numbers for equality we can use the math.isclose() function. This function takes two numbers and an optional relative tolerance and an optional absolute tolerance. The function returns True if the two numbers are close enough to be considered equal."""
-    )
+    mo.md(r"""
+    If we really need to check floating point numbers for equality we can use the math.isclose() function. This function takes two numbers and an optional relative tolerance and an optional absolute tolerance. The function returns True if the two numbers are close enough to be considered equal.
+    """)
     return
 
 
@@ -260,27 +250,23 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This website has a good explanation of the issues with floating point numbers in python: https://docs.python.org/3/tutorial/floatingpoint.html you can also play with this interactive demo to see how floating point numbers are represented in python: https://evanw.github.io/float-toy/
 
     <div class="stretch">
     <iframe src="https://evanw.github.io/float-toy/" width=1000 height=600></iframe>
     </div>
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Strings
 
     Strings are sequences of characters, using the str type. Strings are immutable, meaning that once they are created they cannot be changed. Strings can be created using single quotes, double quotes, or triple quotes. Triple quotes are used for multi-line strings.
-    """
-    )
+    """)
     return
 
 
@@ -299,13 +285,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Subsets of strings can be taken using the slice operator  (```[ ]``` and ```[ : ]``` ) with indexes starting at 0 in the beginning of the string and working their way from -1 at the end
 
     The plus ( ```+``` ) sign is the string concatenation operator, and the asterisk ( ```*``` ) is the repetition operator.
-    """
-    )
+    """)
     return
 
 
@@ -330,14 +314,12 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Lists
     A list is the most common of the Python data containers / types. It can hold mixed data, include lists of lists. A list is contained within the [] brackets and is analogous to C arrays
 
     Like a string data is accessed using the slice operator ( ```[ ]``` and ```[ : ]``` ) with indexes starting at 0 in the beginning of the list and working their way to end-1. The + operator concatenates and the * duplicates
-    """
-    )
+    """)
     return
 
 
@@ -362,19 +344,19 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r""" """)
+    mo.md(r"""
+ 
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Tuples
 
     A tuple is a sequence of immutable Python objects. Tuples are sequences, just like lists. The differences between tuples and lists are, the tuples cannot be changed unlike lists and tuples use parentheses, whereas lists use square brackets.
-    """
-    )
+    """)
     return
 
 
@@ -393,8 +375,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Slice operations
 
      In Python, slice operators are used to extract parts of sequences like strings, lists, tuples, and other iterable objects. Slicing allows you to access a subset of the elements in these sequences using a specific syntax.
@@ -406,8 +387,7 @@ def _(mo):
     - start: The index where the slice starts (inclusive). If omitted, it defaults to the beginning of the sequence (0).
     - stop: The index where the slice ends (exclusive). If omitted, it defaults to the end of the sequence.
     - step: The interval between elements in the slice. If omitted, it defaults to 1.
-    """
-    )
+    """)
     return
 
 
@@ -426,8 +406,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Dictionaries
 
     Python dictionaries are a powerful key / value data structure which allows the storing of different data types in the same data set, they are also the core foundation on which the whole python language is built. Dictionaries are enclosed by curly braces ( ```{}``` ) and values can be assigned and accessed using square braces ( ```[]``` ).
@@ -435,8 +414,7 @@ def _(mo):
     We use the key to access the value in the dictionary. The key must be unique and immutable (meaning it cannot be changed). The value can be any data type (including lists, tuples, and other dictionaries).
 
     It may take time to understand when and how to use dictionaries, but they are a powerful tool in python and are used extensively in the language.
-    """
-    )
+    """)
     return
 
 

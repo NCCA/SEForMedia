@@ -2,14 +2,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="full", app_title="Packages")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Packages
 
     In python we can package code into re-usable modules. This is know as a package. At a high level, Python packages are directories of modules that follow specific naming and structural conventions, allowing you to bundle multiple modules (individual .py files) under one namespace.
@@ -35,8 +34,7 @@ def _(mo):
     When we import a package, Python searches for the package in a list of directories. This list is stored in the `sys.path` variable. We can add a directory to this list by appending it to the `sys.path` variable. This is useful if we want to import a package that is not in the same directory as our code.
 
     As you can see if we try to import the Utils package without appending the path to the sys.path variable we get an error.
-    """
-    )
+    """)
     return
 
 
@@ -54,8 +52,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     To add the package to the path we can use the following code:
 
     ```python
@@ -64,8 +61,7 @@ def _(mo):
     ```
 
     In our case we need to do this for the Utils package which is a directory below the current directory. We can do this by using the following code:
-    """
-    )
+    """)
     return
 
 
@@ -82,8 +78,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## ```__init__```
 
     It is possible to change the behavior of the package when it is imported by adding code to the `__init__.py` file. This file is executed when the package is imported. In our case we are going to add the following code to the `__init__.py` file:
@@ -97,8 +92,7 @@ def _(mo):
     ```
 
     No we can import the package and use the functions in the modules.
-    """
-    )
+    """)
     return
 
 
@@ -113,13 +107,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     There are various other functions in the Utils module, we will be using them in the labs. If you wish to generate your own Package for the assignment hopefully this example demonstrates how you can do this.
 
     For more information on packages see the [Python documentation](https://docs.python.org/3/tutorial/modules.html#packages)
-    """
-    )
+    """)
     return
 
 
