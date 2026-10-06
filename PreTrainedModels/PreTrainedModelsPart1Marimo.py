@@ -63,13 +63,14 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(device):
     from torchvision.models import vgg16
     from torchvision.models import VGG16_Weights
 
     # load the VGG16 network *pre-trained* on the ImageNet dataset
     weights = VGG16_Weights.DEFAULT
     model = vgg16(weights=weights)
+    model.to(device=device)
     return model, weights
 
 
@@ -78,12 +79,6 @@ def _(mo):
     mo.md(r"""
     Now we have downloaded the model, we can send it to the device and look at the model architecture.
     """)
-    return
-
-
-@app.cell
-def _(device, model):
-    model.to(device)
     return
 
 
@@ -141,14 +136,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Image Input
 
     We will start with a simple image of a cat and a dog, first let's define a function to show the base images.
@@ -176,14 +163,14 @@ def _(mo):
 
 
 @app.cell
-def _(show_image):
-    show_image("images/dog.jpg")
+def _(mo, show_image):
+    show_image(mo.notebook_dir() / "images"/"dog.jpg")
     return
 
 
 @app.cell
-def _(show_image):
-    show_image("images/cat.jpg")
+def _(mo, show_image):
+    show_image(mo.notebook_dir()/"images"/"cat.jpg")
     return
 
 
@@ -198,7 +185,7 @@ def _(mo):
 
 
 @app.cell
-def _(device, torch, tv_io, weights):
+def _(device, mo, torch, tv_io, weights):
     _pre_trans = weights.transforms().to(device)
 
     def load_and_process_image(file_path):
@@ -210,9 +197,9 @@ def _(device, torch, tv_io, weights):
         image = image.unsqueeze(0)
         return image.to(device)
 
-    processed_image_dog = load_and_process_image("images/dog.jpg")
+    processed_image_dog = load_and_process_image(mo.notebook_dir() / "images" / "dog.jpg")
     print("Processed image shape: ", processed_image_dog.shape)
-    processed_image_cat = load_and_process_image("images/cat.jpg")
+    processed_image_cat = load_and_process_image(mo.notebook_dir() / "images" /"cat.jpg")
     print("Processed image shape: ", processed_image_dog.shape)
     return load_and_process_image, processed_image_cat, processed_image_dog
 
@@ -260,10 +247,13 @@ def _(mo):
 
 
 @app.cell
-def _(json):
-    vgg_classes = json.load(open("imagenet_class_index.json"))
+def _(json, mo):
+    vgg_classes = json.load(open(mo.notebook_dir() / "imagenet_class_index.json"))
     for i in range(10):
         print(f"{i} : {vgg_classes[str(i)]}")
+
+
+    
     return (vgg_classes,)
 
 
@@ -276,8 +266,8 @@ def _(mo):
 
 
 @app.cell
-def _(load_and_process_image, model, show_image, torch, vgg_classes):
-    def get_prediction(image_path):
+def _(load_and_process_image, show_image, torch, vgg_classes):
+    def get_prediction(model,image_path):
         # Show image
         show_image(image_path)
         # Load and pre-process image
@@ -299,14 +289,14 @@ def _(load_and_process_image, model, show_image, torch, vgg_classes):
 
 
 @app.cell
-def _(get_prediction):
-    get_prediction("images/dog.jpg")
+def _(get_prediction, mo, model):
+    get_prediction(model,mo.notebook_dir()/ "images" / "dog.jpg")
     return
 
 
 @app.cell
-def _(get_prediction):
-    get_prediction("images/cat.jpg")
+def _(get_prediction, mo, model):
+    get_prediction(model,mo.notebook_dir() / "images"/"cat.jpg")
     return
 
 
@@ -321,8 +311,8 @@ def _(mo):
 
 
 @app.cell
-def _(load_and_process_image, model, vgg_classes):
-    def cat_or_dog(image_path):
+def _(load_and_process_image, vgg_classes):
+    def cat_or_dog(model,image_path):
         image = load_and_process_image(image_path)
         idx = model(image).argmax(dim=1).item()
         if 151 <= idx <= 268 or 281 <= idx <= 285:
@@ -334,21 +324,21 @@ def _(load_and_process_image, model, vgg_classes):
 
 
 @app.cell
-def _(cat_or_dog):
-    cat_or_dog("images/dog.jpg")
-    cat_or_dog("images/cat.jpg")
+def _(cat_or_dog, mo, model):
+    cat_or_dog(model,mo.notebook_dir() / "images"/"dog.jpg")
+    cat_or_dog(model,mo.notebook_dir() / "images"/"cat.jpg")
     return
 
 
 @app.cell
-def _(show_image):
-    show_image("images/fish.jpg")
+def _(mo, show_image):
+    show_image(mo.notebook_dir()/"images"/"fish.jpg")
     return
 
 
 @app.cell
-def _(cat_or_dog):
-    cat_or_dog("images/fish.jpg")
+def _(cat_or_dog, mo, model):
+    cat_or_dog(model,mo.notebook_dir()/"images"/"fish.jpg")
     return
 
 
@@ -363,16 +353,6 @@ def _(mo):
 
     Now we are finished let's clear the GPU cache.
     """)
-    return
-
-
-@app.cell
-def _(model, torch):
-    import gc
-
-    del model
-    gc.collect()
-    torch.cuda.empty_cache()
     return
 
 
