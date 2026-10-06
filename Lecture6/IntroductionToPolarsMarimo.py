@@ -25,16 +25,23 @@ def _(mo):
     mo.md(r"""
     ## Downloading the dataset
 
-    We use [pathlib](https://docs.python.org/3/library/pathlib.html) to store the data beside the notebook. `parents=True` creates intermediate folders and `exist_ok=True` allows us to reuse a folder. The Pandas notebook's downloaded files can be reused here.
+    We use [pathlib](https://docs.python.org/3/library/pathlib.html) to store the data beside the notebook, or in /transfer if we are in the lab. `parents=True` creates intermediate folders and `exist_ok=True` allows us to reuse a folder. The Pandas notebook's downloaded files can be reused here.
     """)
     return
 
 
 @app.cell
 def _(mo):
+    import sys
     from pathlib import Path
 
-    data_dir = Path(mo.notebook_dir()) / "data" / "met_objects"
+    sys.path.append("../")
+    from Utils import in_lab
+
+    if in_lab():
+        data_dir = Path("/transfer/met_objects")
+    else:
+        data_dir = Path(mo.notebook_dir()) / "data" / "met_objects"
     data_dir.mkdir(parents=True, exist_ok=True)
     return (
         Path,

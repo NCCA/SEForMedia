@@ -45,18 +45,28 @@ def _(mo):
     test_dataset  = load_dataset("username/my_dataset", split="test")
     ```
 
-    In our case the data set is "Trelis/tiny-shakespeare" so we can download using the following
+    In our case the data set is "Trelis/tiny-shakespeare" so we can download using the following. By default Hugging Face caches downloads in `~/.cache/huggingface`, so I pass `cache_dir` to put it in /transfer when we are in the lab, or beside the notebook otherwise.
     """)
     return
 
 
 @app.cell
 def _():
+    import sys
+
     from datasets import load_dataset
 
+    sys.path.append("../")
+    from Utils import in_lab
+
+    if in_lab():
+        cache_dir = "/transfer/tiny_shakespeare"
+    else:
+        cache_dir = "./data/tiny_shakespeare"
+
     data_set_name = "Trelis/tiny-shakespeare"
-    train_dataset = load_dataset(data_set_name, split="train")
-    test_dataset = load_dataset(data_set_name, split="test")
+    train_dataset = load_dataset(data_set_name, split="train", cache_dir=cache_dir)
+    test_dataset = load_dataset(data_set_name, split="test", cache_dir=cache_dir)
 
     train_dataset[:10]
     return test_dataset, train_dataset
@@ -287,9 +297,7 @@ def _(mo):
 
 @app.cell
 def _(nn, torch, vocab):
-    import sys
-
-    sys.path.append("../")
+    # sys.path was set up in the cell that downloads the data
     from Utils import copy_weights, evaluate, get_device, train_epoch
 
     class ShakespeareModel(nn.Module):

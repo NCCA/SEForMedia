@@ -48,11 +48,22 @@ def _(mo):
 
 @app.cell
 def download_digits():
+    import sys
+
     import kagglehub
+
+    sys.path.append("../")
+    from Utils import in_lab
+
+    # in the lab use /transfer, otherwise keep the data beside the notebook
+    if in_lab():
+        output_dir = "/transfer/spoken_digits"
+    else:
+        output_dir = "./data/spoken_digits"
 
     dataset_path = kagglehub.dataset_download(
         "jackvial/freespokendigitsdataset",
-        output_dir="./data/spoken_digits",
+        output_dir=output_dir,
     )
 
     print(f"Dataset downloaded to: {dataset_path}")

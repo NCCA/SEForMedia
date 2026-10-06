@@ -21,7 +21,7 @@ def _(mo):
 
     To aid us in showing off the functionality of this library, we will be looking at the MetObjects dataset, which comes courtesy of the [Metropolitan Museum of Art in New York](https://www.metmuseum.org/). This data can be found on GitHub [here](https://github.com/metmuseum/openaccess/tree/master) as well as on [Kaggle](https://www.kaggle.com/metmuseum/the-metropolitan-museum-of-art-open-access).
 
-    For this lecture we will download the dataset from my website as a zip file then extract that into a new folder in this current directory.
+    For this lecture we will download the dataset from my website as a zip file then extract that into a new folder. If we are in the lab it goes into /transfer, otherwise into a folder in the current directory.
     """)
     return
 
@@ -39,11 +39,19 @@ def _(mo):
 
 @app.cell
 def _():
-    data_dir = "./data/met_objects"  # Normal python code
-
+    import sys
     from pathlib import Path
 
-    Path(data_dir).mkdir(exist_ok=True)
+    sys.path.append("../")
+    from Utils import in_lab
+
+    # in the lab use /transfer so we don't fill up the home directory
+    if in_lab():
+        data_dir = "/transfer/met_objects"
+    else:
+        data_dir = "./data/met_objects"
+
+    Path(data_dir).mkdir(parents=True, exist_ok=True)
     # note the exits_ok parameter in mkdir, which allows us to create a new directory without throwing an error if it already exists
     # it will also create any intermediate directories that don't exist
     return Path, data_dir
