@@ -99,6 +99,7 @@ def _():
     import sys
     import time
     from datetime import datetime
+    from pathlib import Path
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -116,6 +117,7 @@ def _():
 
     print(f"torch {torch.__version__}, onnxruntime {ort.__version__}")
     return (
+        Path,
         build_model,
         datetime,
         fit,
@@ -171,9 +173,21 @@ def _(mo):
 
 
 @app.cell
-def _(mo, shlex, subprocess):
+def _(Path, mo, shlex, subprocess, sys):
     HERE = mo.notebook_dir()
-    BUCKET = HERE / "bucket"
+
+    # On macOS podman runs containers in a Linux VM which can only see the folders
+    # shared into it, by default /Users, /private and /var/folders. If the notebook
+    # lives anywhere else (an external drive under /Volumes for example) a -v mount
+    # fails with "statfs ... no such file or directory", so in that case we put the
+    # bucket in the home folder instead. On Linux there is no VM, so anywhere works.
+    MAC_VM_SHARED = ("/Users/", "/private/", "/var/folders/")
+    if sys.platform == "darwin" and not str(HERE.resolve()).startswith(MAC_VM_SHARED):
+        BUCKET = Path.home() / "spiral-bucket"
+    else:
+        BUCKET = HERE / "bucket"
+    BUCKET.mkdir(parents=True, exist_ok=True)
+    print(f"bucket is {BUCKET}")
 
     def run(cmd: list[str]) -> int:
         """
@@ -191,7 +205,11 @@ def _(mo, shlex, subprocess):
         """
         print("$", shlex.join(cmd), flush=True)
         with subprocess.Popen(
-            cmd, cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            cmd,
+            cwd=HERE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         ) as process:
             for line in process.stdout:
                 print(line, end="", flush=True)
@@ -509,7 +527,7 @@ def _(mo):
 
 
 @app.cell
-def _(DATA_FILE, mo, run, set_runs_changed, smoke_button, sys):
+def _(BUCKET, DATA_FILE, mo, run, set_runs_changed, smoke_button, sys):
     mo.stop(
         not smoke_button.value,
         mo.md("Press **Run smoke test** to run `train.py` for 5 epochs."),
@@ -521,7 +539,7 @@ def _(DATA_FILE, mo, run, set_runs_changed, smoke_button, sys):
             "--data",
             str(DATA_FILE),
             "--out",
-            "bucket/runs/smoke",
+            str(BUCKET / "runs" / "smoke"),
             "--run-id",
             "smoke",
             "--epochs",
@@ -700,11 +718,12 @@ def _(
     mo.stop(
         job_status != 0,
         mo.callout(
-            mo.md(f"Job **{run_id}** failed, see the log above."), kind="danger"
+            mo.md(f"Job **{run_id}** failed, see the log above."),
+            kind="danger",
         ),
     )
     mo.callout(
-        mo.md(f"Job **{run_id}** finished, results in `bucket/runs/{run_id}`"),
+        mo.md(f"Job **{run_id}** finished, results in `{BUCKET / 'runs' / run_id}`"),
         kind="success",
     )
     return
