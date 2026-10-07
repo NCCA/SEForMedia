@@ -1,0 +1,4 @@
+# torch itself is installed in Containerfile.train from the CPU wheel index
+numpy==2.5.3
+onnx==1.23.2
+onnxscript==0.7.2

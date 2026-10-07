@@ -1,0 +1,7 @@
+# keep the build context small, the data and results go in via the bucket mount
+bucket/
+__pycache__/
+__marimo__/
+*.py[cod]
+CloudTrainingMarimo.py
+README.md

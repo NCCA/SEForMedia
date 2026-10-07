@@ -1,0 +1,49 @@
+# Training image for the spiral classifier.
+#
+# Build with
+#   podman build -t localhost/spiral-train:0.1 -f Containerfile.train .
+#
+# The base image and torch wheel index are build arguments, so the same file can
+# make a GPU image for a real cloud machine, for example
+#   --build-arg BASE_IMAGE=docker.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04
+#   --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cu126
+# (the CUDA base would also need python installing, so treat that as a starting point)
+
+ARG BASE_IMAGE=docker.io/library/python:3.12-slim
+# uv is published as a tiny image holding just the binaries, pinned like any other dependency
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.32
+
+FROM ${UV_IMAGE} AS uv
+FROM ${BASE_IMAGE}
+
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
+ARG TORCH_VERSION=2.14.1
+
+# copy the uv binaries in rather than installing uv with pip
+COPY --from=uv /uv /uvx /bin/
+
+# install into the image's own python (there is nothing else in a container to
+# keep separate from), and copy files out of uv's cache rather than linking to it
+# as the cache is only mounted during the build
+ENV PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
+
+WORKDIR /app
+
+# dependencies first: this layer is only rebuilt when the requirements change,
+# not every time we edit train.py. The cache mount keeps downloaded wheels on the
+# build machine (not in the image) so even that rebuild doesn't download torch again
+COPY requirements-train.txt .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --index-url ${TORCH_INDEX} torch==${TORCH_VERSION} \
+    && uv pip install -r requirements-train.txt
+
+# then our code, which changes often and is cheap to copy
+COPY spiralnet/ spiralnet/
+COPY train.py .
+
+# the job reads and writes the bucket, which is mounted at run time
+VOLUME ["/bucket"]
+ENTRYPOINT ["python", "train.py"]
