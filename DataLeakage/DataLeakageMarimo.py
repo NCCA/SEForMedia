@@ -11,20 +11,20 @@ def _(mo):
     mo.md(r"""
     # Data Leakage and Group Splits
 
-    The [project ideas page](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/Assignment/ideas/) keeps telling you to keep related samples on one side of the split. Frames from the same video, clips from the same recording, takes from the same performer. In this notebook we are going to see *why*.
+    On the [project ideas page](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/Assignment/ideas/) I ask you to keep related samples together when splitting your data. This includes frames from a video, clips from a recording and takes from a performer. In this notebook we will look at why this matters.
 
-    We will train exactly the same model on exactly the same data twice. The only thing that changes is how we split it into train, validation and test sets.
+    We will train the same model twice using different splits of the same dataset:
 
-    1. A random split using `torch.utils.data.random_split`, which is what most tutorials do.
-    2. A group split using [`GroupShuffleSplit`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupShuffleSplit.html) and [`GroupKFold`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html), where every clip cut from the same source recording stays together.
+    1. A random split using `torch.utils.data.random_split`, which assigns individual clips to training, validation and test sets.
+    2. A group split using [`GroupShuffleSplit`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupShuffleSplit.html), which keeps clips from each source recording together.
 
-    Then we will examine what the model actually learnt, and finish with a checklist you should apply to your own project.
+    We will then compare some simpler models using [`GroupKFold`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html) and listen to examples from the data.
 
-    The dataset is [ESC-50](https://github.com/karolpiczak/ESC-50) (Piczak 2015), 2000 five second environmental sound clips in 50 classes (dog, rain, door knock, chainsaw...). It is about 600MB, licensed CC BY-NC, and crucially it tells us which source recording every clip was cut from, so the group information is built in.
+    I am using [ESC-50](https://github.com/karolpiczak/ESC-50) (Piczak 2015), which contains 2000 clips of environmental sounds in 50 classes. Each clip is five seconds long and the download is about 600 MB. The metadata includes the source recording for each clip, so we already have a group identifier to work with. See the dataset's [licence](https://github.com/karolpiczak/ESC-50#license) for the terms of use.
 
     ## Setup
 
-    As in the other notebooks we import our Utils library and check if we are in the lab, if so the data goes on /transfer, otherwise into the current folder.
+    As in the other notebooks we import our `Utils` library and check whether we are in the lab. In the lab the data goes in `/transfer`, otherwise we use the current folder.
     """)
     return
 
@@ -104,7 +104,7 @@ def _(Utils, pathlib):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The whole dataset is a single zip of the GitHub repository. We only download and unzip it if it is not already there, as it is 600MB. Once unzipped we have `ESC-50-master/audio` containing the wav files and `ESC-50-master/meta/esc50.csv` describing them.
+    We download the dataset as a zip of the GitHub repository and extract it if the metadata is not already present. The audio files are in `ESC-50-master/audio` and `ESC-50-master/meta/esc50.csv` describes each clip. We keep the download locally so we do not need to fetch it again.
     """)
     return
 
@@ -130,9 +130,11 @@ def _(mo):
     mo.md(r"""
     ## 1. Samples come in groups
 
-    Each file name tells us where the clip came from, `{fold}-{src_file}-{take}-{target}.wav`. For example `1-100038-A-14.wav` is take A, cut from Freesound recording 100038, of class 14 (chirping birds). When the authors built the dataset they often cut several clips out of one longer recording, so take A, B and C are the same birds, in the same garden, recorded on the same microphone.
+    The filenames use the format `{fold}-{src_file}-{take}-{target}.wav`. For example, `1-100038-A-14.wav` is take A from source recording 100038, with class 14 (chirping birds).
 
-    Let's load the metadata and see how common that is.
+    Several clips can come from one longer recording. Whilst they are separate files, they can share the same background sounds and recording conditions. We will use `src_file` to keep track of this.
+
+    Let's load the metadata and see how many recordings have more than one clip.
     """)
     return
 
@@ -172,7 +174,7 @@ def _(plt, takes_per_recording):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Have a listen to one of the bigger groups. These are separate samples as far as a `Dataset` is concerned, but they are really the same event. Listen to the background (traffic, hiss, room tone) rather than the thing being labelled. That is what will give the game away later.
+    Have a listen to one of the larger groups. Our `Dataset` treats these as separate samples, but they come from the same recording. Listen for shared background sounds such as traffic, hiss or room tone as well as the sound being labelled.
     """)
     return
 
@@ -196,9 +198,11 @@ def _(mo):
     mo.md(r"""
     ## Turning audio into images
 
-    We will use a log-mel spectrogram for each clip, which turns 5 seconds of audio into a 64 x 216 image (64 frequency bands by 216 time steps) that a small CNN can classify. I build the mel filter bank by hand here so there is nothing hidden, torchaudio has a `MelSpectrogram` transform that does the same thing (see the FreeSpokenDigits and TorchAudioForML demos for examples)
+    We will convert each clip into a log-mel spectrogram. With the settings below, five seconds of audio gives us a 64 × 216 image: 64 mel bands and 216 time steps. We can then use a small CNN to classify it.
 
-    Computing these takes a minute or so, so the result is cached next to the data.
+    I build the mel filter bank here so we can see how it works. The FreeSpokenDigits and TorchAudioForML demos show the same approach using torchaudio transforms.
+
+    The spectrograms take some time to calculate, so we cache them next to the audio files.
     """)
     return
 
@@ -244,7 +248,19 @@ def _(np, torch):
     MEL_BANK = mel_filterbank(SAMPLE_RATE, N_FFT, N_MELS)
 
     def log_mel(audio: np.ndarray) -> np.ndarray:
-        """Power spectrogram -> mel bands -> decibels, returns (n_mels, frames)."""
+        """
+        Convert audio to a log-mel spectrogram.
+
+        Parameters
+        ----------
+            audio : np.ndarray
+                mono audio sampled at SAMPLE_RATE
+
+        Returns
+        -------
+            np.ndarray
+                mel-band power in decibels, shape (n_mels, frames)
+        """
         x = torch.from_numpy(audio.astype(np.float32))
         spec = torch.stft(
             x, N_FFT, HOP, window=torch.hann_window(N_FFT), return_complex=True
@@ -269,7 +285,11 @@ def _(DATASET_LOCATION, ESC50_ROOT, log_mel, meta, mo, np, pathlib, sf):
             _specs.append(log_mel(_audio))
         features = np.stack(_specs).astype(np.float32)
         # dtype=str stores the names as plain unicode, otherwise they are pickled objects
-        np.savez(_cache, features=features, names=meta["filename"].to_numpy(dtype=str))
+        np.savez(
+            _cache,
+            features=features,
+            names=meta["filename"].to_numpy(dtype=str),
+        )
     labels = meta["target"].to_numpy()
     groups = meta["src_file"].to_numpy()
     print(f"{features.shape=} {labels.shape=}")
@@ -294,9 +314,9 @@ def _(mo):
     mo.md(r"""
     ## The dataset and the model
 
-    The `Dataset` just indexes into the feature array. Notice there is no normalisation in here. The mean and standard deviation have to come from the **training set only** (working them out over everything is a smaller leak of its own), so I store them inside the model as buffers. That way they get saved with the weights and can never drift out of step with them.
+    The `Dataset` returns a spectrogram and its label. I have left normalisation out of this class as we need to calculate the mean and standard deviation from the training set for each split. Using all the data would let the validation and test sets influence preprocessing.
 
-    The model is a deliberately ordinary small CNN, four conv blocks then global average pooling. Nothing in this notebook depends on it being clever.
+    I store these values as buffers in the model so they are saved with its weights. The model itself uses four convolution blocks followed by global average pooling and a linear classifier. This is enough for us to compare the two ways of splitting the data.
     """)
     return
 
@@ -365,7 +385,7 @@ def _(Dataset, features, labels, nn, torch):
             return self.classifier(self.features(x))
 
     def random_time_shift(x: torch.Tensor) -> torch.Tensor:
-        """Augmentation: roll each batch along time by a random amount."""
+        """Shift every spectrogram in the batch by the same random time offset."""
         return torch.roll(x, shifts=int(torch.randint(0, x.shape[-1], (1,))), dims=-1)
 
     esc_dataset = SpectrogramDataset(features, labels)
@@ -375,9 +395,9 @@ def _(Dataset, features, labels, nn, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The training loop is the same `train_epoch` / `evaluate` pair from the Utils library that we have used before. We keep the weights from the epoch with the best **validation** accuracy, then report accuracy once on the test set.
+    We use the `train_epoch` and `evaluate` functions from `Utils`, as in the earlier notebooks. We keep the weights from the epoch with the best validation accuracy and evaluate those weights once on the test set.
 
-    Note that the validation set is split the same way as the test set in each experiment. If the validation set leaked we would be choosing the epoch that memorised best, which is the same mistake one step removed.
+    We also split the validation set by the same method as the test set. If related recordings cross into validation, model selection can favour a model that recognises those recordings. Keeping the test set separate is only part of the job.
     """)
     return
 
@@ -473,7 +493,7 @@ def _(mo):
     mo.md(r"""
     ## 2. The random split
 
-    This is the split you will see in most tutorials, 60% train, 20% validation, 20% test, chosen at random. Each clip is treated as if it were independent of every other clip.
+    First we assign 60% of the clips to training, 20% to validation and 20% to testing using `random_split`. This treats each clip as an independent sample and does not use the source recording information.
     """)
     return
 
@@ -481,7 +501,9 @@ def _(mo):
 @app.cell
 def _(esc_dataset, random_split, run_experiment, torch):
     _train, _val, _test = random_split(
-        esc_dataset, [0.6, 0.2, 0.2], generator=torch.Generator().manual_seed(42)
+        esc_dataset,
+        [0.6, 0.2, 0.2],
+        generator=torch.Generator().manual_seed(42),
     )
     random_result = run_experiment(
         "random split", _train.indices, _val.indices, _test.indices
@@ -493,7 +515,7 @@ def _(esc_dataset, random_split, run_experiment, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    That looks like a good result. Before we celebrate, let's check how many of the test clips have a sibling (another take from the same recording) sitting in the training set.
+    Before interpreting that accuracy, let's check how many test clips have another take from the same recording in the training set. I will call these related takes siblings in the plots below.
     """)
     return
 
@@ -515,11 +537,11 @@ def _(mo):
     mo.md(r"""
     ## 3. The group split
 
-    Now the same thing, but every recording goes wholly into train, validation or test. `GroupShuffleSplit` works like `train_test_split` but takes a `groups` array and never puts one group on both sides. We use it twice, once to carve off the test set and again to split what is left into train and validation.
+    Now we keep every clip from a source recording in the same set. `GroupShuffleSplit` takes a `groups` array and keeps each group on one side of the split. We use it once to set aside the test groups, then again to split the remaining groups into training and validation.
 
-    Because groups vary in size the proportions will not be exactly 60/20/20, which is fine.
+    The first split sets aside 20% of the groups. The second uses 25% of the remaining groups for validation, giving roughly 60/20/20 overall. These are proportions of groups, so the clip counts can differ. This splitter does not balance the classes either.
 
-    The `assert` lines are the important bit. This is the kind of thing that should be in your project's tests, it costs nothing and it catches the mistake for good.
+    The assertions check that no source recording appears in more than one set. I would include this check in the project's tests so that later changes to the data loading do not introduce an overlap.
     """)
     return
 
@@ -567,9 +589,11 @@ def _(group_test_idx, group_train_idx, group_val_idx, run_experiment):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Side by side
+    ### Comparing the results
 
-    Same model, same data, same number of epochs, same seed. On the left we break the random split's test accuracy down into clips that had a sibling in training and clips that did not. On the right are the validation curves.
+    We use the same model architecture, dataset, epoch limit and random seed for both runs. The clips in each set differ, and the group split can also change the set sizes and class balance.
+
+    On the left we compare the test accuracies, including the random split's clips with and without a sibling in training. On the right we plot training and validation accuracy for both runs.
     """)
     return
 
@@ -587,7 +611,9 @@ def _(esc_dataset, group_result, plt, random_result, test_has_sibling):
     }
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 4))
     _b = _ax1.bar(
-        _bars.keys(), _bars.values(), color=["#C44E52", "#C44E52", "#8C8C8C", "#4C72B0"]
+        _bars.keys(),
+        _bars.values(),
+        color=["#C44E52", "#C44E52", "#8C8C8C", "#4C72B0"],
     )
     _ax1.bar_label(_b, labels=[f"{v:.0%}" for v in _bars.values()])
     _ax1.set_ylim(0, 1.05)
@@ -605,7 +631,7 @@ def _(esc_dataset, group_result, plt, random_result, test_has_sibling):
     _ax2.set_ylabel("accuracy")
     _ax2.set_ylim(0, 1.05)
     _ax2.legend()
-    _ax2.set_title("The random split's validation curve gives no warning")
+    _ax2.set_title("Training and validation accuracy")
     _fig.tight_layout()
     _fig
     return
@@ -614,11 +640,11 @@ def _(esc_dataset, group_result, plt, random_result, test_has_sibling):
 @app.cell(hide_code=True)
 def _(group_result, mo, random_result):
     mo.md(f"""
-    The random split reports **{random_result["test_acc"]:.0%}**, the group split **{group_result["test_acc"]:.0%}**. Only the second number tells you how the model will do on a recording it has never heard, which is the only situation anyone will ever use it in.
+    The random split gives {random_result["test_acc"]:.0%} test accuracy and the group split gives {group_result["test_acc"]:.0%}. The group split estimates performance on source recordings held out from training. This is the relevant check if we want to classify clips from new recordings.
 
-    Look at the right hand plot as well. Nothing in the random split's curves looks wrong, the validation set leaks in exactly the same way as the test set so it agrees with it. **You cannot spot this from the training curves.** You have to know how your data was made.
+    Look at the curves on the right as well. Training and validation curves alone cannot tell us whether recordings overlap between sets. We need to check the metadata and understand how the clips were collected.
 
-    One split is a single sample though. The next section uses cross validation to get a mean and spread, using models fast enough to run five times.
+    These results come from one split of each kind, so we should not attribute every difference to leakage. Next we will use cross-validation with smaller models and compare the mean accuracy and variation across folds.
     """)
     return
 
@@ -626,11 +652,13 @@ def _(group_result, mo, random_result):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4. What did the model actually learn?
+    ## 4. Looking for recording-specific clues
 
-    The easiest way to see memorisation is with a model that does nothing *but* memorise. A 1-nearest-neighbour classifier labels each test clip with the label of the single most similar training clip. For features we squash each spectrogram down to the mean and standard deviation of every mel band (128 numbers per clip).
+    A 1-nearest-neighbour classifier assigns each test clip the label of its closest training clip. This gives us a way to inspect which clips look similar using our chosen features. We summarise each spectrogram with the mean and standard deviation of each mel band, giving 128 values per clip.
 
-    We run it with 5 fold `KFold` (random) and `GroupKFold` (by recording), and also with the folds ESC-50 ships with. The official folds were built so that each recording only appears in one fold, which is exactly why you should use them when reporting results on this dataset.
+    We also try logistic regression using the quietest quarter of the frames, ranked by their mean log-mel value. I use this as a rough way to look for background information. These frames can still contain the labelled sound, so this does not isolate the background.
+
+    We compare five-fold `KFold` with shuffled clips, `GroupKFold` grouped by recording, and the official ESC-50 folds. The [official folds](https://github.com/karolpiczak/ESC-50#esc-50-dataset-for-environmental-sound-classification) keep clips from the same source together and should be used when comparing against published ESC-50 results. The scaler is fitted within each training fold using a pipeline.
     """)
     return
 
@@ -641,7 +669,7 @@ def _(features, np):
         [features.mean(axis=2), features.std(axis=2)], axis=1
     )
 
-    # The quietest quarter of each clip is mostly background, not the sound being labelled
+    # use quiet frames as a rough proxy for background; they can still contain the labelled sound
     _frame_energy = features.mean(axis=1)
     _quiet = np.argsort(_frame_energy, axis=1)[:, : features.shape[2] // 4]
     background_features = np.stack(
@@ -672,14 +700,17 @@ def _(
     _splitters = {
         "KFold (random)": (KFold(5, shuffle=True, random_state=42), None),
         "GroupKFold (by recording)": (GroupKFold(5), groups),
-        "official ESC-50 folds": (PredefinedSplit(meta["fold"].to_numpy() - 1), None),
+        "official ESC-50 folds": (
+            PredefinedSplit(meta["fold"].to_numpy() - 1),
+            None,
+        ),
     }
     _models = {
         "1-NN, whole clip": (
             make_pipeline(StandardScaler(), KNeighborsClassifier(1)),
             summary_features,
         ),
-        "logistic regression, background only": (
+        "logistic regression, quiet frames": (
             make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000)),
             background_features,
         ),
@@ -706,16 +737,14 @@ def _(cv_results, mo):
     def _get(m, s):
         return cv_results.query("model == @m and split == @s")["mean accuracy"].item()
 
-    _bg_random = _get("logistic regression, background only", "KFold (random)")
-    _bg_group = _get(
-        "logistic regression, background only", "GroupKFold (by recording)"
-    )
+    _bg_random = _get("logistic regression, quiet frames", "KFold (random)")
+    _bg_group = _get("logistic regression, quiet frames", "GroupKFold (by recording)")
     mo.md(f"""
-    Look at the background only row. That model never sees the loud part of the clip, the bit with the dog in it. It is given the noise floor of the quietest quarter of the clip and nothing else. Chance on 50 classes is 2%.
+    The quiet-frame model gives {_bg_random:.0%} mean accuracy with a random split and {_bg_group:.0%} with a group split. Uniform random guessing across 50 classes has an expected accuracy of 2%.
 
-    With a random split it scores **{_bg_random:.0%}**. With a group split it drops to **{_bg_group:.0%}**.
+    If the random split scores higher, shared recording conditions are one possible explanation. However, the quiet frames can also contain useful class information, such as a continuous rain sound. This experiment does not prove which features the CNN uses.
 
-    The background is a fingerprint for the recording, and because the recording's other takes are in the training set, recognising the fingerprint is enough to get the label right. A CNN will happily use the same shortcut, it has no way of knowing which part of the spectrogram you care about. Also note the official folds and `GroupKFold` agree with each other, and both disagree with `KFold`.
+    Compare the official folds with `GroupKFold` as well. Both keep source recordings together, but their scores need not match as they use different assignments of recordings to folds.
     """)
     return
 
@@ -723,9 +752,11 @@ def _(cv_results, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Listening to the shortcut
+    ### Listening to similar clips
 
-    For each test clip in the random split we can ask which training clip it is closest to. If the model were learning "what a dog sounds like" the nearest clip would just be another dog. Let's see how often it is literally another take from the same recording.
+    For each test clip in the random split we find the closest training clip using the standardised summary features. Let's check how often this is another take from the same recording, then listen to a few pairs.
+
+    This comparison uses the summary features from above, rather than features learnt by the CNN.
     """)
     return
 
@@ -771,21 +802,32 @@ def _(
     _panels = []
     for _i in _picks:
         _a, _b = _te[_i], nearest_train[_i]
-        _fig, _axes = plt.subplots(1, 2, figsize=(9, 2.4), sharey=True)
-        for _ax, _idx, _role in zip(
-            _axes, (_a, _b), ("test clip", "nearest training clip")
-        ):
+        _columns = []
+        for _idx, _role in zip((_a, _b), ("test clip", "nearest training clip")):
+            _fig, _ax = plt.subplots(figsize=(4.5, 2.4))
             _ax.imshow(features[_idx], origin="lower", aspect="auto", cmap="magma")
-            _ax.set_title(f"{_role}: {meta['filename'][_idx]}", fontsize=9)
-        _fig.tight_layout()
-        _players = []
-        for _idx in (_a, _b):
+            _fig.subplots_adjust(left=0.1, right=0.98, bottom=0.15, top=0.95)
             _audio, _rate = sf.read(ESC50_ROOT / "audio" / meta["filename"][_idx])
-            _players.append(mo.audio(_audio, rate=_rate))
+            _columns.append(
+                mo.vstack(
+                    [
+                        mo.md(f"**{_role}**"),
+                        mo.md(f"`{meta['filename'][_idx]}`"),
+                        mo.as_html(_fig),
+                        mo.audio(_audio, rate=_rate).style({"width": "100%"}),
+                    ],
+                    align="stretch",
+                )
+            )
+            plt.close(_fig)
         _panels.append(
-            mo.vstack([mo.md(f"**{meta['category'][_a]}**"), _fig, mo.hstack(_players)])
+            mo.vstack(
+                [
+                    mo.md(f"**{meta['category'][_a]}**"),
+                    mo.hstack(_columns, widths="equal", align="start", gap=1),
+                ]
+            )
         )
-        plt.close(_fig)
     mo.vstack(_panels)
     return
 
@@ -793,9 +835,9 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Where the honest model fails
+    ### Where the group split model fails
 
-    Finally the group split CNN's mistakes. These are the interesting results for a write up: which classes get confused, and does it make sense when you listen? This is what "show where it fails" on the ideas page means.
+    Finally we list the most common mistakes from the CNN trained with the group split. For your writeup, look at which classes are confused and listen to some examples. Can you hear why they might be difficult to distinguish? This is the sort of analysis I am asking for on the project ideas page.
     """)
     return
 
@@ -806,7 +848,10 @@ def _(esc_dataset, group_result, meta, pd):
     _true = esc_dataset.labels[group_result["test_idx"]].numpy()
     _pred = group_result["preds"]
     _wrong = pd.DataFrame(
-        {"true": _names[_true].to_numpy(), "predicted": _names[_pred].to_numpy()}
+        {
+            "true": _names[_true].to_numpy(),
+            "predicted": _names[_pred].to_numpy(),
+        }
     )[_true != _pred]
     confusions = _wrong.value_counts().rename("count").reset_index().head(15)
     confusions
@@ -816,31 +861,33 @@ def _(esc_dataset, group_result, meta, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 5. Checklist for your project
+    ## 5. Applying this to your project
 
-    Before you split anything, write down the answer to one question: **what is a group in my data?** A group is anything that makes two samples more alike than two random samples from the same class would be.
+    Before splitting the data, decide what you want the model to handle when it is used. New recordings, new performers and new scenes each suggest a different grouping. We need to keep related samples together at the level we want to evaluate.
 
-    | Project type | Likely group |
+    These are some starting points:
+
+    | Project type | Possible group |
     |---|---|
-    | Anything built from video | the video, or at least the shot. Never split individual frames |
-    | Audio cut into clips | the source recording, and often the speaker or performer |
-    | Speech, dialogue cleanup, diarisation | the speaker |
-    | Mocap, gesture, facial animation | the performer (and the capture session) |
-    | Music tagging | the artist, sometimes the album |
-    | Synthetic renders (denoising, depth, materials) | the scene, plus any shared assets such as HDRIs and textures |
+    | Video | the source video or shot, keeping related frames together |
+    | Audio cut into clips | the source recording |
+    | Speech, dialogue cleanup, diarisation | the speaker or recording session, depending on the task |
+    | Mocap, gesture, facial animation | the performer or capture session |
+    | Music tagging | the artist or album |
+    | Synthetic renders | the scene, considering shared assets such as HDRIs and textures |
     | Patches cut from images or textures | the source image |
-    | Augmented data | the original sample. Augment *after* splitting, never before |
+    | Augmented data | the original sample, splitting before augmentation |
 
-    Then:
+    For your project:
 
-    1. Put the group in your metadata as a column, the same way ESC-50 has `src_file`.
-    2. Split with `GroupShuffleSplit` / `GroupKFold` (or the dataset's official split if it has one).
-    3. Split the validation set the same way as the test set.
-    4. Compute normalisation statistics, vocabularies, PCA etc. on the training set only.
-    5. Add a test like the one below to your test suite so it stays fixed.
-    6. Report how you split in your write up, and why.
+    1. Store the group identifier in the metadata, as ESC-50 does with `src_file`.
+    2. Use `GroupShuffleSplit` or `GroupKFold`, or an official split that matches the evaluation you need.
+    3. Keep groups separate in validation as well as testing.
+    4. Fit normalisation statistics, vocabularies and PCA on the training set only.
+    5. Add a test for group overlap, like the check below.
+    6. Explain the split and the choice of groups in your write-up.
 
-    If your dataset has no group information at all, say so, and think about what the hidden groups might be. Near duplicates are common in scraped datasets.
+    If the dataset has no group information, say so and explain what you have been able to check. Look for duplicate or near-duplicate samples as well.
     """)
     return
 
@@ -871,10 +918,10 @@ def _(mo):
     mo.md(r"""
     ## Things to try
 
-    - Change `EPOCHS` or the model. The gap between the two splits does not go away with a better model, a bigger model usually memorises *better*.
-    - Train on the official folds 1-4 and test on fold 5, then do all five and report the mean.
-    - Add a saliency map ([Grad-CAM](https://arxiv.org/abs/1610.02391) or occlusion) to see which parts of the spectrogram the random split model relies on.
-    - Remove the quietest frames before training and see if the random split gap shrinks.
+    - Change `EPOCHS` or the model and compare the results. A different model does not remove overlap in the data, even if the accuracy gap changes.
+    - Use the official folds, holding out each fold in turn for testing. Choose validation data from the remaining folds and report the mean test accuracy across all five runs.
+    - Try a saliency map ([Grad-CAM](https://arxiv.org/abs/1610.02391) or occlusion) to investigate which parts of the spectrogram affect the CNN's predictions.
+    - Remove the quietest frames before training and compare the two splits again. Bear in mind that this may remove some of the labelled sound as well.
 
     ## Reference
 
