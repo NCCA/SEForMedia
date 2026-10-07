@@ -23,15 +23,15 @@ The first image build downloads the Python base image and PyTorch so takes a few
 
 ## What is here
 
-| File | Description |
-| :--- | :--- |
-| [CloudTrainingMarimo.py](CloudTrainingMarimo.py) | The notebook, drives everything else |
-| [spiralnet/](spiralnet/) | Data, model and training loop shared by the notebook and the job |
-| [train.py](train.py) | Standalone training job, configured by arguments or environment variables |
-| [Containerfile.train](Containerfile.train) | Training image, CPU PyTorch |
-| [serve.py](serve.py) | FastAPI inference service running the exported ONNX model |
-| [Containerfile.serve](Containerfile.serve) | Inference image, onnxruntime only |
-| `requirements-*.txt` | Pinned dependencies for each image |
+| File                                             | Description                                                               |
+| :----------------------------------------------- | :------------------------------------------------------------------------ |
+| [CloudTrainingMarimo.py](CloudTrainingMarimo.py) | The notebook, drives everything else                                      |
+| [spiralnet/](spiralnet/)                         | Data, model and training loop shared by the notebook and the job          |
+| [train.py](train.py)                             | Standalone training job, configured by arguments or environment variables |
+| [Containerfile.train](Containerfile.train)       | Training image, CPU PyTorch                                               |
+| [serve.py](serve.py)                             | FastAPI inference service running the exported ONNX model                 |
+| [Containerfile.serve](Containerfile.serve)       | Inference image, onnxruntime only                                         |
+| `requirements-*.txt`                             | Pinned dependencies for each image                                        |
 
 The notebook writes the dataset and every run to `bucket/` (our pretend cloud storage), which is gitignored.
 
