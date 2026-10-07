@@ -214,6 +214,149 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Training by hand
+
+    Before we let PyTorch do the work, it's worth having a go at being the optimiser yourself. The demo below draws the line $y = wx + b$ over our data, with the weight and bias set by the sliders. Press **Randomise line** to start from a random guess (much like our model does with `torch.randn`), then move the sliders to try and fit the line to the data.
+
+    As you move them you will see three things update:
+
+    1. The loss, this is the Mean Absolute Error (MAE) between the line and the training data, which is the same loss we use to train the model later.
+    2. The gradients of the loss with respect to $w$ and $b$, calculated using PyTorch autograd. These tell you which way to move each slider, if the gradient is positive the loss goes up as the value increases so you need to move the slider down (and vice versa).
+    3. The loss landscape, a contour plot of the loss for every combination of $w$ and $b$. Your current guess is the red dot, the white arrow points downhill, and training is really just a matter of walking down to the lowest point.
+
+    The last line of the readout shows where a single SGD step would move you to. If you keep setting the sliders to those values you are doing exactly what `optimizer.step()` does for us in the training loop.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    randomise_button = mo.ui.button(
+        label="Randomise line", value=0, on_click=lambda count: count + 1
+    )
+    return (randomise_button,)
+
+
+@app.cell
+def _(mo, randomise_button):
+    import random
+
+    # referencing the button value means this cell re-runs (and the sliders
+    # get new random starting values) each time the button is pressed
+    randomise_button.value
+    manual_w_slider = mo.ui.slider(
+        -3,
+        3,
+        step=0.01,
+        value=round(random.uniform(-2, 2), 2),
+        label="weight (w)",
+    )
+    manual_b_slider = mo.ui.slider(
+        -3,
+        3,
+        step=0.01,
+        value=round(random.uniform(-2, 2), 2),
+        label="bias (b)",
+    )
+    return manual_b_slider, manual_w_slider
+
+
+@app.cell
+def _(
+    X_test,
+    X_train,
+    manual_b_slider,
+    manual_w_slider,
+    mo,
+    plt,
+    randomise_button,
+    torch,
+    y_test,
+    y_train,
+):
+    # use tensors with requires_grad so autograd can give us the gradients
+    _w = torch.tensor(manual_w_slider.value, requires_grad=True)
+    _b = torch.tensor(manual_b_slider.value, requires_grad=True)
+    _loss = torch.mean(torch.abs((_w * X_train + _b) - y_train))
+    _loss.backward()
+    _lr = 0.1
+
+    _fig, (_ax_line, _ax_loss) = plt.subplots(1, 2, figsize=(22, 8))
+
+    # left, the data and our hand tuned line
+    _ax_line.scatter(X_train, y_train, c="b", s=4, label="Training")
+    _ax_line.scatter(X_test, y_test, c="g", s=4, label="Testing")
+    _xs = torch.tensor([0.0, 1.0])
+    _ax_line.plot(
+        _xs,
+        _w.item() * _xs + _b.item(),
+        c="r",
+        label=f"y = {_w.item():.2f}x + {_b.item():.2f}",
+    )
+    _ax_line.set_ylim(-3, 4)
+    _ax_line.set_xlabel("X")
+    _ax_line.set_ylabel("Y")
+    _ax_line.set_title("Your line vs the data")
+    _ax_line.legend(loc="upper left")
+
+    # right, the MAE loss for a grid of weights and biases
+    _ws, _bs = torch.meshgrid(
+        torch.linspace(-3, 3, 121), torch.linspace(-3, 3, 121), indexing="xy"
+    )
+    _grid_loss = torch.mean(
+        torch.abs(
+            _ws[..., None] * X_train.squeeze() + _bs[..., None] - y_train.squeeze()
+        ),
+        dim=-1,
+    )
+    _contour = _ax_loss.contourf(_ws, _bs, _grid_loss, levels=30, cmap="viridis")
+    _fig.colorbar(_contour, ax=_ax_loss, label="MAE loss")
+    _ax_loss.scatter(_w.item(), _b.item(), c="r", s=60, edgecolors="w", zorder=3)
+    # an arrow pointing the way an SGD step would take us (downhill)
+    _ax_loss.annotate(
+        "",
+        xy=(
+            _w.item() - _w.grad.item() * 0.5,
+            _b.item() - _b.grad.item() * 0.5,
+        ),
+        xytext=(_w.item(), _b.item()),
+        arrowprops={"arrowstyle": "->", "color": "w", "lw": 2},
+    )
+    _ax_loss.set_xlabel("weight (w)")
+    _ax_loss.set_ylabel("bias (b)")
+    _ax_loss.set_title("Loss landscape")
+    _fig.tight_layout()
+
+    _readout = mo.md(
+        f"""
+    **Loss (MAE):** {_loss.item():.4f}
+
+    | | value | gradient |
+    |---|---|---|
+    | w | {_w.item():.2f} | {_w.grad.item():+.3f} |
+    | b | {_b.item():.2f} | {_b.grad.item():+.3f} |
+
+    One SGD step with lr = {_lr} would give
+    w = {_w.item() - _lr * _w.grad.item():.2f},
+    b = {_b.item() - _lr * _b.grad.item():.2f}
+    """
+    )
+
+    mo.vstack(
+        [
+            mo.hstack(
+                [randomise_button, manual_w_slider, manual_b_slider],
+                justify="center",
+            ),
+            mo.hstack([_fig, _readout], justify="center", align="center"),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Training the Model
 
     At present we have a random starting prediction, what we need to do is to train the model to get the correct weights and bias, what we do is check how close we are then use an optimization algorithm to update the weights and bias to get a better prediction.
@@ -371,7 +514,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
@@ -415,7 +558,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
