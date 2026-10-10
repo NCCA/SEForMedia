@@ -28,6 +28,7 @@ dependencies = [
     "onnxruntime>=1.22.1",
     "onnxscript>=0.4.0",
     "pandas>=2.2.3",
+    "plotly>=7.1.0",
     "polars>=1.24.0",
     "pydantic-ai-slim>=2.52.0",
     "pyqt5>=5.15.11",
