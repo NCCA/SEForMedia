@@ -41,6 +41,7 @@ dependencies = [
     "torchcodec>=0.16.0",
     "torchvision>=0.21.0",
     "tqdm>=4.67.1",
+    "trimesh>=5.1.1",
 ]
 # always enforce latest marimo
 [tool.uv]
