@@ -15,47 +15,27 @@ def _(mo):
     select weights using validation loss, then inspect held-out predictions.
     The generated data lets us test the full loop before using ModelNet10.
 
-    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom.
-    Camera controls do not change the input coordinates or repeat training.
-    Run this notebook with `uv run --with plotly marimo edit` followed by its path.
-
     By the end we should be able to train from logits, keep the splits separate,
-    and explain a confusion matrix and per-class accuracy. This builds on
-    [PyTorch for ML](../PyTorchForML/README.md).
+    and explain a confusion matrix and per-class accuracy.
     """)
     return
 
 
 @app.cell
 def _():
-    import inspect
     import sys
     from pathlib import Path
     import marimo as mo
-    import numpy as np
     import torch
     from torch import nn
 
     # This also works when marimo starts from the notebook's own folder.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pointcloud as pc
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
-    return (inspect, mo, nn, np, pc, torch, Path)
-
-
-@app.cell
-def _(mo):
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ModuleNotFoundError:
-        mo.stop(
-            True,
-            mo.md(
-                "Plotly is missing. Add --with plotly to the uv run command for this notebook."
-            ),
-        )
-    return go, make_subplots
+    return Path, go, make_subplots, mo, nn, pc, torch
 
 
 @app.cell(hide_code=True)
@@ -63,20 +43,55 @@ def _(mo):
     mo.md(r"""
     ## Data and training controls
 
-    Use generated sphere/cube/rod surfaces for a quick CPU experiment, or enter the
-    path to an extracted [ModelNet10](https://modelnet.cs.princeton.edu/) directory.
-    The expected layout is `ModelNet10/chair/train/*.off` and `chair/test/*.off`,
-    with matching folders for every category. Download and extract the dataset yourself.
-    For ModelNet run marimo with `uv run --with plotly --with 'trimesh>=4.6' marimo edit ...`.
+    We can train using generated sphere, cube and rod surfaces, or sample point clouds from meshes in ModelNet10. Start with the generated shapes for a quick CPU experiment. They need no downloaded assets and let us check the training loop before trying a larger dataset.
 
-    We reserve 20% of each training category for validation, keeping each source
-    mesh in only one split. The official test directory is separate. Generated
-    training and test shapes use different seeds. Sampling is cached for this run;
-    we do not resample a mesh and pretend it is a new independent object.
+    ### Download and select ModelNet10
 
-    The limit is **per category**, so a short run remains balanced. Zero loads all
-    meshes. The small default budget demonstrates the loop; it is not a benchmark.
-    The form controls data loading and training together. No download happens automatically.
+    ModelNet10 contains 3D CAD meshes from ten object categories, with training and test splits supplied in the archive. These are source meshes from which we will sample points, rather than pretrained network weights. The meshes use the `.off` format.
+
+    To use them:
+
+    1. Open the [official ModelNet download page](https://modelnet.cs.princeton.edu/download.html).
+    2. Select **ModelNet10.zip** under **Download 10-Class Orientation-aligned Subset**.
+    3. Extract the archive to a local folder.
+    4. Enter the path to the extracted `ModelNet10` folder in the notebook’s dataset-path field.
+
+    Select the folder containing the category directories, rather than the ZIP file, an individual mesh or a category’s `train` folder. The expected structure is:
+
+    ```text
+    ModelNet10/
+    ├── chair/
+    │   ├── train/
+    │   │   └── *.off
+    │   └── test/
+    │       └── *.off
+    ├── bed/
+    │   ├── train/
+    │   │   └── *.off
+    │   └── test/
+    │       └── *.off
+    └── ... other category folders
+    ```
+
+    For example, if we extract the archive into a folder named `datasets`, the path we enter should end in `datasets/ModelNet10`. An absolute path avoids ambiguity about which working directory the notebook uses.
+
+    The notebook does not download the dataset automatically. We supply the extracted files ourselves.
+
+    ### Keep training, validation and testing separate
+
+    For ModelNet10, we reserve 20% of each training category for validation. The remaining training examples are used to update the network’s weights. Validation examples let us inspect its behaviour on objects it has not trained on, whilst the official `test` directories remain a separate set for evaluation.
+
+    We split by **source mesh**, so each object belongs to only one split. Sampling two clouds from the same mesh does not give us two independent objects. Putting one in training and the other in validation would allow the network to see the validation object’s geometry during training, making the results misleading.
+
+    Sampling is cached for the current run, so we reuse each mesh’s sampled cloud during training. For the generated dataset, training and test examples use different random seeds.
+
+    ### Choose a small experiment first
+
+    The mesh limit applies **per category**. A limit of 20 requests up to 20 meshes from each category, rather than 20 meshes across the entire dataset. This keeps a short run balanced when each category has enough examples. A limit of zero loads all available meshes.
+
+    The mesh limit and point count control different things: the limit sets how many objects we load, whilst the point count sets how many surface samples represent each object. Increasing either adds work; increasing the point count does not increase the number of independent training objects.
+
+    Set the data and training options, then submit the form to load the data and start training. Begin with the small default budget to inspect the data flow and training results before increasing it. This simplified model and short run demonstrate the process; their scores should not be treated as a ModelNet benchmark.
     """)
     return
 
@@ -92,7 +107,10 @@ def _(mo):
                 32, 2048, value=128, step=32, label="Points per shape"
             ),
             "limit": mo.ui.number(
-                0, 1000, value=24, label="Training meshes per category (0 = all)"
+                0,
+                1000,
+                value=24,
+                label="Training meshes per category (0 = all)",
             ),
             "epochs": mo.ui.number(1, 200, value=12, label="Epochs"),
             "lr": mo.ui.number(
@@ -106,9 +124,10 @@ def _(mo):
 
 
 @app.cell
-def _(training_form, mo, pc):
+def _(mo, pc, training_form):
     mo.stop(
-        training_form.value is None, mo.md("Submit the form to load data and train.")
+        training_form.value is None,
+        mo.md("Submit the form to load data and train."),
     )
     settings = training_form.value
     try:
@@ -157,7 +176,7 @@ def _(training_form, mo, pc):
         tuple(test_x.shape),
     )
     print("Categories:", names)
-    return (settings, train_x, train_y, val_x, val_y, test_x, test_y, names)
+    return names, settings, test_x, test_y, train_x, train_y, val_x, val_y
 
 
 @app.cell(hide_code=True)
@@ -165,17 +184,23 @@ def _(mo):
     mo.md(r"""
     ## Train, validate and keep the best weights
 
-    Cross entropy expects raw logits and integer class indices. We use small batches
-    and a fresh model for every submitted run. Validation is evaluated without
-    gradients after each epoch; it selects the checkpoint. Test data is only used
-    below, after selection. All calculations here use CPU, so the lesson does not
-    need an accelerator. Changing display controls does not repeat training.
+    Each submitted run starts with a fresh model and newly initialised weights. We train on small batches of clouds, using cross-entropy loss to compare the model’s predictions with the correct labels.
+
+    Cross entropy expects **raw logits**: one score per class, before applying softmax. The target for each cloud is an integer class index. For a batch of \(B\) clouds and \(C\) classes, the logits have shape `(B, C)` and the targets have shape `(B,)`. We pass these directly to the loss function, which performs the required probability calculation internally.
+
+    For each training batch, we clear the previous gradients, calculate the logits and loss, then backpropagate and update the weights. One *epoch* completes a pass through the training set.
+
+    After each epoch, we evaluate the validation set with the model in evaluation mode and gradient calculation disabled. These examples do not update the weights. Instead, their results determine which checkpoint we keep: a saved copy of the weights from the epoch that performs best according to our validation criterion. The final epoch is not necessarily the best one, because performance on unseen examples can worsen even whilst training loss continues to fall.
+
+    We restore the selected weights before evaluating the test set below. Keeping test data out of checkpoint selection gives us a separate assessment of the chosen model. If we repeatedly change our settings in response to test scores, the test set also becomes part of our selection process.
+
+    All calculations run on the CPU, so the lesson does not require an accelerator. Submitting the training form starts a new run; changing the display controls lets us inspect the existing results without repeating training.
     """)
     return
 
 
 @app.cell
-def _(settings, train_x, train_y, val_x, val_y, names, pc, torch, nn, mo):
+def _(mo, names, nn, pc, settings, torch, train_x, train_y, val_x, val_y):
     with torch.random.fork_rng():
         torch.manual_seed(int(settings["seed"]))
         trained_model = pc.PointNet(len(names))
@@ -220,19 +245,27 @@ def _(settings, train_x, train_y, val_x, val_y, names, pc, torch, nn, mo):
     trained_model.load_state_dict(_best_state)
     trained_model.eval()
     print("Best validation loss:", round(_best_loss, 4))
-    return (trained_model, history)
+    return history, trained_model
 
 
 @app.cell
-def _(history, go, make_subplots, mo):
+def _(go, history, make_subplots, mo):
     _epochs = [item["epoch"] for item in history]
     classification_curve = make_subplots(
-        rows=1, cols=2, subplot_titles=("Learning curves", "Validation accuracy")
+        rows=1,
+        cols=2,
+        subplot_titles=("Learning curves", "Validation accuracy"),
     )
-    for _key, _name in [("train_loss", "Training"), ("val_loss", "Validation")]:
+    for _key, _name in [
+        ("train_loss", "Training"),
+        ("val_loss", "Validation"),
+    ]:
         classification_curve.add_trace(
             go.Scatter(
-                x=_epochs, y=[item[_key] for item in history], mode="lines", name=_name
+                x=_epochs,
+                y=[item[_key] for item in history],
+                mode="lines",
+                name=_name,
             ),
             row=1,
             col=1,
@@ -252,11 +285,11 @@ def _(history, go, make_subplots, mo):
     classification_curve.update_yaxes(title_text="Accuracy", range=[0, 1], row=1, col=2)
     classification_curve.update_layout(height=400)
     mo.ui.plotly(classification_curve, config={"displaylogo": False})
-    return (classification_curve,)
+    return
 
 
 @app.cell
-def _(trained_model, test_x, test_y, names, torch, mo, go):
+def _(go, mo, names, test_x, test_y, torch, trained_model):
     with torch.no_grad():
         test_logits = torch.cat([trained_model(_batch) for _batch in test_x.split(32)])
     predictions = test_logits.argmax(1)
@@ -295,7 +328,7 @@ def _(trained_model, test_x, test_y, names, torch, mo, go):
             mo.ui.plotly(confusion_plot, config={"displaylogo": False}),
         ]
     )
-    return predictions, test_logits, confusion_plot
+    return (predictions,)
 
 
 @app.cell
@@ -308,7 +341,7 @@ def _(mo, test_x):
 
 
 @app.cell
-def _(example_index, predictions, test_x, test_y, names, pc, go, mo):
+def _(example_index, mo, names, pc, predictions, test_x, test_y):
     _index = example_index.value
     print(
         "Actual:",
@@ -317,14 +350,15 @@ def _(example_index, predictions, test_x, test_y, names, pc, go, mo):
         names[int(predictions[_index])],
     )
     print(
-        "Misclassified indices:", (predictions != test_y).nonzero().flatten().tolist()
+        "Misclassified indices:",
+        (predictions != test_y).nonzero().flatten().tolist(),
     )
     prediction_view = pc.cloud_figure(
         test_x[_index].numpy(),
         f"Actual: {names[int(test_y[_index])]} — predicted: {names[int(predictions[_index])]}",
     )
     mo.ui.plotly(prediction_view, config={"displaylogo": False, "scrollZoom": True})
-    return (prediction_view,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -348,7 +382,7 @@ def _(mo):
 
 
 @app.cell
-def _(save_button, mo, Path, torch, trained_model, names, settings, history):
+def _(Path, history, mo, names, save_button, settings, torch, trained_model):
     mo.stop(not save_button.value)
     _output = Path(__file__).resolve().parent / "outputs"
     _output.mkdir(exist_ok=True)
