@@ -11,53 +11,37 @@ def _(mo):
     mo.md(r"""
     # Point Clouds for Machine Learning, Part 5: robustness and rotations
 
-    A classifier can score well on upright objects and fail when we turn them
-    sideways. We will train two copies of [Part 4's](PointCloudForMLPart4Classification.py)
-    model from identical initial weights, using the same batches and budget.
-    One sees original clouds; the other sees random full 3D rotations.
+    Turning an object changes its coordinates, but usually leaves its class unchanged: a chair is still a chair when placed on its side. A classifier trained only on upright objects may rely on their orientation and struggle when we rotate them.
 
-    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom.
-    Camera controls do not change the input coordinates or repeat training.
-    Run this notebook with `uv run --with plotly marimo edit` followed by its path.
+    In this lesson we will investigate whether rotation augmentation improves that behaviour. We will train two copies of [Part 4’s model](PointCloudForMLPart4Classification.py), starting from identical weights and using the same batches and training budget. One model sees the original clouds, whilst the other sees clouds transformed by random rotations in full 3D. Keeping the other conditions matched helps us assess the effect of augmentation.
 
-    By the end we should be able to distinguish architectural invariance from
-    learned tolerance, design a controlled comparison, and report the variation
-    introduced by random perturbations. Generated results describe our toy data,
-    not performance on ModelNet.
+    The shared mapping and pooling make our model invariant to point order, but they do not make it invariant to rotation. Shuffling rows preserves each point’s coordinates; rotating the cloud changes them. Augmentation gives the model examples from different orientations so it can learn to tolerate these changes, without guaranteeing identical scores for every rotation.
+
+    We will compare the models on rotated inputs and repeat evaluations with random perturbations. Reporting variation across these evaluations helps us see whether an apparent improvement is consistent or depends on a particular random draw.
+
+    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom. Moving the camera changes our view of the cloud; it does not rotate the coordinates passed to the model or repeat training.
+
+    By the end we should be able to distinguish architectural invariance from learned tolerance, design a controlled comparison, and report the variation introduced by random perturbations. Results from the generated shapes describe our toy dataset; they do not establish performance on ModelNet.
     """)
     return
 
 
 @app.cell
 def _():
-    import inspect
     import sys
     from pathlib import Path
     import marimo as mo
     import numpy as np
     import torch
     from torch import nn
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
     # This also works when marimo starts from the notebook's own folder.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pointcloud as pc
 
-    return (inspect, mo, nn, np, pc, torch, Path)
-
-
-@app.cell
-def _(mo):
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ModuleNotFoundError:
-        mo.stop(
-            True,
-            mo.md(
-                "Plotly is missing. Add --with plotly to the uv run command for this notebook."
-            ),
-        )
-    return go, make_subplots
+    return go, make_subplots, mo, nn, np, pc, torch
 
 
 @app.cell(hide_code=True)
@@ -74,7 +58,7 @@ def _(mo):
 
 
 @app.cell
-def _(torch, pc, go, mo):
+def _(mo, pc, torch):
     _probe, _labels, _names = pc.make_shapes(1, 64, 5)
     _rotated = pc.rotate(_probe, torch.Generator().manual_seed(9), full=True)
     print(
@@ -100,12 +84,9 @@ def _(mo):
     ## Data and training controls
 
     Use generated sphere/cube/rod surfaces for a quick CPU experiment, or enter the
-    path to an extracted [ModelNet10](https://modelnet.cs.princeton.edu/) directory.
-    The expected layout is `ModelNet10/chair/train/*.off` and `chair/test/*.off`,
-    with matching folders for every category. Download and extract the dataset yourself.
-    For ModelNet run marimo with `uv run --with plotly --with 'trimesh>=4.6' marimo edit ...`.
+    path to an extracted [ModelNet10](https://modelnet.cs.princeton.edu/) directory discussed in the previous notebook.
 
-    We reserve 20% of each training category for validation, keeping each source
+    As before I reserve 20% of each training category for validation, keeping each source
     mesh in only one split. The official test directory is separate. Generated
     training and test shapes use different seeds. Sampling is cached for this run;
     we do not resample a mesh and pretend it is a new independent object.
@@ -128,7 +109,10 @@ def _(mo):
                 32, 2048, value=128, step=32, label="Points per shape"
             ),
             "limit": mo.ui.number(
-                0, 1000, value=24, label="Training meshes per category (0 = all)"
+                0,
+                1000,
+                value=24,
+                label="Training meshes per category (0 = all)",
             ),
             "epochs": mo.ui.number(1, 200, value=30, label="Epochs"),
             "lr": mo.ui.number(
@@ -142,9 +126,10 @@ def _(mo):
 
 
 @app.cell
-def _(training_form, mo, pc):
+def _(mo, pc, training_form):
     mo.stop(
-        training_form.value is None, mo.md("Submit the form to load data and train.")
+        training_form.value is None,
+        mo.md("Submit the form to load data and train."),
     )
     settings = training_form.value
     try:
@@ -193,7 +178,7 @@ def _(training_form, mo, pc):
         tuple(test_x.shape),
     )
     print("Categories:", names)
-    return (settings, train_x, train_y, val_x, val_y, test_x, test_y, names)
+    return names, settings, test_x, test_y, train_x, train_y, val_x, val_y
 
 
 @app.cell(hide_code=True)
@@ -213,7 +198,7 @@ def _(mo):
 
 
 @app.cell
-def _(settings, train_x, train_y, val_x, val_y, names, torch, pc, nn, mo):
+def _(mo, names, nn, pc, settings, torch, train_x, train_y, val_x, val_y):
     with torch.random.fork_rng():
         torch.manual_seed(int(settings["seed"]))
         _initial = pc.PointNet(len(names)).state_dict()
@@ -263,7 +248,7 @@ def _(settings, train_x, train_y, val_x, val_y, names, torch, pc, nn, mo):
         comparison_models[_label] = _model.eval()
         comparison_history[_label] = _history
     print("Two models trained with the same initial weights and batch orders.")
-    return (comparison_models, comparison_history)
+    return comparison_history, comparison_models
 
 
 @app.cell
@@ -272,7 +257,10 @@ def _(comparison_history, go, mo):
     for _name, _losses in comparison_history.items():
         augmentation_curve.add_trace(
             go.Scatter(
-                x=list(range(1, len(_losses) + 1)), y=_losses, name=_name, mode="lines"
+                x=list(range(1, len(_losses) + 1)),
+                y=_losses,
+                name=_name,
+                mode="lines",
             )
         )
     augmentation_curve.update_layout(
@@ -282,7 +270,7 @@ def _(comparison_history, go, mo):
         height=400,
     )
     mo.ui.plotly(augmentation_curve, config={"displaylogo": False})
-    return (augmentation_curve,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -290,21 +278,25 @@ def _(mo):
     mo.md(r"""
     ## Evaluate one change at a time
 
-    We apply exactly the same perturbed clouds to both models and repeat each
-    condition with five seeds. Noise standard deviation is in unit-sphere coordinates.
-    Point-count experiments use nested subsets of each held-out cloud, so they
-    measure point removal rather than a new mesh sample. We do not pad with zeros:
-    those would become extra points unless the reduction explicitly masks them.
+    We vary one input condition at a time so we can see how it affects classification. Both models receive **exactly the same perturbed clouds**, giving us a paired comparison: differences in their scores cannot be explained by one model receiving an easier random example.
 
-    The error bars below show standard deviation across perturbation seeds. They
-    are not confidence intervals over independent training runs. For a stronger
-    study repeat training with several seeds as well.
+    We repeat each condition with five perturbation seeds. Each seed produces a different realisation of the perturbation, letting us measure how much the results depend on the particular random changes applied.
+
+    For noise experiments, the standard deviation is expressed in the normalised, unit-sphere coordinate system. It therefore describes noise relative to the cloud’s scale, rather than a distance in metres or the mesh’s original units. Adding noise can move points outside the unit sphere; normalising the original cloud does not constrain later perturbations.
+
+    For point-count experiments, we use nested subsets of each held-out cloud. A smaller subset is contained in the larger ones, so we progressively remove points from the same sampled object. This measures the effect of losing points without also introducing a fresh surface sample.
+
+    We do not fill the missing rows with zeros. The model would interpret each zero row as a point at the origin, changing the cloud we are testing. Padding is only appropriate if the pooling operation explicitly masks those rows so they cannot contribute.
+
+    The error bars show the **standard deviation across the five perturbation seeds**. They describe variation in evaluation results for these fixed trained models. They are not confidence intervals, and they do not measure uncertainty caused by initial weights or other randomness during training.
+
+    For a stronger study, we would also repeat the paired training experiment with several training seeds. That would let us assess whether the observed difference persists across independently trained model pairs, as well as across different perturbations.
     """)
     return
 
 
 @app.cell
-def _(comparison_models, test_x, test_y, pc, torch, np, mo):
+def _(comparison_models, mo, np, pc, test_x, test_y, torch):
     robustness_rows = []
     _conditions = [
         ("Clean", 0),
@@ -336,7 +328,8 @@ def _(comparison_models, test_x, test_y, pc, torch, np, mo):
                 _changed += torch.randn(_changed.shape, generator=_rng) * _amount
             elif _condition == "Points":
                 _changed = _changed[
-                    :, torch.randperm(_changed.shape[1], generator=_rng)[: int(_amount)]
+                    :,
+                    torch.randperm(_changed.shape[1], generator=_rng)[: int(_amount)],
                 ]
             elif _condition == "Missing region":
                 # Keep the half with smaller x coordinates: a simple spatial crop.
@@ -363,7 +356,7 @@ def _(comparison_models, test_x, test_y, pc, torch, np, mo):
 
 
 @app.cell
-def _(robustness_rows, comparison_models, go, make_subplots, mo):
+def _(comparison_models, go, make_subplots, mo, robustness_rows):
     robustness_plot = make_subplots(rows=1, cols=2, subplot_titles=("Noise", "Points"))
     for _name in comparison_models:
         for _column, _condition, _xlabel in [
@@ -380,7 +373,9 @@ def _(robustness_rows, comparison_models, go, make_subplots, mo):
                     x=[row["amount"] for row in _rows],
                     y=[row["accuracy"] for row in _rows],
                     error_y=dict(
-                        type="data", array=[row["std"] for row in _rows], visible=True
+                        type="data",
+                        array=[row["std"] for row in _rows],
+                        visible=True,
                     ),
                     mode="lines+markers",
                     line=dict(
@@ -399,20 +394,24 @@ def _(robustness_rows, comparison_models, go, make_subplots, mo):
             )
     robustness_plot.update_layout(height=400)
     mo.ui.plotly(robustness_plot, config={"displaylogo": False})
-    return (robustness_plot,)
+    return
 
 
 @app.cell
 def _(mo):
     rotation_angle = mo.ui.slider(
-        0, 180, value=90, label="Rod rotation about x (degrees)", show_value=True
+        0,
+        180,
+        value=90,
+        label="Rod rotation about x (degrees)",
+        show_value=True,
     )
     rotation_angle
     return (rotation_angle,)
 
 
 @app.cell
-def _(rotation_angle, comparison_models, pc, torch, np, go, mo):
+def _(comparison_models, mo, np, pc, rotation_angle, torch):
     _probe, _target, _names = pc.make_shapes(1, 128, 901)
     _angle = np.deg2rad(rotation_angle.value)
     _rotation = torch.tensor(
