@@ -11,18 +11,17 @@ def _(mo):
     mo.md(r"""
     # Point Clouds for Machine Learning, Part 3: a small PointNet
 
-    We will use the shared mapping and maximum from [Part 2](PointCloudForMLPart2Sets.py)
-    to build a classifier. Our model follows the central idea in
-    [PointNet](https://openaccess.thecvf.com/content_cvpr_2017/html/Qi_PointNet_Deep_Learning_CVPR_2017_paper.html).
-    It omits the original input and feature transformation networks, batch normalisation
-    and dropout so we can inspect the data flow first.
+    In [Part 2](PointCloudForMLPart2Sets.py) we applied the same mapping to every point, then used maximum pooling to combine the point features without depending on their row order. We will now use these operations to build a small point-cloud classifier.
 
-    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom.
-    Camera controls do not change the input coordinates or repeat training.
-    Run this notebook with `uv run --with plotly marimo edit` followed by its path.
+    Our model follows the central idea in [PointNet](https://openaccess.thecvf.com/content_cvpr_2017/html/Qi_PointNet_Deep_Learning_CVPR_2017_paper.html): learn features for each point independently, pool them into one representation of the cloud, then use that representation to predict a class. We will trace this data flow from the input coordinates to the output scores, checking the tensor shape at each stage.
 
-    By the end we should be able to trace every tensor dimension, explain a
-    kernel-size-one convolution, and identify the points contributing pooled maxima.
+    We will implement the shared mapping using one-dimensional convolutions with a kernel size of one. Each convolution processes one point at a time using the same weights at every point. It combines feature channels without combining neighbouring points, so their order does not acquire a geometric meaning.
+
+    Maximum pooling then keeps the largest response in each feature channel. Different points may supply different maxima. We will identify these contributing points to see which parts of the cloud supply the features passed to the classifier.
+
+    This is a simplified teaching model compared to the original paper, I omit the original input and feature transformation networks, batch normalisation and dropout so we can inspect the shared mapping, pooling and classification stages first.
+
+    By the end we should be able to trace every tensor dimension, explain how a kernel size one convolution implements a shared per-point mapping, and identify the points contributing to the pooled maxima.
     """)
     return
 
@@ -33,30 +32,16 @@ def _():
     import sys
     from pathlib import Path
     import marimo as mo
-    import numpy as np
     import torch
     from torch import nn
 
     # This also works when marimo starts from the notebook's own folder.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pointcloud as pc
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
-    return (inspect, mo, nn, np, pc, torch, Path)
-
-
-@app.cell
-def _(mo):
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ModuleNotFoundError:
-        mo.stop(
-            True,
-            mo.md(
-                "Plotly is missing. Add --with plotly to the uv run command for this notebook."
-            ),
-        )
-    return go, make_subplots
+    return go, inspect, make_subplots, mo, nn, pc, torch
 
 
 @app.cell(hide_code=True)
@@ -64,13 +49,27 @@ def _(mo):
     mo.md(r"""
     ## A 1D convolution can be a shared linear layer
 
-    [`Conv1d`](https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv1d.html)
-    expects `(batch, channels, points)`. With kernel size 1, each output uses only
-    one point's channels. It does not mix neighbouring rows or search for nearby
-    points in 3D. A kernel size of 3 would mix neighbouring *array positions*, which
-    have no geometric meaning in an unordered cloud.
+    We can use [`Conv1d`](https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv1d.html) to apply the same learned mapping to every point. The main difference from `Linear` is how we arrange the tensor dimensions.
 
-    We can copy a linear layer's weights into a convolution and check their outputs.
+    Our cloud starts with shape `(B, N, 3)`: a batch of \(B\) clouds, each containing \(N\) points with three coordinates. `Conv1d` expects `(batch, channels, points)`, so we transpose it to `(B, 3, N)`. The coordinates become the three input channels.
+
+    With `kernel_size=1`, the convolution processes one point at a time. Each output channel is a weighted combination of that point’s input channels, plus a bias:
+
+    \[
+    y_{b,k,i}
+    =
+    \sum_{j=1}^{C_{\text{in}}} W_{k,j}\,x_{b,j,i}
+    +
+    \beta_k.
+    \]
+
+    Here, \(i\) identifies the point, \(j\) the input channel and \(k\) the output channel. The weights \(W\) and biases \(\beta\) are shared across all points. For example, `Conv1d(3, 8, kernel_size=1)` maps each point’s three coordinates to eight features, changing `(B, 3, N)` into `(B, 8, N)`.
+
+    This is the same calculation as applying `Linear(3, 8)` to every point in a tensor with shape `(B, N, 3)`. The outputs contain the same features, arranged along different dimensions.
+
+    The convolution does not combine different points or search for neighbours in 3D. A kernel size of three would combine neighbouring **array positions**. In an unordered cloud, consecutive rows need not contain points that are close together in space. Shuffling those rows would change the groups processed by the convolution, even though the geometry remained unchanged.
+
+    To check the equivalence, we can copy a linear layer’s weights and bias into a kernel-size-one convolution. The linear weights have shape `(8, 3)`, whilst the convolution weights have shape `(8, 3, 1)`, so we add a final dimension when copying them. After transposing the input and output, the two layers should produce matching values within floating-point tolerance.
     """)
     return
 
@@ -133,7 +132,7 @@ def _(pc, torch):
     print("Global representation:", tuple(pooled.shape))
     print("Class logits:", tuple(logits.shape))
     print("Matches forward:", torch.allclose(logits, model(clouds)))
-    return (clouds, contributors, features, model)
+    return clouds, contributors, features, model
 
 
 @app.cell
@@ -153,11 +152,15 @@ def _(mo):
     mo.md(r"""
     ## Which points supplied the maxima?
 
-    Each feature channel can take its maximum from a different point. Highlight
-    those contributors for one cloud, then select a channel to see its activation
-    across the surface. This model is untrained, so the highlighted points are not
-    yet evidence of useful recognition. Max contributors are also not a complete
-    explanation of the prediction; the classifier combines all pooled channels.
+    Maximum pooling reduces the per-point features to one feature vector for the whole cloud. For each channel, it keeps the largest activation across all points. Different channels can take their maxima from different points, and one point may supply the maximum for several channels.
+
+    We will highlight these contributing points for one cloud. We can then select a feature channel and colour every sampled point by its activation. This lets us see where that channel responds strongly and which point supplies the value retained by pooling.
+
+    The model is untrained, so these responses come from randomly initialised weights. A highlighted point tells us where a maximum occurred; it does not yet show that the network has learnt a useful feature for recognising the object.
+
+    The contributors also give us only part of the explanation for a prediction. They show which points supplied the pooled values, but the classifier combines all those values to produce its output scores. A large activation does not, by itself, tell us how strongly it affects a particular class.
+
+    If several points have exactly the same maximum activation, the displayed index may identify just one of them. The pooled value remains the same whichever tied point we select.
     """)
     return
 
@@ -173,7 +176,15 @@ def _(mo):
 
 @app.cell
 def _(
-    clouds, contributors, features, feature_channel, go, make_subplots, pc, torch, mo
+    clouds,
+    contributors,
+    feature_channel,
+    features,
+    go,
+    make_subplots,
+    mo,
+    pc,
+    torch,
 ):
     _points = clouds[0].numpy()
     _selected = torch.unique(contributors[0]).numpy()
@@ -233,7 +244,7 @@ def _(
         title="Inspect pooling and per-point features",
     )
     mo.ui.plotly(feature_plot, config={"displaylogo": False, "scrollZoom": True})
-    return (feature_plot,)
+    return
 
 
 @app.cell(hide_code=True)
