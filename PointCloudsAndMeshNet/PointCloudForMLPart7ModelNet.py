@@ -11,77 +11,41 @@ def _(mo):
     mo.md(r"""
     # Point Clouds for Machine Learning, Part 7: identifying ModelNet10 objects
 
-    We will download [ModelNet10](https://modelnet.cs.princeton.edu/download.html),
-    sample its mesh surfaces, and train a PointNet to identify an object's category.
-    We can then rotate a held-out point cloud and inspect its predicted label,
-    class scores and mistakes. This uses real CAD objects from ten categories.
+    We will bring the earlier lessons together to classify objects from [ModelNet10](https://modelnet.cs.princeton.edu/download.html), a dataset of CAD models from ten object categories. We will download the meshes, sample points from their surfaces, centre and scale the resulting clouds, then train a PointNet classifier to predict each object’s category.
 
-    [Part 4](PointCloudForMLPart4Classification.py) introduced the training loop.
-    Here we connect download, preprocessing, training, evaluation and inference
-    in one notebook. By the end we should be able to explain what evidence a
-    classifier receives and evaluate its predictions on objects it did not train on.
+    The network receives sampled coordinates, rather than the mesh faces, materials or a rendered image. Its prediction depends on the shape information preserved in those points. Sampling density, normalisation and orientation therefore affect the evidence available to the classifier.
 
-    Run from the repository root:
+    [Part 4](PointCloudForMLPart4Classification.py) introduced the training loop. Here we connect downloading, preprocessing, training, evaluation and inference in one notebook. We will use validation data to select the model weights, then evaluate the selected model on held-out test objects.
 
-    ```bash
-    uv run --with plotly --with 'trimesh>=4.6' marimo edit PointCloudForML/PointCloudForMLPart7ModelNet.py
-    ```
+    After training, we can inspect an individual held-out cloud, compare its predicted category with its true label, and examine the scores for all ten classes. We will also rotate the cloud’s coordinates to explore how orientation affects the prediction. A wrong answer gives us something to investigate: does the sampled geometry resemble another category, is an important feature poorly represented, or does the model struggle with the new orientation?
 
-    Downloading waits for its button; training waits for its form. The archive
-    is about 451 MiB and the extracted meshes require more disk space. An existing
-    completed download is reused. Plotly camera controls only move the view;
-    they do not rotate the coordinates passed to our classifier.
+    By the end we should be able to explain what information reaches the classifier, follow an object through the complete pipeline, and evaluate predictions on objects the model did not train on.
+
+
+    Downloading starts only when we press its button, and training starts only when we submit its form. The archive is about 451 MiB; extraction requires additional disk space. An existing completed download is reused.
+
+    The Plotly camera controls let us orbit and zoom to inspect the cloud. They change our view without changing the input coordinates. Use the notebook’s rotation controls to rotate the data passed to the classifier and test its response.
     """)
     return
 
 
 @app.cell
 def _():
-    import inspect
     import sys
     from pathlib import Path
     import marimo as mo
     import numpy as np
     import torch
     from torch import nn
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
     # This also works when marimo starts from the notebook's own folder.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pointcloud as pc
     import modelnet_data as dataset_tools
 
-    return (inspect, mo, nn, np, pc, torch, Path, dataset_tools)
-
-
-@app.cell
-def _(mo):
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ModuleNotFoundError:
-        mo.stop(
-            True,
-            mo.md(
-                "Plotly is missing. Add --with plotly to the uv run command for this notebook."
-            ),
-        )
-    return go, make_subplots
-
-
-@app.cell
-def _(Path):
-    import sys as _sys
-
-    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from Utils import in_lab as _in_lab
-
-    dataset_cache = (
-        Path("/transfer/modelnet10")
-        if _in_lab()
-        else Path(__file__).resolve().parent / "data"
-    )
-    print("Dataset cache:", dataset_cache)
-    return (dataset_cache,)
+    return Path, dataset_tools, go, make_subplots, mo, nn, np, pc, sys, torch
 
 
 @app.cell(hide_code=True)
@@ -111,6 +75,20 @@ def _(mo):
 
 
 @app.cell
+def _(Path, sys):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from Utils import in_lab as _in_lab
+
+    dataset_cache = (
+        Path("/transfer/modelnet10")
+        if _in_lab()
+        else Path(__file__).resolve().parent / "data"
+    )
+    print("Dataset cache:", dataset_cache)
+    return (dataset_cache,)
+
+
+@app.cell
 def _(mo):
     download_button = mo.ui.run_button(
         label="Download and prepare ModelNet10 (about 451 MiB)"
@@ -120,7 +98,7 @@ def _(mo):
 
 
 @app.cell
-def _(download_button, dataset_cache, dataset_tools, mo):
+def _(dataset_cache, dataset_tools, download_button, mo):
     mo.stop(
         not download_button.value and not dataset_tools.modelnet10_ready(dataset_cache),
         mo.md("Press Download and prepare ModelNet10 to fetch the dataset."),
@@ -147,7 +125,7 @@ def _(download_button, dataset_cache, dataset_tools, mo):
     ]
     print("Prepared dataset:", dataset_root)
     mo.ui.table(dataset_counts)
-    return dataset_root, dataset_counts
+    return (dataset_root,)
 
 
 @app.cell(hide_code=True)
@@ -155,16 +133,17 @@ def _(mo):
     mo.md(r"""
     ## Sample surfaces and reserve validation objects
 
-    Each category folder contains its official train and test splits. We reserve
-    20% of the training meshes in each class for validation, then sample each
-    selected mesh with an area-weighted surface sampler. We subtract the sampled
-    centroid and divide by the largest radius, as in Part 1.
+    Each ModelNet10 category has separate `train` and `test` folders. We keep the official test meshes aside and reserve 20% of the selected training meshes in each category for validation. The remaining meshes are used to train the network.
 
-    The default uses 40 training meshes per category so we can try the pipeline
-    on CPU. Zero removes the limit. The test limit defaults to zero, which uses
-    all official test meshes. A small non-zero test limit is useful for checking
-    the code; report it explicitly rather than treating it as a full benchmark.
-    The seed controls mesh selection, sampling, validation split and initial weights.
+    We split by **source object**, before sampling its surface. This keeps each mesh in only one split. Two point clouds sampled from the same mesh still represent the same object, so putting one in training and another in validation would give a misleading measure of performance on unseen objects.
+
+    For each selected mesh, we sample points using face probabilities proportional to surface area. We then normalise the cloud as in Part 1: subtract its sampled centroid and divide all coordinates by the largest distance from that centroid. This places the sampled points inside the unit sphere whilst preserving the object’s proportions.
+
+    The default training limit selects up to 40 meshes per category before reserving validation objects. With 40 available, this gives 32 meshes for training and eight for validation in each category. This small dataset lets us try the complete pipeline on CPU. Setting the limit to zero removes the cap and uses all available training meshes.
+
+    The test limit defaults to zero, meaning we evaluate on all official test meshes. A small non-zero limit is useful for checking that loading and evaluation work, but results from that subset should be reported with the limit stated explicitly. They should not be presented as results on the complete test set.
+
+    The seed controls mesh selection, surface sampling, the validation split and initial model weights. Keeping it fixed helps us repeat an experiment under the same software setup. Changing it can change both the data and the starting model, so a stronger evaluation repeats training with several seeds rather than relying on a single run.
     """)
     return
 
@@ -177,7 +156,10 @@ def _(mo):
                 32, 2048, value=256, step=32, label="Points per mesh"
             ),
             "limit": mo.ui.number(
-                0, 1000, value=40, label="Training meshes per category (0 = all)"
+                0,
+                1000,
+                value=40,
+                label="Training meshes per category (0 = all)",
             ),
             "test_limit": mo.ui.number(
                 0, 1000, value=0, label="Test meshes per category (0 = all)"
@@ -194,7 +176,7 @@ def _(mo):
 
 
 @app.cell
-def _(training_form, dataset_root, dataset_tools, pc, mo):
+def _(dataset_root, dataset_tools, mo, pc, training_form):
     mo.stop(
         training_form.value is None,
         mo.md("Submit the training form after preparing the dataset."),
@@ -246,15 +228,15 @@ def _(training_form, dataset_root, dataset_tools, pc, mo):
     print("Categories:", class_names)
     print("Coordinate dtype:", train_x.dtype, "label dtype:", train_y.dtype)
     return (
+        class_names,
         settings,
+        test_sources,
+        test_x,
+        test_y,
         train_x,
         train_y,
         val_x,
         val_y,
-        test_x,
-        test_y,
-        class_names,
-        test_sources,
     )
 
 
@@ -267,13 +249,24 @@ def _(mo):
     and a fresh model for every submitted run. Validation is evaluated without
     gradients after each epoch; it selects the checkpoint. Test data is only used
     below, after selection. All calculations here use CPU, so the lesson does not
-    need an accelerator. Changing display controls does not repeat training.
+    need a GPU, use the usual process for larger setups, here this will run quite quickly without the GPU. Changing display controls does not repeat training.
     """)
     return
 
 
 @app.cell
-def _(settings, train_x, train_y, val_x, val_y, class_names, pc, torch, nn, mo):
+def _(
+    class_names,
+    mo,
+    nn,
+    pc,
+    settings,
+    torch,
+    train_x,
+    train_y,
+    val_x,
+    val_y,
+):
     with torch.random.fork_rng():
         torch.manual_seed(int(settings["seed"]))
         trained_model = pc.PointNet(len(class_names))
@@ -318,19 +311,27 @@ def _(settings, train_x, train_y, val_x, val_y, class_names, pc, torch, nn, mo):
     trained_model.load_state_dict(_best_state)
     trained_model.eval()
     print("Best validation loss:", round(_best_loss, 4))
-    return (trained_model, history)
+    return history, trained_model
 
 
 @app.cell
-def _(history, go, make_subplots, mo):
+def _(go, history, make_subplots, mo):
     _epochs = [item["epoch"] for item in history]
     classification_curve = make_subplots(
-        rows=1, cols=2, subplot_titles=("Learning curves", "Validation accuracy")
+        rows=1,
+        cols=2,
+        subplot_titles=("Learning curves", "Validation accuracy"),
     )
-    for _key, _name in [("train_loss", "Training"), ("val_loss", "Validation")]:
+    for _key, _name in [
+        ("train_loss", "Training"),
+        ("val_loss", "Validation"),
+    ]:
         classification_curve.add_trace(
             go.Scatter(
-                x=_epochs, y=[item[_key] for item in history], mode="lines", name=_name
+                x=_epochs,
+                y=[item[_key] for item in history],
+                mode="lines",
+                name=_name,
             ),
             row=1,
             col=1,
@@ -350,16 +351,17 @@ def _(history, go, make_subplots, mo):
     classification_curve.update_yaxes(title_text="Accuracy", range=[0, 1], row=1, col=2)
     classification_curve.update_layout(height=400)
     mo.ui.plotly(classification_curve, config={"displaylogo": False})
-    return (classification_curve,)
+    return
 
 
 @app.cell
-def _(trained_model, test_x, test_y, class_names, torch, mo, go):
+def _(class_names, go, mo, test_x, test_y, torch, trained_model):
     with torch.no_grad():
         test_logits = torch.cat([trained_model(_batch) for _batch in test_x.split(32)])
     predictions = test_logits.argmax(1)
     confusion = torch.bincount(
-        test_y * len(class_names) + predictions, minlength=len(class_names) ** 2
+        test_y * len(class_names) + predictions,
+        minlength=len(class_names) ** 2,
     ).reshape(len(class_names), len(class_names))
     print("Test accuracy:", (predictions == test_y).float().mean().item())
     print("Test shapes:", len(test_y))
@@ -393,7 +395,7 @@ def _(trained_model, test_x, test_y, class_names, torch, mo, go):
             mo.ui.plotly(confusion_plot, config={"displaylogo": False}),
         ]
     )
-    return predictions, test_logits, confusion_plot
+    return predictions, test_logits
 
 
 @app.cell
@@ -426,17 +428,17 @@ def _(mo):
 
 @app.cell
 def _(
+    class_names,
     example_index,
+    go,
+    make_subplots,
+    mo,
+    np,
     predictions,
     test_logits,
+    test_sources,
     test_x,
     test_y,
-    class_names,
-    test_sources,
-    np,
-    make_subplots,
-    go,
-    mo,
     torch,
 ):
     import trimesh
@@ -447,7 +449,8 @@ def _(
     identification_probabilities = torch.softmax(test_logits[_index], dim=0)
     print("Test object", _index, "actual:", _actual, "identified as:", _predicted)
     print(
-        "Misclassified indices:", (predictions != test_y).nonzero().flatten().tolist()
+        "Misclassified indices:",
+        (predictions != test_y).nonzero().flatten().tolist(),
     )
     _source = test_sources[_index]
     _mesh = trimesh.load_mesh(_source["path"], process=False)
@@ -523,12 +526,13 @@ def _(
     mo.vstack(
         [
             mo.ui.plotly(
-                identification_view, config={"displaylogo": False, "scrollZoom": True}
+                identification_view,
+                config={"displaylogo": False, "scrollZoom": True},
             ),
             mo.ui.plotly(identification_scores, config={"displaylogo": False}),
         ]
     )
-    return identification_view, identification_scores, identification_probabilities
+    return
 
 
 @app.cell(hide_code=True)
@@ -553,15 +557,15 @@ def _(mo):
 
 @app.cell
 def _(
-    save_button,
-    mo,
     Path,
+    class_names,
+    dataset_tools,
+    history,
+    mo,
+    save_button,
+    settings,
     torch,
     trained_model,
-    class_names,
-    settings,
-    history,
-    dataset_tools,
 ):
     mo.stop(not save_button.value)
     _output = Path(__file__).resolve().parent / "outputs"
