@@ -36,6 +36,7 @@ DATA_PATHS = [
     "MNIST/MNIST",  # MNIST/TheMNISTDataSetMarimo.py
     "MNIST/data",  # MNIST/TheMNISTDataSetMarimo.py (torchvision datasets.MNIST)
     "MNIST/mnist_data",  # MNIST/PyTorchDataLoadersMarimo.py
+    "PointCloudsAndMeshNet/data",  # PointCloudsAndMeshNet/PointCloudForMLPart7ModelNet.py (ModelNet10)
     "PreTrainedModels/dog_door",  # PreTrainedModels/TransferLearningMarimo.py
     "TextProcessingRNN/data",  # TextProcessingRNN/RNNPart1.py (Hugging Face cache)
 ]

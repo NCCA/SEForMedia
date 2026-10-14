@@ -1,18 +1,47 @@
-"""Small geometry and model helpers shared by the point-cloud lessons."""
+"""
+Small geometry and model helpers shared by the point-cloud lessons.
+
+This holds the two PointNet style models (classification and part segmentation),
+the synthetic shape and chair generators, loaders for ModelNet and ShapeNet Part,
+a per-part IoU metric and a plotly helper for viewing clouds.
+"""
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import plotly.graph_objects as go
 import numpy as np
 import torch
 from torch import nn
 
+if TYPE_CHECKING:
+    import plotly.graph_objects as go
+
 
 class PointNet(nn.Module):
-    def __init__(self, classes: int):
+    """
+    A cut-down PointNet classifier.
+
+    Each point goes through the same small MLP (written as 1x1 Conv1d layers), then a
+    max over all the points gives a single global feature that doesn't depend on the
+    order of the points. A linear head turns that into class scores.
+
+    Attributes
+    ----------
+        local : nn.Sequential
+            per-point layers lifting xyz to 64 features
+        features : nn.Sequential
+            per-point layers lifting 64 to 128 features before the max-pool
+        head : nn.Sequential
+            fully connected layers mapping the global feature to class scores
+    """
+
+    def __init__(self, classes: int) -> None:
+        """
+        Parameters
+        ----------
+            classes : int
+                number of output classes
+        """
         super().__init__()
         self.local = nn.Sequential(
             nn.Conv1d(3, 32, 1), nn.ReLU(), nn.Conv1d(32, 64, 1), nn.ReLU()
@@ -21,13 +50,50 @@ class PointNet(nn.Module):
         self.head = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, classes))
 
     def forward(self, points: torch.Tensor) -> torch.Tensor:
+        """
+        Classifies a batch of clouds.
+
+        Parameters
+        ----------
+            points : torch.Tensor
+                clouds with shape (batch, points, 3)
+
+        Returns
+        -------
+            torch.Tensor
+                unnormalised class scores with shape (batch, classes)
+        """
+        # Conv1d wants channels first, so (batch, 3, points)
         local = self.local(points.transpose(1, 2))
         global_features = self.features(local).amax(dim=2)
         return self.head(global_features)
 
 
 class SegmentNet(nn.Module):
-    def __init__(self, parts: int):
+    """
+    A cut-down PointNet part segmentation network.
+
+    This works like PointNet but rather than classifying the whole cloud, the global
+    feature is copied back to every point and joined to that point's local feature,
+    so each point is labelled knowing both where it is and what shape it belongs to.
+
+    Attributes
+    ----------
+        local : nn.Sequential
+            per-point layers lifting xyz to 64 features
+        features : nn.Sequential
+            per-point layers lifting 64 to 128 features before the max-pool
+        head : nn.Sequential
+            per-point layers mapping the 192 joined features to part scores
+    """
+
+    def __init__(self, parts: int) -> None:
+        """
+        Parameters
+        ----------
+            parts : int
+                number of part labels
+        """
         super().__init__()
         self.local = nn.Sequential(
             nn.Conv1d(3, 32, 1), nn.ReLU(), nn.Conv1d(32, 64, 1), nn.ReLU()
@@ -38,6 +104,20 @@ class SegmentNet(nn.Module):
         )
 
     def forward(self, points: torch.Tensor) -> torch.Tensor:
+        """
+        Labels every point in a batch of clouds.
+
+        Parameters
+        ----------
+            points : torch.Tensor
+                clouds with shape (batch, points, 3)
+
+        Returns
+        -------
+            torch.Tensor
+                unnormalised part scores with shape (batch, parts, points), which is
+                the layout nn.CrossEntropyLoss expects
+        """
         local = self.local(points.transpose(1, 2))
         global_features = self.features(local).amax(dim=2, keepdim=True)
         context = global_features.expand(-1, -1, points.shape[1])
@@ -52,6 +132,16 @@ def normalise(points: np.ndarray) -> np.ndarray:
     ----------
         points : np.ndarray
             finite coordinates with shape (points, 3)
+
+    Returns
+    -------
+        np.ndarray
+            float32 cloud with the same shape, centred on the origin
+
+    Raises
+    ------
+        ValueError
+            if the cloud is empty, not (N, 3) or contains NaN or inf
     """
     points = np.asarray(points, dtype=np.float64)
     if (
@@ -80,6 +170,17 @@ def sample_triangles(
             number of points to sample
         seed : int
             seed for a local random generator
+
+    Returns
+    -------
+        tuple[np.ndarray, np.ndarray]
+            the sampled points with shape (count, 3) and the index of the face each
+            one came from
+
+    Raises
+    ------
+        ValueError
+            if count is less than one or the mesh has no surface area
     """
     rng = np.random.default_rng(seed)
     areas = (
@@ -95,6 +196,7 @@ def sample_triangles(
         raise ValueError("Need a positive point count and non-zero surface area")
     faces = rng.choice(len(triangles), count, p=areas / areas.sum())
     uv = rng.random((count, 2))
+    # fold points from the far half of the parallelogram back into the triangle
     uv[uv.sum(axis=1) > 1] = 1 - uv[uv.sum(axis=1) > 1]
     selected = triangles[faces]
     points = (
@@ -108,11 +210,32 @@ def sample_triangles(
 def box_surface(
     count: int, extents: np.ndarray, rng: np.random.Generator
 ) -> np.ndarray:
+    """
+    Samples points on the surface of a box centred on the origin.
+
+    Each point picks a face pair in proportion to its area, so a long thin box
+    doesn't end up with crowded ends.
+
+    Parameters
+    ----------
+        count : int
+            number of points to sample
+        extents : np.ndarray
+            box size along x, y and z
+        rng : np.random.Generator
+            random generator to draw from
+
+    Returns
+    -------
+        np.ndarray
+            points with shape (count, 3)
+    """
     points = rng.uniform(-0.5, 0.5, (count, 3))
     areas = np.array(
         [extents[1] * extents[2], extents[0] * extents[2], extents[0] * extents[1]]
     )
     axes = rng.choice(3, count, p=areas / areas.sum())
+    # push one coordinate of each point onto a face of the unit cube
     points[np.arange(count), axes] = rng.choice([-0.5, 0.5], count)
     return points * extents
 
@@ -131,9 +254,16 @@ def make_shapes(
             points per shape
         seed : int
             seed for geometry and sampling
+
+    Returns
+    -------
+        tuple[torch.Tensor, torch.Tensor, list[str]]
+            normalised clouds with shape (3 * per_class, count, 3), integer labels
+            and the class names
     """
     rng = np.random.default_rng(seed)
-    clouds, labels = [], []
+    clouds: list[np.ndarray] = []
+    labels: list[int] = []
     for label in range(3):
         for _ in range(per_class):
             if label == 0:
@@ -166,9 +296,16 @@ def make_parts(
             labelled points per chair
         seed : int
             seed for proportions and sampling
+
+    Returns
+    -------
+        tuple[torch.Tensor, torch.Tensor, list[str]]
+            normalised clouds with shape (shapes, count, 3), per-point part labels
+            with shape (shapes, count) and the part names
     """
     rng = np.random.default_rng(seed)
-    clouds, labels = [], []
+    clouds: list[np.ndarray] = []
+    labels: list[np.ndarray] = []
     for _ in range(shapes):
         width = rng.uniform(0.8, 1.2)
         seat = box_surface(count // 3, np.array([width, 0.18, 1.0]), rng)
@@ -190,6 +327,7 @@ def make_parts(
         legs += corners[rng.integers(0, 4, leg_count)]
         points = np.concatenate([seat, back, legs])
         parts = np.repeat([0, 1, 2], [len(seat), len(back), leg_count])
+        # shuffle so the model can't learn the part from the point index
         order = rng.permutation(count)
         clouds.append(normalise(points)[order])
         labels.append(parts[order])
@@ -214,9 +352,15 @@ def rotate(
             local random generator
         full : bool
             use uniform SO(3) rotations instead of rotations about y
+
+    Returns
+    -------
+        torch.Tensor
+            rotated clouds with the same shape as points
     """
     batch = len(points)
     if full:
+        # a normalised Gaussian quaternion is a uniform random rotation
         q = torch.randn(batch, 4, generator=generator)
         q /= q.norm(dim=1, keepdim=True)
         w, x, y, z = q.unbind(1)
@@ -245,8 +389,32 @@ def rotate(
 
 
 def split_indices(labels: torch.Tensor, seed: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Splits shapes into training and validation sets, class by class.
+
+    Roughly 20% of each class goes to validation (at least one shape), so every class
+    shows up in both sets.
+
+    Parameters
+    ----------
+        labels : torch.Tensor
+            class label for each shape
+        seed : int
+            seed for the shuffle
+
+    Returns
+    -------
+        tuple[torch.Tensor, torch.Tensor]
+            indices of the training shapes and of the validation shapes
+
+    Raises
+    ------
+        ValueError
+            if any class has fewer than two shapes
+    """
     generator = torch.Generator().manual_seed(seed)
-    train, val = [], []
+    train: list[torch.Tensor] = []
+    val: list[torch.Tensor] = []
     for label in labels.unique():
         indices = torch.where(labels == label)[0]
         if len(indices) < 2:
@@ -267,7 +435,7 @@ def load_modelnet(
     return_sources: bool = False,
 ) -> (
     tuple[torch.Tensor, torch.Tensor, list[str]]
-    | tuple[torch.Tensor, torch.Tensor, list[str], list[dict]]
+    | tuple[torch.Tensor, torch.Tensor, list[str], list[dict[str, Any]]]
 ):
     """
     Reads an extracted ModelNet directory without downloading data.
@@ -286,6 +454,20 @@ def load_modelnet(
             seed for file selection and surface sampling
         return_sources : bool
             also return mesh paths and the sampled centroid and radius for display
+
+    Returns
+    -------
+        tuple
+            normalised clouds with shape (meshes, count, 3), integer labels and the
+            category names. When return_sources is set a fourth item is added, a list
+            of dicts with path, centre and radius keys so the original mesh can be
+            drawn in the same space as its cloud
+
+    Raises
+    ------
+        ValueError
+            if split is not train or test, no categories are found or a category
+            has no OFF files for the split
     """
     import trimesh
 
@@ -302,7 +484,9 @@ def load_modelnet(
             "Select the extracted ModelNet root containing category/train and category/test"
         )
     rng = np.random.default_rng(seed)
-    clouds, labels, sources = [], [], []
+    clouds: list[np.ndarray] = []
+    labels: list[int] = []
+    sources: list[dict[str, Any]] = []
     for label, category in enumerate(categories):
         files = sorted((category / split).glob("*.off"))
         if not files:
@@ -352,6 +536,18 @@ def load_shapenet(
             maximum shapes; zero means all
         seed : int
             seed for file selection and matched point/label sampling
+
+    Returns
+    -------
+        tuple[torch.Tensor, torch.Tensor, list[str]]
+            normalised clouds with shape (shapes, count, 3), per-point part labels
+            remapped to 0 to 3 and the part names
+
+    Raises
+    ------
+        ValueError
+            if the cache is missing or incomplete, or the chair labels are not 12
+            through 15
     """
     cache = Path(root).expanduser()
     processed = [
@@ -380,19 +576,20 @@ def load_shapenet(
     indices = rng.permutation(len(dataset))
     if limit:
         indices = indices[:limit]
-    clouds, targets = [], []
+    clouds: list[np.ndarray] = []
+    targets: list[np.ndarray] = []
     for index in indices:
         item = dataset[int(index)]
         selected = rng.choice(len(item.pos), count, replace=len(item.pos) < count)
         clouds.append(normalise(item.pos.numpy()[selected]))
         targets.append(item.y.numpy()[selected])
     # Chair labels in ShapeNet Part are 12, 13, 14 and 15.
-    targets = np.stack(targets) - 12
-    if targets.min() < 0 or targets.max() > 3:
+    stacked = np.stack(targets) - 12
+    if stacked.min() < 0 or stacked.max() > 3:
         raise ValueError("Expected ShapeNet Chair labels 12 through 15")
     return (
         torch.tensor(np.stack(clouds)),
-        torch.tensor(targets),
+        torch.tensor(stacked),
         ["part 12", "part 13", "part 14", "part 15"],
     )
 
@@ -400,7 +597,27 @@ def load_shapenet(
 def part_iou(
     prediction: torch.Tensor, target: torch.Tensor, parts: int
 ) -> torch.Tensor:
-    scores = []
+    """
+    Works out the intersection over union of each part for every shape.
+
+    If a part is missing from both the prediction and the target for a shape, the
+    score is 1, because the model correctly predicted that the part isn't there.
+
+    Parameters
+    ----------
+        prediction : torch.Tensor
+            predicted part labels with shape (batch, points)
+        target : torch.Tensor
+            true part labels with shape (batch, points)
+        parts : int
+            number of part labels
+
+    Returns
+    -------
+        torch.Tensor
+            IoU scores with shape (batch, parts)
+    """
+    scores: list[torch.Tensor] = []
     for part in range(parts):
         predicted, actual = prediction == part, target == part
         intersection = (predicted & actual).sum(dim=1)
@@ -410,7 +627,10 @@ def part_iou(
 
 
 def cloud_figure(
-    points: np.ndarray, title: str, colours=None, labels: list[str] | None = None
+    points: np.ndarray,
+    title: str,
+    colours: np.ndarray | None = None,
+    labels: list[str] | None = None,
 ) -> "go.Figure":
     """
     Creates a rotatable point-cloud view with y as the upright axis.
@@ -425,6 +645,12 @@ def cloud_figure(
             scalar activations, or integer part IDs when labels are supplied
         labels : list[str], optional
             names for categorical part IDs, starting at zero
+
+    Returns
+    -------
+        go.Figure
+            plotly figure with one trace per part, or a single trace when no labels
+            are given
     """
     import plotly.graph_objects as go
 

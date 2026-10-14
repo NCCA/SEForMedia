@@ -44,13 +44,14 @@ By the end students should be able to prepare geometry, explain set-based archit
 
 ## Developer notes
 
-Run the focused geometry and model checks, without an additional test dependency:
+The tests are in `tests/` and use [pytest](https://docs.pytest.org/). The ones which train a model in a notebook are marked `slow`, so I skip them when I just want a quick check.
 
 ```bash
-uv run --with plotly --with trimesh python -m unittest PointCloudForML.test_pointcloud PointCloudForML.test_notebooks PointCloudForML.test_modelnet_demo
-ruff check PointCloudForML
-ruff format --check PointCloudForML
-uv run marimo check --strict PointCloudForML/PointCloudForMLPart*.py
+uv run pytest PointCloudsAndMeshNet/tests
+uv run pytest PointCloudsAndMeshNet/tests -m "not slow"
+ruff check PointCloudsAndMeshNet
+ruff format --check PointCloudsAndMeshNet
+uv run marimo check --strict PointCloudsAndMeshNet/PointCloudForMLPart*.py
 ```
 
 `marimo export html` runs the default examples and produces a standalone preview. Forms remain unsubmitted in those exports, so training and optional datasets need a separate interactive or programmatic check.
