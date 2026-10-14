@@ -68,7 +68,9 @@ def test_dataset_batches_and_model(run_notebook) -> None:
     assert tuple(d["batch_clips"].shape) == (4, 3, 4, 32, 48)
     assert tuple(d["logits"].shape) == (4, 2)
     assert d["torch"].isfinite(d["logits"]).all()
-    assert set(d["train_paths"]).isdisjoint(d["test_paths"])
+    train_paths = {path for path, _ in d["train_records"]}
+    test_paths = {path for path, _ in d["test_records"]}
+    assert train_paths.isdisjoint(test_paths)
     assert d["batch_labels"].tolist() == [0, 0, 1, 1]
     assert d["torch"].equal(d["dataset"][0][0], d["dataset"][0][0])
     assert d["gradient_norm"] > 0

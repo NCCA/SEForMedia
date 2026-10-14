@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 from pathlib import Path
 
 import polars as pl
@@ -28,7 +29,10 @@ def test_cleaning_and_solutions(tmp_path: Path) -> None:
         }
     )
     fixture.write_csv(tmp_path / "MetObjects.csv")
-    _, definitions = module.app.run(defs={"data_dir": tmp_path, "Path": Path})
+    # marimo needs every name the overridden data_dir cell defines, not just data_dir
+    _, definitions = module.app.run(
+        defs={"data_dir": tmp_path, "Path": Path, "in_lab": lambda: False, "sys": sys}
+    )
     cleaned = definitions["dataset_5"]
     assert cleaned["Object Number"].to_list() == ["a", "b"]
     assert cleaned["Title"].to_list() == ["Untitled", "B"]

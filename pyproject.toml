@@ -66,6 +66,8 @@ default_width = "full"
 [tool.pytest.ini_options]
 # several folders have their own tests/test_notebooks.py, importlib mode lets them share a name
 addopts = ["--import-mode=importlib"]
+# ImageToImage tests import their notebooks as ImageToImage.<name>, so the repo root has to be importable
+pythonpath = ["."]
 
 [tool.ruff]
 exclude = [

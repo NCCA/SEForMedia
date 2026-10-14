@@ -1,4 +1,5 @@
-import importlib
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 
 import marimo
@@ -7,13 +8,20 @@ from PIL import Image
 import pytest
 import torch
 
-from ImageToImage.IntroductionMarimo import app as introduction
-
 NOTEBOOKS = {
-    "denoise": "DenoisingMarimo",
-    "sr": "SuperResolutionMarimo",
-    "segment": "PetSegmentationMarimo",
+    "denoise": "02DenoisingMarimo",
+    "sr": "03SuperResolutionMarimo",
+    "segment": "04PetSegmentationMarimo",
 }
+
+
+def load_app(name: str) -> marimo.App:
+    # the numbered file names aren't valid module names, so load them by path
+    path = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.app
 
 
 @pytest.fixture(params=NOTEBOOKS)
@@ -23,7 +31,7 @@ def task(request: pytest.FixtureRequest) -> str:
 
 @pytest.fixture
 def notebook(task: str) -> marimo.App:
-    return importlib.import_module(f"ImageToImage.{NOTEBOOKS[task]}").app
+    return load_app(NOTEBOOKS[task])
 
 
 @pytest.fixture
@@ -40,7 +48,7 @@ def synthetic_pets() -> list[tuple[Image.Image, Image.Image]]:
 
 
 def test_introduction_runs_without_data_or_training() -> None:
-    _, definitions = introduction.run()
+    _, definitions = load_app("01IntroductionMarimo").run()
 
     assert "training_form" not in definitions
     assert "pets_trainval" not in definitions

@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Lecture and lab code for the [Software Engineering for Media](https://nccastaff.bournemouth.ac.uk/jmacey/SEForMedia/) unit on MSc AIM at the NCCA, Bournemouth University. It is teaching material, not a library — nothing here is imported by anything outside the repo, and most folders are a self-contained demo for one lecture or lab. Students read and run this code, so clarity beats cleverness, and prose (notebook markdown, docstrings, READMEs) is part of the deliverable rather than an afterthought.
 
-`TODO.md` and `UnitImprovementPlan.md` hold the current plans for the material — read them before proposing new content, since they already record what is missing and in what order it should be filled.
-
 ## Running things
 
 Everything goes through [uv](https://docs.astral.sh/uv/). There is a `.envrc` for direnv which sets `VIRTUAL_ENV` to `.venv` and runs `uv sync` if the venv is missing, so in a normal shell the environment is already active.
@@ -37,14 +35,32 @@ Notebooks are excluded from ruff (`[tool.ruff] exclude = ["*.ipynb"]`). The `.fl
 
 ## Tests
 
-There is no test suite. `Lecture4/Colour/test_colour.py` and `Lecture4/ClassMethod/test_colour.py` are driver scripts that exercise the `Colour` class by printing, not pytest tests, and pytest is not installed. Don't claim tests pass, and don't run `pytest` expecting anything to be collected. Adding a real test suite is the top item in `UnitImprovementPlan.md`, so if you are asked to write tests, add pytest to the dev dependency group first and rename those two files so they stop shadowing real test discovery.
+Tests use [pytest](https://docs.pytest.org/), which is in the `dev` dependency group. Write plain test functions with `assert`, fixtures and `parametrize`, not `unittest.TestCase` classes. There is no single top-level `tests/` folder. Each lesson that has tests keeps them next to its notebooks:
+
+| Folder | Tests |
+| --- | --- |
+| `ImageToImage/` | `test_image_models.py`, `test_notebook.py` |
+| `PointCloudsAndMeshNet/tests/` | model code and lesson notebooks, training tests marked `slow` |
+| `TorchAudioForML/tests/`, `TorchCodecForML/tests/` | run each numbered notebook and check its outputs |
+| `Lecture6/tests/` | the polars notebook against a small fake `MetObjects.csv` |
+| `ExperimentTracking/tests/` | TensorBoard and MLflow demos, needs `--with mlflow --with tensorboard` |
+
+```bash
+MPLBACKEND=Agg uv run --with mlflow --with tensorboard pytest   # everything
+uv run pytest TorchAudioForML/tests                             # one lesson
+uv run pytest -m "not slow"                                     # skip the training tests
+```
+
+Most of these tests are notebook tests. They load a marimo notebook with `importlib.util.spec_from_file_location` and call `app.run()`, which returns every name the notebook defines. Pass `defs={...}` to swap a cell's outputs for test data, for example a `SimpleNamespace(value=...)` standing in for a submitted training form. marimo needs every name the replaced cell defines, not only the one you care about, or it raises `IncompleteRefsError`. Load notebooks by path rather than `import`, because numbered names like `01IntroductionMarimo.py` aren't valid module names. When a notebook renames a variable or file, its test breaks, so run the folder's tests after editing a notebook that has them.
+
+`[tool.pytest.ini_options]` in `pyproject.toml` sets `--import-mode=importlib`, because several folders each have a `tests/test_notebooks.py`, and `pythonpath = ["."]`, so tests can import `ImageToImage.image_models`. The `Lecture4/*/colour_demo.py` files are driver scripts that print, not tests. Don't name a script `test_*.py` unless it really is a pytest file, or pytest will try to collect it.
 
 ## Layout
 
 Three kinds of thing live side by side:
 
 - **Slides** in `Slides/<Topic>/` — reveal.js, one `slides.md` per deck split on `\n---\n` (horizontal) and `\n--\n` (vertical), with a fixed `index.html` that loads it from Jon's web space. Edit `slides.md`; `index.html` is boilerplate. Deck titles carry the lecture number (`Slides/Numpy/slides.md` is Lecture 5), which does _not_ line up with the `LectureN/` folder numbering — the folders stop at 7 while the decks run to 10.
-- **Notebooks** in `LectureN/`, `ASL/`, `MNIST/`, `Classification/` and friends. Most exist twice: a Jupyter `X.ipynb` and a marimo `XMarimo.py`. The marimo version is the one being actively maintained (see `TODO.md`), so when changing notebook content, change both or say which you skipped. `IntroToMarimo/` explains marimo to students and is the reference for house style: markdown cells are `@app.cell(hide_code=True)` wrapping `mo.md(r"""...""")`.
+- **Notebooks** in `LectureN/`, `ASL/`, `MNIST/`, `Classification/` and friends. Most exist twice: a Jupyter `X.ipynb` and a marimo `XMarimo.py`. The marimo version is the one being actively maintained, so when changing notebook content, change both or say which you skipped. `IntroToMarimo/` explains marimo to students and is the reference for house style: markdown cells are `@app.cell(hide_code=True)` wrapping `mo.md(r"""...""")`.
 - **Standalone apps and script sets** — `MNIST/Sketch/` (Qt sketchpad that feeds a trained model), `ASL/RealTimeCapture/` (webcam ASL demo, needs OpenCV installed separately), `Seminars/Arguments` and `Seminars/Files` (argparse/click and file IO exercises as starter and solution pairs), `NumPyForML/` and `PyTorchForML/` (numbered marimo notebook series with their own READMEs), `Neuron/nn_from_scratch.py`.
 
 Qt code PySide6
