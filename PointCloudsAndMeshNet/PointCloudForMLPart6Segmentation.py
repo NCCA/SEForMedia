@@ -11,23 +11,21 @@ def _(mo):
     mo.md(r"""
     # Point Clouds for Machine Learning, Part 6: part segmentation
 
-    Classification produces one answer per object. We will now retain the local
-    features from [Part 3](PointCloudForMLPart3PointNet.py) and combine them with the
-    global shape features to produce an answer for every point.
+    Classification gives us one prediction for a whole object. Part segmentation gives us a prediction for every point. For a chair, we want to identify which points belong to parts such as the seat, back and legs.
 
-    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom.
-    Camera controls do not change the input coordinates or repeat training.
-    Run this notebook with `uv run --with plotly marimo edit` followed by its path.
+    We will extend the shared point mapping from [Part 3](PointCloudForMLPart3PointNet.py). Instead of keeping only the pooled representation, we retain each point’s local features and combine them with the global features of the cloud. This gives the prediction layers information about both the individual point and the object it belongs to.
 
-    By the end we should be able to implement local/global concatenation, keep
-    labels aligned during sampling, test permutation equivariance, and evaluate
-    segmentation using per-shape part IoU. We begin with generated chairs, then
-    provide a route to labelled ShapeNet Part chairs.
+    To do this, we repeat the global feature vector for every point and concatenate it with the local features. The resulting tensor contains one combined feature vector per point. A shared prediction network then produces part scores for each of them.
 
-    The loss and IoU examples run immediately. For a complete generated-data
-    experiment, leave the ShapeNet path blank and press **Load labelled chairs
-    and train** below. Learning curves, held-out predictions and checkpoint
-    saving appear after that run. Opening the notebook does not start training.
+    The output must remain aligned with the input. If we shuffle the points, their predictions should follow the same shuffle. This is *permutation equivariance*: unlike the single output of a classifier, the segmentation output changes order to match the points it describes. We must also preserve this correspondence when sampling or selecting points, carrying each point’s label with it.
+
+    We will begin with generated chairs, then provide a route to labelled ShapeNet Part chairs. We will evaluate predictions using per-shape part intersection over union (IoU), which compares the predicted and labelled point sets for each part. This helps us inspect performance on individual parts rather than relying only on overall point accuracy.
+
+    The figures use Plotly. Drag a 3D view to rotate it and scroll to zoom. These camera controls change our view; they do not change the input coordinates or repeat training.
+
+    By the end we should be able to combine local and global features, keep labels aligned with sampled points, test permutation equivariance, and evaluate segmentation using per-shape part IoU.
+
+    The loss and IoU examples run when the notebook opens. To run the complete generated-data experiment, leave the ShapeNet path blank and press **Load labelled chairs and train** below. Learning curves, held-out predictions and checkpoint saving appear after that run. Opening the notebook does not start training.
     """)
     return
 
@@ -38,30 +36,16 @@ def _():
     import sys
     from pathlib import Path
     import marimo as mo
-    import numpy as np
     import torch
     from torch import nn
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
     # This also works when marimo starts from the notebook's own folder.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import pointcloud as pc
 
-    return (inspect, mo, nn, np, pc, torch, Path)
-
-
-@app.cell
-def _(mo):
-    try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ModuleNotFoundError:
-        mo.stop(
-            True,
-            mo.md(
-                "Plotly is missing. Add --with plotly to the uv run command for this notebook."
-            ),
-        )
-    return go, make_subplots
+    return Path, go, inspect, make_subplots, mo, nn, pc, torch
 
 
 @app.cell(hide_code=True)
@@ -69,23 +53,43 @@ def _(mo):
     mo.md(r"""
     ## Give each point the same global context
 
-    Local features have shape `(B, 64, N)`. Pooling produces `(B, 128, 1)`;
-    `expand` gives every point the same global context without copying the data.
-    Concatenation along the channel axis produces `(B, 192, N)`, then a shared
-    head produces `(B, parts, N)` logits. Our "local" features are per-point
-    features; this network does not explicitly aggregate spatial neighbourhoods.
+    For segmentation, we need to retain information about each point whilst also giving it context from the whole object. Our local features have shape `(B, 64, N)`: \(B\) clouds, 64 feature channels and \(N\) points.
+
+    A deeper shared mapping produces 128 channels per point. Maximum pooling across the point dimension reduces these to `(B, 128, 1)`. This is one global feature vector per cloud, summarising the strongest response in each channel.
+
+    We use `expand` to make that vector available at every point:
+
+    ```text
+    (B, 128, 1) → (B, 128, N)
+    ```
+
+    Every point in a cloud receives the same global context. `expand` creates a view that reuses the underlying values rather than storing \(N\) separate copies.
+
+    We then concatenate the local and global features along the channel dimension:
+
+    ```text
+    Local features:   (B,  64, N)
+    Global context:   (B, 128, N)
+    Combined:         (B, 192, N)
+    ```
+
+    Each point now has 192 features: 64 describing that point and 128 providing context about the whole cloud. Although `expand` avoids copying the global vector, concatenation creates a new tensor containing the combined features.
+
+    A shared prediction head processes these vectors and produces logits with shape `(B, parts, N)`. For every point, we have one raw score for each possible part. Selecting the highest-scoring part along the channel dimension gives predicted labels with shape `(B, N)`.
+
+    Here, *local* means **per-point**. These features are calculated from each point independently; the network does not explicitly gather nearby points or describe a spatial neighbourhood. Points exchange information through the pooled global vector, which is shared across the cloud.
     """)
     return
 
 
 @app.cell
-def _(inspect, pc, mo):
+def _(inspect, mo, pc):
     mo.md("```python\n" + inspect.getsource(pc.SegmentNet) + "\n```")
     return
 
 
 @app.cell
-def _(pc, torch, go, mo):
+def _(mo, pc, torch):
     example_chairs, example_parts, part_names = pc.make_parts(2, 192, 7)
     with torch.random.fork_rng():
         torch.manual_seed(7)
@@ -94,10 +98,18 @@ def _(pc, torch, go, mo):
         local_features = segment_probe.local(example_chairs.transpose(1, 2))
         global_context = segment_probe.features(local_features).amax(2, keepdim=True)
         combined = torch.cat(
-            [local_features, global_context.expand(-1, -1, example_chairs.shape[1])],
+            [
+                local_features,
+                global_context.expand(-1, -1, example_chairs.shape[1]),
+            ],
             dim=1,
         )
-    print("Local:", tuple(local_features.shape), "global:", tuple(global_context.shape))
+    print(
+        "Local:",
+        tuple(local_features.shape),
+        "global:",
+        tuple(global_context.shape),
+    )
     print(
         "Concatenated:",
         tuple(combined.shape),
@@ -111,7 +123,7 @@ def _(pc, torch, go, mo):
         labels=part_names,
     )
     mo.ui.plotly(example_view, config={"displaylogo": False, "scrollZoom": True})
-    return (example_chairs, example_parts, segment_probe)
+    return example_chairs, example_parts, segment_probe
 
 
 @app.cell(hide_code=True)
@@ -119,10 +131,21 @@ def _(mo):
     mo.md(r"""
     ## Shuffle coordinates and labels together
 
-    Segmentation should obey `s(PX) = P s(X)`. Classification's invariance would
-    be the wrong test: each prediction belongs to a particular input point.
-    A silent data error is to shuffle coordinates whilst leaving labels unchanged.
-    The arrays still have the right shape, so cross entropy cannot detect this mistake.
+    Segmentation produces one prediction for every input point, so the order of the predictions must follow the order of the points. If \(P\) permutes the point rows and \(s\) is our segmentation network, we expect:
+
+    \[
+    s(PX)=P\,s(X).
+    \]
+
+    This is *permutation equivariance*. Shuffling the input should rearrange the output in exactly the same way. To test it, we compare the scores from the shuffled cloud with the original scores rearranged using that same permutation.
+
+    Classification uses a different test because it produces one answer for the whole cloud. Its output should remain unchanged after shuffling. For segmentation, keeping the output order unchanged would attach predictions to the wrong points.
+
+    The ground-truth labels must also move with their coordinates. If row 12 contains a seat point and its label, moving that point to row 3 must move its label to row 3 as well. We should generate one permutation and apply it to both arrays.
+
+    Shuffling coordinates whilst leaving labels unchanged creates a silent training error. The arrays still have the expected shapes, and the labels still contain valid class indices, so cross entropy can calculate a loss. It cannot check whether a label belongs to the point at that position. The network would be trained against incorrectly matched coordinates and labels.
+
+    The same rule applies when selecting a subset of points: use the same indices for the coordinates and their labels so the correspondence is preserved.
     """)
     return
 
@@ -152,22 +175,34 @@ def _(mo):
     mo.md(r"""
     ## A loss for each point
 
-    Before training a chair model, we can check the loss on three points with
-    two possible part labels. The first two predictions are confident and
-    correct; the third is less certain. We expect it to contribute more loss.
+    Before training a chair model, we will check the loss using three points and two possible part labels. The first two predictions assign a high score to the correct part. The third is less certain, giving the correct part a lower probability, so we expect it to contribute more loss.
 
-    [`cross_entropy`](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html)
-    takes `(B, parts, N)` logits and `(B, N)` integer targets. With
-    `reduction="none"` it returns `(B, N)`, so we can inspect every point.
-    We pass raw logits, then use log-softmax separately to check the calculation:
+    For segmentation, [`cross_entropy`](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html) takes logits with shape `(B, parts, N)` and integer targets with shape `(B, N)`. Each target identifies the correct part for the point at the same batch and point position.
 
-    $$\ell_i = -\log\left(\frac{\exp(z_{y_i,i})}{\sum_k\exp(z_{k,i})}\right).$$
+    We pass **raw logits**, without applying softmax first. Cross entropy calculates the negative log-probability of the correct label internally. For one point \(i\), omitting the batch index, this is:
+
+    \[
+    \ell_i
+    =
+    -\log\left(
+    \frac{\exp(z_{y_i,i})}
+    {\sum_k \exp(z_{k,i})}
+    \right),
+    \]
+
+    where \(z_{k,i}\) is the logit for part \(k\) at point \(i\), and \(y_i\) is that point’s correct part label.
+
+    The loss depends on the probability assigned to the correct label. A probability close to one gives a loss close to zero. A lower probability gives a larger loss, with confident incorrect predictions penalised strongly. The predicted label alone therefore does not tell us the loss: two points can both be classified correctly but contribute different amounts.
+
+    Using `reduction="none"` returns a loss tensor with shape `(B, N)`, allowing us to inspect each point separately. The default mean reduction instead averages these losses into the single scalar normally used for backpropagation.
+
+    We will check the calculation by applying `log_softmax` across the part dimension, selecting the log-probability of each point’s correct label, and negating it. This should match the unreduced cross-entropy result. Using `log_softmax` also avoids explicitly calculating potentially large exponentials in the formula above.
     """)
     return
 
 
 @app.cell
-def _(torch, nn):
+def _(nn, torch):
     _demo_logits = torch.tensor(
         [[[3.0, 0.0, 1.0], [0.0, 3.0, 2.0]]], requires_grad=True
     )
@@ -191,25 +226,43 @@ def _(torch, nn):
     print("Gradients for both part scores at each point:\n", _demo_logits.grad)
     point_losses = point_losses.detach()
     manual_point_losses = manual_point_losses.detach()
-    return point_losses, manual_point_losses
+    return (point_losses,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The mean loss gives each point equal weight. That is not the same as giving
-    each part equal weight: a part containing many points contributes more terms.
-    We will return to this when comparing point accuracy and part IoU.
+    ## Point weighting and reshaping the logits
 
-    We can also flatten the prediction for cross entropy, but we must move
-    the part axis to the end first. Reshaping `(B, parts, N)` directly into
-    `(B*N, parts)` silently groups unrelated scores. The shapes still match!
+    With the default mean reduction, each point contributes equally to the loss. This does not give each **part** equal weight. A seat containing 600 sampled points contributes 600 loss terms, whilst a leg containing 100 points contributes only 100. The larger part therefore has more influence on the average.
+
+    This matters when interpreting our results. A model can achieve high point accuracy by predicting the parts containing most points correctly whilst performing poorly on smaller parts. We will compare point accuracy with part IoU to examine this difference.
+
+    We can also calculate cross entropy by treating all points in the batch as separate examples. Starting with logits of shape `(B, parts, N)`, we first move the part axis to the end:
+
+    ```python
+    flat_logits = logits.permute(0, 2, 1).reshape(-1, num_parts)
+    flat_targets = targets.reshape(-1)
+    ```
+
+    The shapes change as follows:
+
+    ```text
+    Logits:   (B, parts, N) → (B, N, parts) → (B*N, parts)
+    Targets:  (B, N)                       → (B*N,)
+    ```
+
+    Each row of `flat_logits` now contains all part scores for one point, and the corresponding entry in `flat_targets` contains that point’s correct label.
+
+    Reshaping `(B, parts, N)` directly into `(B*N, parts)` does not perform this rearrangement. It groups values according to their existing layout, potentially combining scores from different points into one row. The resulting shapes look valid, so cross entropy can run without reporting an error, even though the scores and targets no longer correspond correctly.
+
+    The rule is to put all class scores for one point together before flattening the batch and point dimensions. With that ordering preserved, the flattened calculation gives the same loss as passing `(B, parts, N)` logits and `(B, N)` targets directly.
     """)
     return
 
 
 @app.cell
-def _(torch, nn, point_losses):
+def _(nn, point_losses, torch):
     _logits = torch.tensor([[[3.0, 0.0, 1.0], [0.0, 3.0, 2.0]]])
     _labels = torch.tensor([[0, 1, 1]])
     _point_rows = _logits.transpose(1, 2).reshape(-1, 2)
@@ -224,7 +277,7 @@ def _(torch, nn, point_losses):
         nn.functional.cross_entropy(_logits, _labels.float())
     except RuntimeError as _error:
         print("Floating-point class indices:", str(_error).split("\n")[0])
-    return (flattened_point_loss,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -232,23 +285,32 @@ def _(mo):
     mo.md(r"""
     ## Generated chairs or ShapeNet Part
 
-    The generated chairs have three labelled parts and are deliberately simple.
-    They exercise the pipeline, not the ShapeNet benchmark.
+    We can run this lesson using generated chairs or labelled chair point clouds from ShapeNet Part. Start with the generated data: leave the ShapeNet path blank and press **Load labelled chairs and train**. These chairs have three labelled parts and deliberately simple geometry. They let us check sampling, label alignment, training and evaluation; their results are not ShapeNet benchmark scores.
 
-    For real data, use [PyTorch Geometric's ShapeNet dataset](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.ShapeNet.html).
-    Prepare a local cache explicitly before opening the training example:
+    ### Prepare the ShapeNet Part data
+
+    For real data, we use [PyTorch Geometric’s ShapeNet dataset loader](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.ShapeNet.html). This provides point clouds with a part label for each point, rather than unlabelled meshes that we must sample ourselves.
+
+    Prepare the local cache explicitly before running the training example. Check the dataset’s access and usage conditions, then run these commands from the repository root:
 
     ```bash
     uv run --with torch-geometric python -c "from torch_geometric.datasets import ShapeNet; ShapeNet('data/ShapeNetPart', categories=['Chair'], split='train', include_normals=False)"
-    uv run --with plotly --with torch-geometric marimo edit PointCloudForML/PointCloudForMLPart6Segmentation.py
+
     ```
 
-    The first command downloads/processes data and may take some time. Check the
-    dataset's access conditions before preparing the cache. Enter that cache path below.
-    The notebook loader requires a complete prepared cache and uses separate train, val
-    and test splits. It samples point indices once and applies those same indices
-    to coordinates and labels. It remaps Chair's labels 12–15 to 0–3 and uses xyz
-    only. The real-data plots retain the original part IDs in their names; inspect the annotations before assigning semantic names.
+    The first command downloads the source archive if needed and prepares the chair data. This may take some time. Although we request the training split, the loader’s processing step prepares the train, validation and test caches, along with a combined train/validation cache. The download itself contains more than just chairs; `categories=['Chair']` selects the category to process. See the [loader implementation](https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/datasets/shapenet.html) for these details.
+
+    Once preparation finishes, enter `data/ShapeNetPart` in the notebook’s ShapeNet path field, or use its absolute path. Select the cache root containing `raw` and `processed`, rather than either subfolder or an individual file. The notebook requires a complete prepared cache.
+
+    ### Keep points and labels together
+
+    The notebook uses separate training, validation and test splits. For each cloud, it selects point indices once and applies the same indices to both coordinates and labels. This preserves the correspondence between a point and its target part.
+
+    We use only the `x`, `y` and `z` coordinates as input. Setting `include_normals=False` excludes the supplied surface normals from the input features.
+
+    ShapeNet Chair uses four part IDs: `12`, `13`, `14` and `15`. Our loader remaps these to `0`, `1`, `2` and `3`, giving us consecutive class indices for a four-output prediction head. This differs from the three-part generated chairs.
+
+    The real-data plots retain the original part IDs in their names so we can trace predictions back to the dataset annotations. Inspect those annotations before assigning semantic names: a numeric ID identifies a labelled region, but does not explain what that region represents.
     """)
     return
 
@@ -276,7 +338,7 @@ def _(mo):
 
 
 @app.cell
-def _(segmentation_form, mo, pc):
+def _(mo, pc, segmentation_form):
     mo.stop(
         segmentation_form.value is None,
         mo.md("Submit the form to train a segmentation model."),
@@ -319,17 +381,22 @@ def _(segmentation_form, mo, pc):
             )
     except (ModuleNotFoundError, OSError, ValueError) as _error:
         mo.stop(True, mo.md(f"Could not load labelled data: {_error}"))
-    print("Coordinates:", tuple(seg_train_x.shape), "labels:", tuple(seg_train_y.shape))
+    print(
+        "Coordinates:",
+        tuple(seg_train_x.shape),
+        "labels:",
+        tuple(seg_train_y.shape),
+    )
     print("Part names:", seg_names)
     return (
+        seg_names,
         seg_settings,
+        seg_test_x,
+        seg_test_y,
         seg_train_x,
         seg_train_y,
         seg_val_x,
         seg_val_y,
-        seg_test_x,
-        seg_test_y,
-        seg_names,
     )
 
 
@@ -347,16 +414,16 @@ def _(mo):
 
 @app.cell
 def _(
+    mo,
+    nn,
+    pc,
+    seg_names,
     seg_settings,
     seg_train_x,
     seg_train_y,
     seg_val_x,
     seg_val_y,
-    seg_names,
-    pc,
     torch,
-    nn,
-    mo,
 ):
     with torch.random.fork_rng():
         torch.manual_seed(int(seg_settings["seed"]))
@@ -376,7 +443,8 @@ def _(
         for _indices in _order.split(8):
             _optimizer.zero_grad()
             _loss = nn.functional.cross_entropy(
-                segmentation_model(seg_train_x[_indices]), seg_train_y[_indices]
+                segmentation_model(seg_train_x[_indices]),
+                seg_train_y[_indices],
             )
             _loss.backward()
             _optimizer.step()
@@ -397,7 +465,7 @@ def _(
     segmentation_model.load_state_dict(_best_state)
     segmentation_model.eval()
     print("Selected validation loss:", _best_loss)
-    return (segmentation_model, seg_history)
+    return seg_history, segmentation_model
 
 
 @app.cell(hide_code=True)
@@ -405,22 +473,42 @@ def _(mo):
     mo.md(r"""
     ## Accuracy and intersection over union
 
-    A model which labels every point as a large part can have misleading point
-    accuracy. We also measure overlap for every part:
+    Point accuracy measures the fraction of points assigned the correct label. It is useful, but parts containing many points have more influence on the result. If most points belong to the seat, a model that labels everything as seat could achieve a reasonable accuracy whilst missing the back and legs entirely.
 
-    $$\operatorname{IoU}_k = \frac{|P_k\cap T_k|}{|P_k\cup T_k|}.$$
+    We therefore also calculate *intersection over union* (IoU) for each part. Let \(P_k\) be the set of points predicted as part \(k\), and \(T_k\) the set whose true label is part \(k\):
 
-    Calculate part IoUs separately for each shape, average its parts, then average
-    shapes. If a part is absent in both prediction and target we assign IoU=1;
-    if the model hallucinates an absent part it receives IoU=0. We state this rule
-    because changing it changes the reported metric. This is a single-category
-    experiment; a full ShapeNet benchmark needs its category-specific valid part sets.
+    \[
+    \operatorname{IoU}_k
+    =
+    \frac{|P_k\cap T_k|}{|P_k\cup T_k|}.
+    \]
+
+    The intersection counts points correctly assigned to that part. The union includes every point predicted or labelled as that part, so it accounts for both missed points and incorrect additions. An IoU of one means a perfect match; zero means there is no overlap.
+
+    For example, suppose a part contains 100 labelled points. The model predicts 90 points as that part, of which 80 are correct. There are 20 missed points and 10 incorrect additions, giving:
+
+    \[
+    \operatorname{IoU}
+    =
+    \frac{80}{100+90-80}
+    =
+    \frac{80}{110}
+    \approx 0.73.
+    \]
+
+    We calculate IoU separately for each valid part of each shape. We then average the part IoUs within that shape, followed by an average across shapes. This gives each valid part equal weight within a shape and each shape equal weight in the final score, regardless of its point count.
+
+    We also need a rule for absent parts. If a part appears in neither the prediction nor the target, the union is empty and the formula would divide by zero. We assign **IoU = 1** in this case, treating the correct absence as a match. If the target contains no points for a part but the model predicts some, the intersection is empty and the union is not, giving **IoU = 0**.
+
+    We state this convention explicitly because excluding absent parts or assigning them another value changes the reported score.
+
+    This lesson evaluates one object category. A full ShapeNet Part evaluation must use the valid part set for each category when calculating these averages; it should not average every shape over all part IDs in the dataset.
     """)
     return
 
 
 @app.cell
-def _(torch, pc):
+def _(pc, torch):
     _actual = torch.tensor([[0, 0, 1, 1]])
     _predicted = torch.tensor([[0, 1, 1, 1]])
     print("Hand-checkable IoUs:", pc.part_iou(_predicted, _actual, 3))
@@ -430,15 +518,15 @@ def _(torch, pc):
 
 @app.cell
 def _(
-    segmentation_model,
+    go,
+    mo,
+    pc,
+    seg_history,
+    seg_names,
     seg_test_x,
     seg_test_y,
-    seg_names,
-    pc,
+    segmentation_model,
     torch,
-    mo,
-    go,
-    seg_history,
 ):
     with torch.no_grad():
         seg_logits = torch.cat(
@@ -446,7 +534,10 @@ def _(
         )
         seg_predictions = seg_logits.argmax(1)
     seg_ious = pc.part_iou(seg_predictions, seg_test_y, len(seg_names))
-    print("Point accuracy:", (seg_predictions == seg_test_y).float().mean().item())
+    print(
+        "Point accuracy:",
+        (seg_predictions == seg_test_y).float().mean().item(),
+    )
     print("Mean shape part IoU:", seg_ious.mean(dim=1).mean().item())
     segmentation_curve = go.Figure()
     for _column, _name in [(0, "Training"), (1, "Validation")]:
@@ -475,7 +566,7 @@ def _(
             mo.ui.plotly(segmentation_curve, config={"displaylogo": False}),
         ]
     )
-    return seg_predictions, seg_ious, seg_logits, segmentation_curve
+    return seg_ious, seg_predictions
 
 
 @app.cell(hide_code=True)
@@ -498,7 +589,7 @@ def _(mo):
 
 
 @app.cell
-def _(seg_predictions, seg_test_y, seg_ious, mo):
+def _(mo, seg_ious, seg_predictions, seg_test_y):
     seg_shape_summary = [
         {
             "shape": index,
@@ -513,13 +604,17 @@ def _(seg_predictions, seg_test_y, seg_ious, mo):
         for index in range(len(seg_test_y))
     ]
     mo.ui.table(seg_shape_summary)
-    return (seg_shape_summary,)
+    return
 
 
 @app.cell
 def _(mo, seg_test_x):
     chair_index = mo.ui.slider(
-        0, len(seg_test_x) - 1, value=0, label="Held-out chair", show_value=True
+        0,
+        len(seg_test_x) - 1,
+        value=0,
+        label="Held-out chair",
+        show_value=True,
     )
     chair_index
     return (chair_index,)
@@ -528,15 +623,14 @@ def _(mo, seg_test_x):
 @app.cell
 def _(
     chair_index,
-    seg_test_x,
-    seg_test_y,
-    seg_predictions,
-    seg_names,
-    seg_ious,
-    pc,
-    go,
     make_subplots,
     mo,
+    pc,
+    seg_ious,
+    seg_names,
+    seg_predictions,
+    seg_test_x,
+    seg_test_y,
 ):
     _index = chair_index.value
     _points = seg_test_x[_index].numpy()
@@ -568,7 +662,7 @@ def _(
         title="Inspect labelled points and segmentation errors",
     )
     mo.ui.plotly(segmentation_plot, config={"displaylogo": False, "scrollZoom": True})
-    return (segmentation_plot,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -591,7 +685,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, Path):
+def _(Path, mo):
     seg_checkpoint_path = mo.ui.text(
         value=str(Path(__file__).resolve().parent / "outputs" / "segmentation.pt"),
         label="Segmentation checkpoint path",
@@ -610,17 +704,17 @@ def _(mo):
 
 @app.cell
 def _(
-    seg_save_button,
-    seg_checkpoint_path,
-    segmentation_model,
-    seg_names,
-    seg_settings,
-    seg_history,
-    seg_test_x,
-    pc,
-    torch,
     Path,
     mo,
+    pc,
+    seg_checkpoint_path,
+    seg_history,
+    seg_names,
+    seg_save_button,
+    seg_settings,
+    seg_test_x,
+    segmentation_model,
+    torch,
 ):
     mo.stop(not seg_save_button.value)
     mo.stop(
@@ -659,7 +753,7 @@ def _(
         "Largest logit difference after reloading:",
         (_before - _after).abs().max().item(),
     )
-    return saved_segmentation_path, reloaded_segmentation_model
+    return
 
 
 @app.cell(hide_code=True)
@@ -669,7 +763,7 @@ def _(mo):
     model with global context, validation-based selection, held-out overlap
     measurements, an error viewer and a reloadable checkpoint.
 
-    The generated chairs make the plumbing easy to check. Their simple parts
+    The generated chairs make the setup easy to check. Their simple parts
     and consistent orientation also make the task easier than real annotations.
     For ShapeNet, inspect missing parts, thin structures and annotation boundaries
     before drawing conclusions from one average score. Increasing training time
