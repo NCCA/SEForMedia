@@ -27,7 +27,7 @@ For the full API, see the [torchaudio documentation](https://docs.pytorch.org/au
 The tests execute all four notebooks and check their numerical results. HTML export executes the cells and builds a viewable notebook.
 
 ```sh
-MPLBACKEND=Agg OMP_NUM_THREADS=1 uv run python -m unittest discover -s TorchAudioForML/tests
+MPLBACKEND=Agg OMP_NUM_THREADS=1 uv run pytest TorchAudioForML/tests
 uv run marimo check TorchAudioForML/*.py
 uv run --with ruff ruff check TorchAudioForML
 uv run marimo export html TorchAudioForML/TorchAudioForMLPart1Waveforms.py -o /tmp/torchaudio-part1.html

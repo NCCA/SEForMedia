@@ -63,6 +63,10 @@ dev = [
 [tool.marimo.display]
 default_width = "full"
 
+[tool.pytest.ini_options]
+# several folders have their own tests/test_notebooks.py, importlib mode lets them share a name
+addopts = ["--import-mode=importlib"]
+
 [tool.ruff]
 exclude = [
     "*.ipynb",   # ignore all notebooks
