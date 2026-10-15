@@ -10,9 +10,9 @@ import torch.nn as nn
 import torchvision.transforms.v2 as transforms
 from MainWindow import Ui_MainWindow
 from PIL import Image
-from qtpy.QtCore import Qt, QTimer, Signal
-from qtpy.QtGui import QImage, QPainter, QPen, QPixmap
-from qtpy.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QImage, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget
 
 
 class ConvBlock(nn.Module):
@@ -57,19 +57,21 @@ class WebcamWidget(QWidget):
             # Convert the frame to QImage
             h, w, ch = frame.shape
             bytes_per_line = ch * w
-            qt_image = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            qt_image = QImage(
+                frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888
+            )
             # now draw a rectangle in the image for the area we are going to send to the model
 
             x, y, width, height = 200, 100, 400, 400
             painter = QPainter(qt_image)
-            painter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
+            painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.SolidLine))
             painter.drawRect(x, y, width, height)
             painter.end()
             self.cropped_frame = qt_image.copy(x, y, width, height)
             # Display the QImage in the QLabel
             qt_image = qt_image.mirrored(True, False)
             # turn all pixels outside the bounding box black
-            qt_image = qt_image.scaled(640, 480, Qt.KeepAspectRatio)
+            qt_image = qt_image.scaled(640, 480, Qt.AspectRatioMode.KeepAspectRatio)
             self.image_label.setPixmap(QPixmap.fromImage(qt_image))
             # grab the raw frame data from the region of interest
             frame = frame[x : x + width, y : y + height]
@@ -163,16 +165,20 @@ class WebcamApp(QMainWindow, Ui_MainWindow):
         if array.shape[0] == 1:  # Grayscale
             array = array.squeeze(0)  # Remove the channel dimension
             h, w = array.shape
-            qimage = QImage(array.data, w, h, w, QImage.Format_Grayscale8)
+            qimage = QImage(array.data, w, h, w, QImage.Format.Format_Grayscale8)
         elif array.shape[0] == 3:  # RGB
-            array = np.transpose(array, (1, 2, 0))  # Convert to (H, W, C)
+            # Convert to (H, W, C), PySide6 needs the memory to be contiguous
+            array = np.ascontiguousarray(np.transpose(array, (1, 2, 0)))
             h, w, c = array.shape
             bytes_per_line = c * w
-            qimage = QImage(array.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            qimage = QImage(
+                array.data, w, h, bytes_per_line, QImage.Format.Format_RGB888
+            )
         else:
             raise ValueError("Unsupported tensor shape: {}".format(array.shape))
 
-        return qimage
+        # the QImage only points at the numpy memory, so copy it before array goes away
+        return qimage.copy()
 
     def get_device(self) -> torch.device:
         """
@@ -195,4 +201,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = WebcamApp()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

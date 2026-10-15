@@ -1,8 +1,8 @@
 import numpy as np
 import torch
-from qtpy.QtCore import QPoint, QRect, Qt, Signal
-from qtpy.QtGui import QImage, QPainter, QPen, QPixmap, QColor
-from qtpy.QtWidgets import QWidget
+from PySide6.QtCore import QPoint, QRect, Qt, Signal
+from PySide6.QtGui import QImage, QPainter, QPen, QPixmap, QColor
+from PySide6.QtWidgets import QWidget
 from scipy.ndimage import center_of_mass
 from torchvision.transforms import ToPILImage, functional as F
 
@@ -13,28 +13,28 @@ class SketchWidget(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setAttribute(Qt.WA_StaticContents)
+        self.setAttribute(Qt.WidgetAttribute.WA_StaticContents)
         self.modified = False
         self.scribbling = False
         self.pen_width = 10
         self.border = 5
-        self.pen_colour = Qt.white
-        self.image = QImage(self.size(), QImage.Format_RGB32)
-        self.image.fill(Qt.black)
+        self.pen_colour = Qt.GlobalColor.white
+        self.image = QImage(self.size(), QImage.Format.Format_RGB32)
+        self.image.fill(Qt.GlobalColor.black)
         self.last_point = QPoint()
 
     def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton:
-            self.last_point = event.pos()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.last_point = event.position().toPoint()
             self.scribbling = True
 
     def mouseMoveEvent(self, event) -> None:
-        if (event.buttons() & Qt.LeftButton) and self.scribbling:
-            self._draw_to(event.pos())
+        if (event.buttons() & Qt.MouseButton.LeftButton) and self.scribbling:
+            self._draw_to(event.position().toPoint())
 
     def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton and self.scribbling:
-            self._draw_to(event.pos())
+        if event.button() == Qt.MouseButton.LeftButton and self.scribbling:
+            self._draw_to(event.position().toPoint())
             self.scribbling = False
             self.mouse_release.emit()
 
@@ -52,7 +52,11 @@ class SketchWidget(QWidget):
 
         painter.setPen(
             QPen(
-                self.pen_colour, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin
+                self.pen_colour,
+                self.pen_width,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
             )
         )
         painter.drawLine(self.last_point, endPoint)
@@ -69,15 +73,15 @@ class SketchWidget(QWidget):
     def _resize_image(self, image, newSize) -> None:
         if image.size() == newSize:
             return
-        newImage = QImage(newSize, QImage.Format_RGB32)
-        newImage.fill(Qt.black)
+        newImage = QImage(newSize, QImage.Format.Format_RGB32)
+        newImage.fill(Qt.GlobalColor.black)
         painter = QPainter(newImage)
         painter.drawImage(QPoint(0, 0), image)
         self.image = newImage
 
     def _crop_image(self, image) -> None:
         def is_non_black(pixel):
-            return pixel != QColor(Qt.black)
+            return pixel != QColor(Qt.GlobalColor.black)
 
         # Find the first and last non-black rows
         first_black_row = next(
@@ -136,21 +140,42 @@ class SketchWidget(QWidget):
         )
         return image.copy(bounding_box)
 
+    @staticmethod
+    def _to_numpy(image: QImage) -> np.ndarray:
+        """
+        Copy a Grayscale8 QImage into a 2D numpy array.
+
+        Qt pads each row out to bytesPerLine, so we reshape to that width and
+        then slice off any padding.
+
+        Parameters
+        ----------
+        image : QImage
+            An image in QImage.Format.Format_Grayscale8.
+
+        Returns
+        -------
+        np.ndarray
+            A (height, width) uint8 array that owns its own data.
+        """
+        buffer = np.frombuffer(image.constBits(), dtype=np.uint8)
+        rows = buffer.reshape((image.height(), image.bytesPerLine()))
+        return rows[:, : image.width()].copy()
+
     def center_image_by_mass(self) -> None:
         """process the image by centering it using the center of mass"""
 
         image = self.image
         # convert to grey scale and smaller size
-        grayscale_image = image.convertToFormat(QImage.Format_Grayscale8)
+        grayscale_image = image.convertToFormat(QImage.Format.Format_Grayscale8)
         grayscale_image = grayscale_image.scaled(
-            28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation
+            28,
+            28,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.FastTransformation,
         )
-        buffer = grayscale_image.bits()
-        buffer.setsize(grayscale_image.byteCount())
         # we need a numpy array for the center of mass
-        image_array = np.array(buffer).reshape(
-            (grayscale_image.height(), grayscale_image.width())
-        )
+        image_array = self._to_numpy(grayscale_image)
         # Calculate the center of mass
         com_y, com_x = center_of_mass(image_array)
         center_y, center_x = np.array(image_array.shape) / 2
@@ -180,13 +205,14 @@ class SketchWidget(QWidget):
         resize_image = self._crop_image(image)
         # Step 2: Resize the image to 28x28 pixels
         resized_image = resize_image.scaled(
-            28, 28, Qt.IgnoreAspectRatio, Qt.FastTransformation
+            28,
+            28,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.FastTransformation,
         )
         # Step 3: Convert the resized image to a grayscale numpy array
-        grayscale_image = resized_image.convertToFormat(QImage.Format_Grayscale8)
-        buffer = grayscale_image.bits()
-        buffer.setsize(grayscale_image.byteCount())
-        np_image = np.array(buffer).reshape((28, 28))
+        grayscale_image = resized_image.convertToFormat(QImage.Format.Format_Grayscale8)
+        np_image = self._to_numpy(grayscale_image)
         # convert to tensor
         np_image = np_image.astype(np.float32)
         tensor_image = torch.tensor(np_image).unsqueeze(

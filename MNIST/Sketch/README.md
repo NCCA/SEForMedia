@@ -4,9 +4,17 @@ This tool allows the user to sketch on the canvas and allow our trained model to
 
 ![Sketch](Sketch.apng)
 
-The tool is written in PyQt using the qtpy module to allow for cross compatibility between  PyQt5, and PySide2.
+The tool is written using [PySide6](https://doc.qt.io/qtforpython-6/). It loads the whole trained model (not just the weights) from `mnist_model.pth` in this folder, and is run from here.
 
-The GUI is generated using the Qt Designer tool and the .ui file is converted to a .py file using the pyuic5 tool. The generated .py file is then imported into the main script.
+```bash
+uv run SketchNumbers.py
+```
+
+The GUI is designed in Qt Designer (`uv run pyside6-designer MainWindow.ui`) and the .ui file is converted to `MainWindow.py` using `pyside6-uic`. The generated .py file is then imported into the main script, so if you change the .ui file re-generate it like this.
+
+```bash
+uv run pyside6-uic MainWindow.ui -o MainWindow.py
+```
 
 The simple SketchWidget can be re-used in other projects by importing the SketchWidget class, it currently allows black on white drawing but changing this is quite simple.
 

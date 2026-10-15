@@ -5,8 +5,8 @@ import sys
 import torch
 from GraphWidget import GraphWidget
 from MainWindow import Ui_MainWindow
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QApplication, QMainWindow
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMainWindow
 from SketchWidget import SketchWidget
 
 
@@ -80,7 +80,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         Clear the sketch widget
         """
-        self.sketch_widget.image.fill(Qt.black)
+        self.sketch_widget.image.fill(Qt.GlobalColor.black)
         self.sketch_widget.modified = True
         self.sketch_widget.update()
 
@@ -88,9 +88,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         Handle key press events
         """
-        if event.key() == Qt.Key_Escape:
+        if event.key() == Qt.Key.Key_Escape:
             self.close()
-        elif event.key() == Qt.Key_Space:
+        elif event.key() == Qt.Key.Key_Space:
             self.clear_sketch()
 
 
@@ -98,4 +98,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
