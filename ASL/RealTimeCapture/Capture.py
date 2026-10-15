@@ -98,7 +98,12 @@ class WebcamApp(QMainWindow, Ui_MainWindow):
         self.device = self.get_device()
         self.webcam_widget.updated_frame.connect(self.update_frame)
         # load the full model
-        self.model = torch.load("asl_model_full.pth", map_location=self.device)
+        # this is the whole pickled model not just the weights, so we need weights_only=False
+        self.model = torch.load(
+            "asl_model_full.pth", map_location=self.device, weights_only=False
+        )
+        # turn off dropout and use the trained batch norm stats
+        self.model.eval()
         # load Qimage from file
         image = QImage("amer_sign2.png")
         image = image.scaled(600, 400)

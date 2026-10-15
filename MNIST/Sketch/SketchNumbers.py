@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env -S uv run --script
 import sys
 
 import torch
-from GraphWidget import GraphWidget
-from MainWindow import Ui_MainWindow
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMainWindow
+
+from GraphWidget import GraphWidget
+from MainWindow import Ui_MainWindow
 from SketchWidget import SketchWidget
 
 
