@@ -22,7 +22,7 @@ def _(mo):
     1. Prepare and load the data
     2. Build a Model
     3. Fit model to data (Training)
-    4. Evaluate the model (Testing / prediction) inference
+    4. Validate the model and make predictions (inference)
     5. Save the model
 
     We will start by importing the python models we need. For this example we will only train on the CPU for ease (as it is a small dataset) but in practice you would use a GPU for larger datasets.
@@ -75,29 +75,31 @@ def _(torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    We are going to split this data into a training and testing set, and then train a model to predict the slope and y-intercept of the line. We can split it in a number of ways typically we use an 80 / 20 split for training and testing, at it's simples level we can use the slice operator to split the data. with the first 80% of the data used for training and the last 20% used for testing.
+    We will use the first 80% of the data for training and the last 20% for validation. Training adjusts the slope and y-intercept; validation lets us inspect the fit on examples that do not update those parameters. We use slices here so we can see exactly which points belong to each set.
+
+    We check validation loss during training and can use it to decide how long to train. This example has no separate final test set. For a final assessment after choosing settings, we need another reserved set. See the [glossary](../GLOSSARY.md#training-validation-and-testing).
     """)
     return
 
 
 @app.cell
 def _(X, y):
-    # Use the data length to split the data into 80 / 20 train / test
+    # Use the data length to split the data into 80 / 20 train / validation
     train_split = int(0.8 * len(X))
     X_train = X[:train_split]
-    X_test = X[train_split:]
+    X_val = X[train_split:]
 
     y_train = y[:train_split]
-    y_test = y[train_split:]
+    y_val = y[train_split:]
 
-    print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-    return X_test, X_train, y_test, y_train
+    print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
+    return X_val, X_train, y_val, y_train
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    We can now plot the data to see what it looks like. As we are going to do this a lot we can generate a simple function to plot the data (both the training and testing data) and the line that we are going to fit to the data.
+    We can now plot the data to see what it looks like. As we are going to do this a lot we can generate a simple function to plot the data (both the training and validation data) and the line that we are going to fit to the data.
     """)
     return
 
@@ -107,26 +109,26 @@ def _(plt):
     # This function will allow use to plot our data and later the predictions
     # Note Marimo works better using a figure which we return to the cell
     # this is different from Jupyter
-    def plot_data(train_data, train_labels, test_data, test_labels, predictions=None):
+    def plot_data(train_data, train_labels, val_data, val_labels, predictions=None):
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.scatter(train_data, train_labels, c="b", s=4, label="Training")
-        ax.scatter(test_data, test_labels, c="g", s=4, label="Testing")
+        ax.scatter(val_data, val_labels, c="g", s=4, label="Validation")
 
         if predictions is not None:
-            ax.scatter(test_data, predictions, c="r", s=4, label="Predictions")
+            ax.scatter(val_data, predictions, c="r", s=4, label="Predictions")
 
         ax.legend(prop={"size": 12})
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
-        ax.set_title("Training vs Testing Data")
+        ax.set_title("Training and Validation Data")
         return fig
 
     return (plot_data,)
 
 
 @app.cell
-def _(X_test, X_train, plot_data, y_test, y_train):
-    plot_data(X_train, y_train, X_test, y_test)
+def _(X_val, X_train, plot_data, y_val, y_train):
+    plot_data(X_train, y_train, X_val, y_val)
     return
 
 
@@ -135,7 +137,7 @@ def _(mo):
     mo.md(r"""
     ## Building a Model
 
-    Now we have our testing and training data we can begin to build our model and train it. In the end we hope to get to the same weights and bias that we used to generate the data.
+    Now we have our validation and training data we can begin to build our model and train it. In the end we hope to get to the same weights and bias that we used to generate the data.
 
     We are going to use the nn.Module from PyTorch as a base class and build our model on top of this.  The following code shows how to build a simple linear regression model. (same as the equation of a line)
     """)
@@ -196,10 +198,10 @@ def _(mo):
 
 
 @app.cell
-def _(X_test, X_train, model, plot_data, torch, y_test, y_train):
+def _(X_val, X_train, model, plot_data, torch, y_val, y_train):
     with torch.inference_mode():
-        _y_preds = model(X_test)
-    plot_data(X_train, y_train, X_test, y_test, _y_preds)
+        _y_preds = model(X_val)
+    plot_data(X_train, y_train, X_val, y_val, _y_preds)
     return
 
 
@@ -263,7 +265,7 @@ def _(mo, randomise_button):
 
 @app.cell
 def _(
-    X_test,
+    X_val,
     X_train,
     manual_b_slider,
     manual_w_slider,
@@ -271,7 +273,7 @@ def _(
     plt,
     randomise_button,
     torch,
-    y_test,
+    y_val,
     y_train,
 ):
     # use tensors with requires_grad so autograd can give us the gradients
@@ -285,7 +287,7 @@ def _(
 
     # left, the data and our hand tuned line
     _ax_line.scatter(X_train, y_train, c="b", s=4, label="Training")
-    _ax_line.scatter(X_test, y_test, c="g", s=4, label="Testing")
+    _ax_line.scatter(X_val, y_val, c="g", s=4, label="Validation")
     _xs = torch.tensor([0.0, 1.0])
     _ax_line.plot(
         _xs,
@@ -398,13 +400,13 @@ def _(mo):
 
 
 @app.cell
-def _(X_test, X_train, loss_fn, model, optimizer, torch, y_test, y_train):
+def _(X_val, X_train, loss_fn, model, optimizer, torch, y_val, y_train):
     # how long to train for
     epochs = 100
 
     # we will use these to plot the loss values later
     train_loss_values = []
-    test_loss_values = []
+    val_loss_values = []
     epoch_count = []
 
     for epoch in range(epochs):
@@ -421,26 +423,26 @@ def _(X_test, X_train, loss_fn, model, optimizer, torch, y_test, y_train):
         # update the weights
         optimizer.step()
 
-        # now test the model to see how well it's doing
+        # now validate the model to see how well it's doing
         # Put the model in evaluation mode
         model.eval()
 
         with torch.inference_mode():
-            #  forward pass on test data
-            test_pred = model(X_test)
+            #  forward pass on validation data
+            val_pred = model(X_val)
 
-            # Calculate loss on test data
-            test_loss = loss_fn(test_pred, y_test.type(torch.float))
+            # Calculate loss on validation data
+            val_loss = loss_fn(val_pred, y_val.type(torch.float))
 
             # Print out what's happening
             if epoch % 10 == 0:
                 epoch_count.append(epoch)
                 train_loss_values.append(loss.detach().numpy())
-                test_loss_values.append(test_loss.detach().numpy())
+                val_loss_values.append(val_loss.detach().numpy())
                 print(
-                    f"Epoch: {epoch:02d} |  Train Loss: {loss} |  Test Loss: {test_loss} "
+                    f"Epoch: {epoch:02d} |  Train Loss: {loss} |  Validation Loss: {val_loss} "
                 )
-    return epoch_count, test_loss_values, train_loss_values
+    return epoch_count, val_loss_values, train_loss_values
 
 
 @app.cell(hide_code=True)
@@ -452,11 +454,11 @@ def _(mo):
 
 
 @app.cell
-def _(epoch_count, plt, test_loss_values, train_loss_values):
+def _(epoch_count, plt, val_loss_values, train_loss_values):
     # Plot the loss curves
     plt.plot(epoch_count, train_loss_values, label="Train loss")
-    plt.plot(epoch_count, test_loss_values, label="Test loss")
-    plt.title("Training and test loss curves")
+    plt.plot(epoch_count, val_loss_values, label="Validation loss")
+    plt.title("Training and validation loss curves")
     plt.ylabel("Loss")
     plt.xlabel("Epochs")
     plt.legend()
@@ -491,11 +493,11 @@ def _(mo):
 
 
 @app.cell
-def _(X_test, X_train, model, plot_data, torch, y_test, y_train):
+def _(X_val, X_train, model, plot_data, torch, y_val, y_train):
     model.eval()
     with torch.inference_mode():
-        _y_preds = model(X_test)
-    plot_data(X_train, y_train, X_test, y_test, _y_preds)
+        _y_preds = model(X_val)
+    plot_data(X_train, y_train, X_val, y_val, _y_preds)
     return
 
 
@@ -534,14 +536,14 @@ def _(mo):
 
 
 @app.cell
-def _(LRModel, X_test, X_train, plot_data, torch, y_test, y_train):
+def _(LRModel, X_val, X_train, plot_data, torch, y_val, y_train):
     new_model = LRModel()
     new_model.load_state_dict(torch.load("LRModel.pth"))
     new_model.eval()
     with torch.inference_mode():
-        loaded_model_preds = new_model(X_test)
+        loaded_model_preds = new_model(X_val)
 
-    plot_data(X_train, y_train, X_test, y_test, loaded_model_preds)
+    plot_data(X_train, y_train, X_val, y_val, loaded_model_preds)
     return
 
 

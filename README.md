@@ -11,6 +11,8 @@ uv sync
 uv run marimo edit Lecture2/Lecture2Marimo.py
 ```
 
+The [notebook glossary](GLOSSARY.md) explains the terms used in the examples, with links to papers and other sources.
+
 ## Contents
 
 - [Lectures](#lectures)

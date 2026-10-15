@@ -11,7 +11,7 @@ def _(mo):
     mo.md(r"""
     # Classification
 
-    In this demo we are going to build a simple network to do binary classification, we will generate the test data ourselves using the [sklearn](https://scikit-learn.org/stable/index.html) library then we will train the network to classify the data.
+    In this demo we are going to build a simple network to do binary classification, we will generate the example data ourselves using the [sklearn](https://scikit-learn.org/stable/index.html) library then we will train the network to classify the data.
 
     ## Getting started
 
@@ -92,7 +92,9 @@ def _(mo):
     mo.md(r"""
     ## Data Preprocessing
 
-    We now need to convert our data into tensors and generate our test / train split. We will use the typical 80:20 split for this.
+    We will convert the data into tensors and use 80% for training and 20% for validation. The training examples update the model parameters; the validation examples let us check progress and compare settings without updating parameters on those examples.
+
+    This introductory example has no separate final test set. If we use the validation results to choose settings or how long to train, we need another reserved set for a final assessment. See the [glossary](../GLOSSARY.md#training-validation-and-testing).
     """)
     return
 
@@ -103,11 +105,11 @@ def _(torch, x, y):
     y_1 = torch.from_numpy(y).type(torch.float)
     train_split = int(0.8 * len(X))
     X_train = X[:train_split]
-    X_test = X[train_split:]
+    X_val = X[train_split:]
     y_train = y_1[:train_split]
-    y_test = y_1[train_split:]
-    print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-    return X, X_test, X_train, y_1, y_test, y_train
+    y_val = y_1[train_split:]
+    print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
+    return X, X_val, X_train, y_1, y_val, y_train
 
 
 @app.cell(hide_code=True)
@@ -208,12 +210,12 @@ def _(mo):
 
 
 @app.cell
-def _(X_test, device, model_1, y_test):
-    prediction = model_1(X_test.to(device))
+def _(X_val, device, model_1, y_val):
+    prediction = model_1(X_val.to(device))
     print(f"Length of predictions: {len(prediction)}, Shape: {prediction.shape}")
-    print(f"Length of test samples: {len(y_test)}, Shape: {y_test.shape}")
+    print(f"Length of validation samples: {len(y_val)}, Shape: {y_val.shape}")
     print(f"\nFirst 10 predictions:\n{prediction[:10]}")
-    print(f"\nFirst 10 test labels:\n{y_test[:10]}")
+    print(f"\nFirst 10 validation labels:\n{y_val[:10]}")
     return
 
 
@@ -274,7 +276,7 @@ def _(mo):
 
 @app.cell
 def _(
-    X_test,
+    X_val,
     X_train,
     accuracy,
     device,
@@ -282,13 +284,13 @@ def _(
     model_1,
     optimizer,
     torch,
-    y_test,
+    y_val,
     y_train,
 ):
     torch.manual_seed(42)
     epochs = 100
     X_train_1, y_train_1 = (X_train.to(device), y_train.to(device))
-    X_test_1, y_test_1 = (X_test.to(device), y_test.to(device))
+    X_val_1, y_val_1 = (X_val.to(device), y_val.to(device))
     for epoch in range(epochs):
         model_1.train()
         y_logits = model_1(X_train_1).squeeze()
@@ -300,13 +302,13 @@ def _(
         optimizer.step()
         model_1.eval()
         with torch.inference_mode():
-            _test_logits = model_1(X_test_1).squeeze()
-            test_pred = torch.round(torch.sigmoid(_test_logits))
-            test_loss = loss_fn(_test_logits, y_test_1)
-            test_acc = accuracy(y_true=y_test_1, y_pred=test_pred)
+            _val_logits = model_1(X_val_1).squeeze()
+            val_pred = torch.round(torch.sigmoid(_val_logits))
+            val_loss = loss_fn(_val_logits, y_val_1)
+            val_acc = accuracy(y_true=y_val_1, y_pred=val_pred)
         if epoch % 10 == 0:
             print(
-                f"Epoch: {epoch} | Loss: {loss:.5f}, Accuracy: {acc:.2f}% | Test loss: {test_loss:.5f}, Test acc: {test_acc:.2f}%"
+                f"Epoch: {epoch} | Loss: {loss:.5f}, Accuracy: {acc:.2f}% | Validation loss: {val_loss:.5f}, Validation acc: {val_acc:.2f}%"
             )
     return
 
@@ -342,9 +344,9 @@ def _(X, device, model_1, np, plt, torch, y_1):
     grid_tensor = torch.from_numpy(grid).type(torch.float).to(device)
     model_1.eval()
     with torch.inference_mode():
-        _test_logits = model_1(grid_tensor).squeeze()
-        test_preds = torch.round(torch.sigmoid(_test_logits))
-        zz = test_preds.reshape(xx.shape).detach().cpu().numpy()
+        _grid_logits = model_1(grid_tensor).squeeze()
+        grid_preds = torch.round(torch.sigmoid(_grid_logits))
+        zz = grid_preds.reshape(xx.shape).detach().cpu().numpy()
         plt.contourf(xx, yy, zz, cmap=plt.cm.coolwarm, alpha=0.2)
         plt.scatter(x=X[:, 0], y=X[:, 1], c=y_1, s=10, cmap=plt.cm.coolwarm)
         plt.xlim(x_min, x_max)
