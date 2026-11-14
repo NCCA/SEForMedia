@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -93,7 +93,7 @@ def _(X, y):
     y_val = y[train_split:]
 
     print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-    return X_val, X_train, y_val, y_train
+    return X_train, X_val, y_train, y_val
 
 
 @app.cell(hide_code=True)
@@ -127,7 +127,7 @@ def _(plt):
 
 
 @app.cell
-def _(X_val, X_train, plot_data, y_val, y_train):
+def _(X_train, X_val, plot_data, y_train, y_val):
     plot_data(X_train, y_train, X_val, y_val)
     return
 
@@ -198,7 +198,7 @@ def _(mo):
 
 
 @app.cell
-def _(X_val, X_train, model, plot_data, torch, y_val, y_train):
+def _(X_train, X_val, model, plot_data, torch, y_train, y_val):
     with torch.inference_mode():
         _y_preds = model(X_val)
     plot_data(X_train, y_train, X_val, y_val, _y_preds)
@@ -265,16 +265,16 @@ def _(mo, randomise_button):
 
 @app.cell
 def _(
-    X_val,
     X_train,
+    X_val,
     manual_b_slider,
     manual_w_slider,
     mo,
     plt,
     randomise_button,
     torch,
-    y_val,
     y_train,
+    y_val,
 ):
     # use tensors with requires_grad so autograd can give us the gradients
     _w = torch.tensor(manual_w_slider.value, requires_grad=True)
@@ -369,21 +369,13 @@ def _(mo):
 
     And we'll use SGD, `torch.optim.SGD(params, lr)` which is a simple optimizer that updates the weights and bias using the gradients of the loss function.
 
-    In code this is quite simple to setup
-    """)
-    return
+    In code this is quite simple to setup, we will also create a new model so each time we intantiate our training this model is reset to new. This is so I can show the training from scratch each time rather than working from a model that already has the correct weights. The code below will create the optimizer and loss functions which we will create in the new training cell along with a new model.
 
-
-@app.cell
-def _(model, nn, torch):
+    ```python
     loss_fn = nn.L1Loss()
     optimizer = torch.optim.SGD(params=model.parameters(), lr=0.01)
-    return loss_fn, optimizer
+    ```
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     The optimizer is passed the model parmeters which it will adjust during training, and the learning rate which is a hyperparameter that controls how much we update the weights and bias during training.
     """)
     return
@@ -400,7 +392,12 @@ def _(mo):
 
 
 @app.cell
-def _(X_val, X_train, loss_fn, model, optimizer, torch, y_val, y_train):
+def _(LRModel, X_train, X_val, nn, torch, y_train, y_val):
+    torch.manual_seed(42)
+    trained_model = LRModel()
+    loss_fn = nn.L1Loss()
+    optimizer = torch.optim.SGD(params=trained_model.parameters(), lr=0.01)
+
     # how long to train for
     epochs = 100
 
@@ -411,9 +408,9 @@ def _(X_val, X_train, loss_fn, model, optimizer, torch, y_val, y_train):
 
     for epoch in range(epochs):
         # when we train we need to put the model in training mode
-        model.train()
+        trained_model.train()
         # grab our predictions using the training data
-        y_pred = model(X_train)
+        y_pred = trained_model(X_train)
         # now see how close we are to the actual values using the loss function
         loss = loss_fn(y_pred, y_train)
         # Zero grad of the optimizer (so we don't accumulate gradients)
@@ -425,11 +422,11 @@ def _(X_val, X_train, loss_fn, model, optimizer, torch, y_val, y_train):
 
         # now validate the model to see how well it's doing
         # Put the model in evaluation mode
-        model.eval()
+        trained_model.eval()
 
         with torch.inference_mode():
             #  forward pass on validation data
-            val_pred = model(X_val)
+            val_pred = trained_model(X_val)
 
             # Calculate loss on validation data
             val_loss = loss_fn(val_pred, y_val.type(torch.float))
@@ -442,7 +439,7 @@ def _(X_val, X_train, loss_fn, model, optimizer, torch, y_val, y_train):
                 print(
                     f"Epoch: {epoch:02d} |  Train Loss: {loss} |  Validation Loss: {val_loss} "
                 )
-    return epoch_count, val_loss_values, train_loss_values
+    return epoch_count, train_loss_values, trained_model, val_loss_values
 
 
 @app.cell(hide_code=True)
@@ -454,7 +451,7 @@ def _(mo):
 
 
 @app.cell
-def _(epoch_count, plt, val_loss_values, train_loss_values):
+def _(epoch_count, plt, train_loss_values, val_loss_values):
     # Plot the loss curves
     plt.plot(epoch_count, train_loss_values, label="Train loss")
     plt.plot(epoch_count, val_loss_values, label="Validation loss")
@@ -474,8 +471,8 @@ def _(mo):
 
 
 @app.cell
-def _(bias, model, weight):
-    print(model.state_dict())
+def _(bias, trained_model, weight):
+    print(trained_model.state_dict())
     print(f"weights: {weight}, bias: {bias}")
     return
 
@@ -493,10 +490,10 @@ def _(mo):
 
 
 @app.cell
-def _(X_val, X_train, model, plot_data, torch, y_val, y_train):
-    model.eval()
+def _(X_train, X_val, plot_data, torch, trained_model, y_train, y_val):
+    trained_model.eval()
     with torch.inference_mode():
-        _y_preds = model(X_val)
+        _y_preds = trained_model(X_val)
     plot_data(X_train, y_train, X_val, y_val, _y_preds)
     return
 
@@ -522,8 +519,8 @@ def _(mo):
 
 
 @app.cell
-def _(model, torch):
-    torch.save(obj=model.state_dict(), f="LRModel.pth")
+def _(torch, trained_model):
+    torch.save(obj=trained_model.state_dict(), f="LRModel.pth")
     return
 
 
@@ -536,7 +533,7 @@ def _(mo):
 
 
 @app.cell
-def _(LRModel, X_val, X_train, plot_data, torch, y_val, y_train):
+def _(LRModel, X_train, X_val, plot_data, torch, y_train, y_val):
     new_model = LRModel()
     new_model.load_state_dict(torch.load("LRModel.pth"))
     new_model.eval()

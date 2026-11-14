@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -95,7 +95,7 @@ def _(torch, x, y):
     y_train = y_1[:train_split]
     y_val = y_1[train_split:]
     print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-    return X, X_val, X_train, y_1, y_val, y_train
+    return X, X_train, X_val, y_1, y_train, y_val
 
 
 @app.cell(hide_code=True)
@@ -235,16 +235,16 @@ def _(mo):
 
 @app.cell
 def _(
-    X_val,
     X_train,
+    X_val,
     accuracy,
     device,
     loss_fn,
     model,
     optimizer,
     torch,
-    y_val,
     y_train,
+    y_val,
 ):
     torch.manual_seed(42)
     epochs = 1000
