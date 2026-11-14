@@ -65,16 +65,26 @@ def _(torch):
     start = 0
     end = 1
     step = 0.01
-    X = torch.arange(start, end, step).unsqueeze(dim=1)
-    y = weight * X + bias
+    inputs = torch.arange(start, end, step).unsqueeze(dim=1)
+    targets = weight * inputs + bias
 
-    print(X.shape, y.shape)
-    return X, bias, weight, y
+    print(inputs.shape, targets.shape)
+    return bias, inputs, targets, weight
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    In these notebooks I use `inputs` and `targets` where many textbooks use `X` and `y`. The convention is common, but descriptive names make the code easier to follow while we are learning.
+
+    The **inputs** contain the information available to the model when making a prediction. The **features** are the measurements or values within those inputs, such as coordinates, pixel values or audio measurements. The **targets** contain the answers we want the model to predict, such as class labels, prices or clean images.
+
+    Names such as `train_inputs` and `train_targets` make those roles explicit. I also use `predictions` or `preds` for the model’s answers so we can distinguish them from the targets used to calculate the loss.
+
+    You will still encounter `X` and `y` in books, equations and library examples. The underlying ideas are the same; I am choosing names that explain what the data is doing.
+
+    ## Test train split
+
     We will use the first 80% of the data for training and the last 20% for validation. Training adjusts the slope and y-intercept; validation lets us inspect the fit on examples that do not update those parameters. We use slices here so we can see exactly which points belong to each set.
 
     We check validation loss during training and can use it to decide how long to train. This example has no separate final test set. For a final assessment after choosing settings, we need another reserved set. See the [glossary](../GLOSSARY.md#training-validation-and-testing).
@@ -83,17 +93,37 @@ def _(mo):
 
 
 @app.cell
-def _(X, y):
+def _(inputs, targets):
     # Use the data length to split the data into 80 / 20 train / validation
-    train_split = int(0.8 * len(X))
-    X_train = X[:train_split]
-    X_val = X[train_split:]
+    train_split = int(0.8 * len(inputs))
+    inputs_train = inputs[:train_split]
+    inputs_val = inputs[train_split:]
 
-    y_train = y[:train_split]
-    y_val = y[train_split:]
+    targets_train = targets[:train_split]
+    targets_val = targets[train_split:]
 
-    print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-    return X_train, X_val, y_train, y_val
+    print(
+        inputs_train.shape,
+        inputs_val.shape,
+        targets_train.shape,
+        targets_val.shape,
+    )
+    return inputs_train, inputs_val, targets_train, targets_val
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Note is is sometimes worth checking you data sizes are correct, we can do this with a simple assert as follows
+    """)
+    return
+
+
+@app.cell
+def _(inputs_train, targets_train):
+    assert len(inputs_train) == len(targets_train)
+    assert len(inputs_train) == len(targets_train)
+    return
 
 
 @app.cell(hide_code=True)
@@ -127,8 +157,8 @@ def _(plt):
 
 
 @app.cell
-def _(X_train, X_val, plot_data, y_train, y_val):
-    plot_data(X_train, y_train, X_val, y_val)
+def _(inputs_train, inputs_val, plot_data, targets_train, targets_val):
+    plot_data(inputs_train, targets_train, inputs_val, targets_val)
     return
 
 
@@ -198,10 +228,18 @@ def _(mo):
 
 
 @app.cell
-def _(X_train, X_val, model, plot_data, torch, y_train, y_val):
+def _(
+    inputs_train,
+    inputs_val,
+    model,
+    plot_data,
+    targets_train,
+    targets_val,
+    torch,
+):
     with torch.inference_mode():
-        _y_preds = model(X_val)
-    plot_data(X_train, y_train, X_val, y_val, _y_preds)
+        _y_preds = model(inputs_val)
+    plot_data(inputs_train, targets_train, inputs_val, targets_val, _y_preds)
     return
 
 
@@ -265,29 +303,29 @@ def _(mo, randomise_button):
 
 @app.cell
 def _(
-    X_train,
-    X_val,
+    inputs_train,
+    inputs_val,
     manual_b_slider,
     manual_w_slider,
     mo,
     plt,
     randomise_button,
+    targets_train,
+    targets_val,
     torch,
-    y_train,
-    y_val,
 ):
     # use tensors with requires_grad so autograd can give us the gradients
     _w = torch.tensor(manual_w_slider.value, requires_grad=True)
     _b = torch.tensor(manual_b_slider.value, requires_grad=True)
-    _loss = torch.mean(torch.abs((_w * X_train + _b) - y_train))
+    _loss = torch.mean(torch.abs((_w * inputs_train + _b) - targets_train))
     _loss.backward()
     _lr = 0.1
 
     _fig, (_ax_line, _ax_loss) = plt.subplots(1, 2, figsize=(22, 8))
 
     # left, the data and our hand tuned line
-    _ax_line.scatter(X_train, y_train, c="b", s=4, label="Training")
-    _ax_line.scatter(X_val, y_val, c="g", s=4, label="Validation")
+    _ax_line.scatter(inputs_train, targets_train, c="b", s=4, label="Training")
+    _ax_line.scatter(inputs_val, targets_val, c="g", s=4, label="Validation")
     _xs = torch.tensor([0.0, 1.0])
     _ax_line.plot(
         _xs,
@@ -307,7 +345,9 @@ def _(
     )
     _grid_loss = torch.mean(
         torch.abs(
-            _ws[..., None] * X_train.squeeze() + _bs[..., None] - y_train.squeeze()
+            _ws[..., None] * inputs_train.squeeze()
+            + _bs[..., None]
+            - targets_train.squeeze()
         ),
         dim=-1,
     )
@@ -392,7 +432,15 @@ def _(mo):
 
 
 @app.cell
-def _(LRModel, X_train, X_val, nn, torch, y_train, y_val):
+def _(
+    LRModel,
+    inputs_train,
+    inputs_val,
+    nn,
+    targets_train,
+    targets_val,
+    torch,
+):
     torch.manual_seed(42)
     trained_model = LRModel()
     loss_fn = nn.L1Loss()
@@ -410,9 +458,9 @@ def _(LRModel, X_train, X_val, nn, torch, y_train, y_val):
         # when we train we need to put the model in training mode
         trained_model.train()
         # grab our predictions using the training data
-        y_pred = trained_model(X_train)
+        y_pred = trained_model(inputs_train)
         # now see how close we are to the actual values using the loss function
-        loss = loss_fn(y_pred, y_train)
+        loss = loss_fn(y_pred, targets_train)
         # Zero grad of the optimizer (so we don't accumulate gradients)
         optimizer.zero_grad()
         # back propagate the loss
@@ -426,10 +474,10 @@ def _(LRModel, X_train, X_val, nn, torch, y_train, y_val):
 
         with torch.inference_mode():
             #  forward pass on validation data
-            val_pred = trained_model(X_val)
+            val_pred = trained_model(inputs_val)
 
             # Calculate loss on validation data
-            val_loss = loss_fn(val_pred, y_val.type(torch.float))
+            val_loss = loss_fn(val_pred, targets_val.type(torch.float))
 
             # Print out what's happening
             if epoch % 10 == 0:
@@ -490,11 +538,19 @@ def _(mo):
 
 
 @app.cell
-def _(X_train, X_val, plot_data, torch, trained_model, y_train, y_val):
+def _(
+    inputs_train,
+    inputs_val,
+    plot_data,
+    targets_train,
+    targets_val,
+    torch,
+    trained_model,
+):
     trained_model.eval()
     with torch.inference_mode():
-        _y_preds = trained_model(X_val)
-    plot_data(X_train, y_train, X_val, y_val, _y_preds)
+        _y_preds = trained_model(inputs_val)
+    plot_data(inputs_train, targets_train, inputs_val, targets_val, _y_preds)
     return
 
 
@@ -533,14 +589,28 @@ def _(mo):
 
 
 @app.cell
-def _(LRModel, X_train, X_val, plot_data, torch, y_train, y_val):
+def _(
+    LRModel,
+    inputs_train,
+    inputs_val,
+    plot_data,
+    targets_train,
+    targets_val,
+    torch,
+):
     new_model = LRModel()
     new_model.load_state_dict(torch.load("LRModel.pth"))
     new_model.eval()
     with torch.inference_mode():
-        loaded_model_preds = new_model(X_val)
+        loaded_model_preds = new_model(inputs_val)
 
-    plot_data(X_train, y_train, X_val, y_val, loaded_model_preds)
+    plot_data(
+        inputs_train,
+        targets_train,
+        inputs_val,
+        targets_val,
+        loaded_model_preds,
+    )
     return
 
 
