@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -52,29 +52,40 @@ def _(make_blobs):
     SEED = 12345
 
     # 1. Create multi-class data
-    x, y = make_blobs(
+    inputs_array, targets_array = make_blobs(
         n_samples=n_samples,
         n_features=FEATURES,
         centers=CLASSES,
         cluster_std=1.2,
         random_state=SEED,
     )
-    return CLASSES, FEATURES, x, y
+    return CLASSES, FEATURES, inputs_array, targets_array
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Let's see the dataset
+    As in the [linear regression notebook](../LinearModel/LinearModelMarimo.py), I use `inputs` and `targets` where books and library examples often use `X` and `y`. These names help us follow what each value does whilst reading the code.
+
+    The inputs are the information we give the model. Here each row is one point and its two features are the horizontal and vertical coordinates. The targets are the class labels we want it to predict, one label for each point. A target is not the vertical coordinate; both coordinates are input features.
+
+    In this example the targets are class IDs from 0 to 3. Each point belongs to one class, so each row of inputs has one target.
+
+    We start with NumPy arrays called `inputs_array` and `targets_array`, then convert them to tensors called `inputs` and `targets`. The names describe the same roles in both forms.
     """)
     return
 
 
 @app.cell
-def _(plt, x, y):
+def _(inputs_array, plt, targets_array):
     plt.figure(figsize=(4, 4))
 
-    plt.scatter(x=x[:, 0], y=x[:, 1], c=y, cmap=plt.cm.plasma)
+    plt.scatter(
+        x=inputs_array[:, 0],
+        y=inputs_array[:, 1],
+        c=targets_array,
+        cmap=plt.cm.plasma,
+    )
     plt.show()
     return
 
@@ -92,24 +103,34 @@ def _(mo):
 
 
 @app.cell
-def _(torch, x, y):
-    X = torch.from_numpy(x).type(torch.float)
-    y_1 = torch.from_numpy(y).type(torch.float)
-    train_split = int(0.8 * len(X))
-    X_train = X[:train_split]
-    X_val = X[train_split:]
-    y_train = y_1[:train_split]
-    y_val = y_1[train_split:]
-    print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-    return X, X_val, X_train, y_1, y_val, y_train
+def _(inputs_array, targets_array, torch):
+    inputs = torch.from_numpy(inputs_array).type(torch.float)
+    targets = torch.from_numpy(targets_array).type(torch.float)
+    train_split = int(0.8 * len(inputs))
+    inputs_train = inputs[:train_split]
+    inputs_val = inputs[train_split:]
+    targets_train = targets[:train_split]
+    targets_val = targets[train_split:]
+    print(
+        inputs_train.shape,
+        inputs_val.shape,
+        targets_train.shape,
+        targets_val.shape,
+    )
+    return (
+        inputs,
+        inputs_train,
+        inputs_val,
+        targets,
+        targets_train,
+        targets_val,
+    )
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Building a Model
-
-    We are going to setup our model in a similar way as before, however this time we have more than one output. To make  it easier to write our forward pass we are going to use the ```torch.nn.Sequential``` class which will call the forward method of each module in the order they are passed to the constructor.
+    again we will use the gpu if avaiable.
     """)
     return
 
@@ -136,6 +157,16 @@ def _(torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Building a Model
+
+    We are going to setup our model in a similar way as before, however this time we have more than one output. To make  it easier to write our forward pass we are going to use the ```torch.nn.Sequential``` class which will call the forward method of each module in the order they are passed to the constructor.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     We will still inherit from the nn.Module but change the shape of our model to include a hidden layer with a ReLU activation function.
     """)
     return
@@ -156,11 +187,12 @@ def _(CLASSES, FEATURES, device, nn):
                 nn.Linear(in_features=hidden_size, out_features=output_features),
             )
 
-        def forward(self, x):
-            return self.linear_layer(x)
+        def forward(self, inputs):
+            return self.linear_layer(inputs)
 
     model = Classify(input_features=FEATURES, output_features=CLASSES).to(device)
     print(model.parameters)
+    model
     return (model,)
 
 
@@ -179,7 +211,6 @@ def _(mo):
 @app.cell
 def _(model, nn, optim):
     loss_fn = nn.CrossEntropyLoss()
-
     optimizer = optim.SGD(params=model.parameters(), lr=0.1)
     return loss_fn, optimizer
 
@@ -193,8 +224,8 @@ def _(mo):
 
 
 @app.cell
-def _(X_train, device, model, torch):
-    logits = model(X_train.to(device))
+def _(device, inputs_train, model, torch):
+    logits = model(inputs_train.to(device))
     print(logits.shape)
     probabilities = torch.softmax(logits, dim=1)
     print(logits[:5])
@@ -219,9 +250,9 @@ def _(probabilities, torch):
 
 @app.cell
 def _(torch):
-    def accuracy(y_true, y_pred):
-        correct = torch.eq(y_true, y_pred).sum().item()
-        acc = (correct / len(y_pred)) * 100
+    def accuracy(targets, preds):
+        correct = torch.eq(targets, preds).sum().item()
+        acc = (correct / len(preds)) * 100
         return acc
 
     return (accuracy,)
@@ -232,6 +263,10 @@ def _(mo):
     mo.md(r"""
     ## Training the Model
 
+    We pass `inputs_train_device` through the model and compare its logits with `targets_train_device` to calculate the loss. The targets are the known answers; `preds` are the class labels chosen by the model, which we compare with those answers to calculate accuracy. Moving tensors to a device changes where we calculate, not what the data means.
+
+    We keep the same pairing for validation: `inputs_val_device` contains the points and `targets_val_device` contains their expected classes. Those examples do not update the model parameters.
+
     We will now train the model using the training data. We will use the same training loop as in the previous lab but using the new data sets, we will now also copy the data to the device to help speed up the training process.
     """)
     return
@@ -239,44 +274,44 @@ def _(mo):
 
 @app.cell
 def _(
-    X_val,
-    X_train,
     accuracy,
     device,
+    inputs_train,
+    inputs_val,
     loss_fn,
     model,
     optimizer,
+    targets_train,
+    targets_val,
     torch,
-    y_val,
-    y_train,
 ):
     torch.manual_seed(1234)
 
     epochs = 100
 
     # copy to device
-    X_train_device = X_train.to(device)
+    inputs_train_device = inputs_train.to(device)
 
     # cross entropy expects integer class IDs on every device
-    y_train_device = y_train.type(torch.LongTensor)
-    y_train_device = y_train_device.to(device)
+    targets_train_device = targets_train.type(torch.LongTensor)
+    targets_train_device = targets_train_device.to(device)
 
-    X_val_device = X_val.to(device)
-    y_val_device = y_val.type(torch.LongTensor)
-    y_val_device = y_val_device.to(device)
+    inputs_val_device = inputs_val.to(device)
+    targets_val_device = targets_val.type(torch.LongTensor)
+    targets_val_device = targets_val_device.to(device)
 
     for epoch in range(epochs):
         ### Training
         model.train()
 
         # 1. Forward pass
-        y_logits = model(X_train_device)
+        train_logits = model(inputs_train_device)
         # turn logits -> pred probs -> pred labls
-        y_pred = torch.softmax(y_logits, dim=1).argmax(dim=1)
+        preds = torch.softmax(train_logits, dim=1).argmax(dim=1)
 
         # 2. Calculate loss/accuracy
-        loss = loss_fn(y_logits, y_train_device)
-        acc = accuracy(y_true=y_train_device, y_pred=y_pred)
+        loss = loss_fn(train_logits, targets_train_device)
+        acc = accuracy(targets=targets_train_device, preds=preds)
 
         # reset the optimizer to zero
         optimizer.zero_grad()
@@ -289,17 +324,17 @@ def _(
         model.eval()
         with torch.inference_mode():
             # 1. Forward pass
-            val_logits = model(X_val_device)
+            val_logits = model(inputs_val_device)
             val_pred = torch.softmax(val_logits, dim=1).argmax(dim=1)
             # 2. calculate loss/accuracy
-            val_loss = loss_fn(val_logits, y_val_device)
-            val_acc = accuracy(y_true=y_val_device, y_pred=val_pred)
+            val_loss = loss_fn(val_logits, targets_val_device)
+            val_acc = accuracy(targets=targets_val_device, preds=val_pred)
 
         if epoch % 10 == 0:
             print(
                 f"Epoch: {epoch} | Loss: {loss:.5f}, Accuracy: {acc:.2f}% | Validation loss: {val_loss:.5f}, Validation acc: {val_acc:.2f}%"
             )
-    return (X_val_device,)
+    return (inputs_val_device,)
 
 
 @app.cell(hide_code=True)
@@ -311,11 +346,11 @@ def _(mo):
 
 
 @app.cell
-def _(X_val_device, model, torch, y_val):
+def _(inputs_val_device, model, targets_val, torch):
     model.eval()
     with torch.inference_mode():
-        y_preds = model(X_val_device).argmax(dim=1)
-    (y_preds[:10], y_val[:10])
+        predictions = model(inputs_val_device).argmax(dim=1)
+    (predictions[:10], targets_val[:10])
     return
 
 
@@ -328,9 +363,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, device, model, np, plt, torch, y_1):
-    x_min, x_max = (X[:, 0].min() - 0.1, X[:, 0].max() + 0.1)
-    y_min, y_max = (X[:, 1].min() - 0.1, X[:, 1].max() + 0.1)
+def _(device, inputs, model, np, plt, targets, torch):
+    x_min, x_max = (inputs[:, 0].min() - 0.1, inputs[:, 0].max() + 0.1)
+    y_min, y_max = (inputs[:, 1].min() - 0.1, inputs[:, 1].max() + 0.1)
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
     plt.figure(figsize=(4, 4))
     grid = np.c_[xx.ravel(), yy.ravel()]
@@ -341,7 +376,13 @@ def _(X, device, model, np, plt, torch, y_1):
         grid_preds = torch.softmax(_grid_logits, dim=1).argmax(dim=1)
         zz = grid_preds.reshape(xx.shape).detach().cpu().numpy()
         plt.contourf(xx, yy, zz, cmap=plt.cm.plasma, alpha=0.2)
-        plt.scatter(x=X[:, 0], y=X[:, 1], c=y_1, s=10, cmap=plt.cm.coolwarm)
+        plt.scatter(
+            x=inputs[:, 0],
+            y=inputs[:, 1],
+            c=targets,
+            s=10,
+            cmap=plt.cm.coolwarm,
+        )
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         plt.title("Decision Boundary")
@@ -353,14 +394,6 @@ def _(X, device, model, np, plt, torch, y_1):
 def _(mo):
     mo.md(r"""
     This works well. Try re-running the model with the ReLU activation function removed and see how this affects the decision boundary.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
- 
     """)
     return
 

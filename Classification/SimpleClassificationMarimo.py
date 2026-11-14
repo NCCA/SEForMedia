@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -48,22 +48,28 @@ def _(make_circles):
     n_samples = 1000
 
     # Create circles
-    x, y = make_circles(
+    inputs_array, targets_array = make_circles(
         n_samples,
         noise=0.03,
         random_state=42,  # a little bit of noise to the dots
     )  # keep random state so we get the same values
 
-    print(x.shape, y.shape)
-    print(type(x), type(y))
-    print(x[:10], y[:10])
-    return x, y
+    print(inputs_array.shape, targets_array.shape)
+    print(type(inputs_array), type(targets_array))
+    print(inputs_array[:10], targets_array[:10])
+    return inputs_array, targets_array
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    You can see that the data has two components, the first one is the data itself as x,y co-ordinates and the second one is the labels. We will use the data to train our network and the labels to evaluate it.
+    As in the [linear regression notebook](../LinearModel/LinearModelMarimo.py), I use `inputs` and `targets` where books and library examples often use `X` and `y`. These names help us follow what each value does whilst reading the code.
+
+    The inputs are the information we give the model. Here each row is one point and its two features are the horizontal and vertical coordinates. The targets are the class labels we want it to predict, one label for each point. A target is not the vertical coordinate; both coordinates are input features.
+
+    Here each target is 0 or 1, identifying which circle the point belongs to. We use floating point targets for `BCEWithLogitsLoss`, even though the labels describe two classes.
+
+    We start with NumPy arrays called `inputs_array` and `targets_array`, then convert them to tensors called `inputs` and `targets`. The names describe the same roles in both forms.
 
     We can plot this to see the data in full.
     """)
@@ -71,10 +77,12 @@ def _(mo):
 
 
 @app.cell
-def _(plt, x, y):
+def _(inputs_array, plt, targets_array):
     plt.figure(figsize=(4, 4))
 
-    plt.scatter(x=x[:, 0], y=x[:, 1], c=y, cmap=plt.cm.plasma)
+    plt.scatter(
+        x=inputs_array[:, 0], y=inputs_array[:, 1], c=targets_array, cmap=plt.cm.plasma
+    )
     plt.show()
     return
 
@@ -100,16 +108,23 @@ def _(mo):
 
 
 @app.cell
-def _(torch, x, y):
-    X = torch.from_numpy(x).type(torch.float)
-    y_1 = torch.from_numpy(y).type(torch.float)
-    train_split = int(0.8 * len(X))
-    X_train = X[:train_split]
-    X_val = X[train_split:]
-    y_train = y_1[:train_split]
-    y_val = y_1[train_split:]
-    print(X_train.shape, X_val.shape, y_train.shape, y_val.shape)
-    return X, X_val, X_train, y_1, y_val, y_train
+def _(inputs_array, targets_array, torch):
+    inputs = torch.from_numpy(inputs_array).type(torch.float)
+    targets = torch.from_numpy(targets_array).type(torch.float)
+    train_split = int(0.8 * len(inputs))
+    inputs_train = inputs[:train_split]
+    inputs_val = inputs[train_split:]
+    targets_train = targets[:train_split]
+    targets_val = targets[train_split:]
+    print(inputs_train.shape, inputs_val.shape, targets_train.shape, targets_val.shape)
+    return (
+        inputs,
+        inputs_train,
+        inputs_val,
+        targets,
+        targets_train,
+        targets_val,
+    )
 
 
 @app.cell(hide_code=True)
@@ -163,8 +178,8 @@ def _(device, nn):
 
         # as we have nn.Linear layers, we can use them directly in forward as they
         # are callable objects able to perform the forward pass
-        def forward(self, x):
-            return self.layer_2(self.layer_1(x))
+        def forward(self, inputs):
+            return self.layer_2(self.layer_1(inputs))
 
     model = BinaryClassify().to(device)
     print(model.parameters)
@@ -196,6 +211,8 @@ def _(device, nn):
     ).to(device)
     print(model_1.parameters)
     print(model_1.state_dict())
+    # Note if we return the model marimo will show us the contents as well a nice feature.
+    model_1
     return (model_1,)
 
 
@@ -210,12 +227,14 @@ def _(mo):
 
 
 @app.cell
-def _(X_val, device, model_1, y_val):
-    prediction = model_1(X_val.to(device))
+def _(device, inputs_val, model_1, targets_val):
+    prediction = model_1(inputs_val.to(device))
     print(f"Length of predictions: {len(prediction)}, Shape: {prediction.shape}")
-    print(f"Length of validation samples: {len(y_val)}, Shape: {y_val.shape}")
+    print(
+        f"Length of validation samples: {len(targets_val)}, Shape: {targets_val.shape}"
+    )
     print(f"\nFirst 10 predictions:\n{prediction[:10]}")
-    print(f"\nFirst 10 validation labels:\n{y_val[:10]}")
+    print(f"\nFirst 10 validation labels:\n{targets_val[:10]}")
     return
 
 
@@ -256,9 +275,9 @@ def _(mo):
 
 @app.cell
 def _(torch):
-    def accuracy(y_true, y_pred):
-        correct = torch.eq(y_true, y_pred).sum().item()
-        acc = (correct / len(y_pred)) * 100
+    def accuracy(targets, preds):
+        correct = torch.eq(targets, preds).sum().item()
+        acc = (correct / len(preds)) * 100
         return acc
 
     return (accuracy,)
@@ -269,6 +288,10 @@ def _(mo):
     mo.md(r"""
     ## Training the Model
 
+    We pass `inputs_train_device` through the model and compare its logits with `targets_train_device` to calculate the loss. The targets are the known answers; `preds` are the class labels chosen by the model, which we compare with those answers to calculate accuracy. Moving tensors to a device changes where we calculate, not what the data means.
+
+    We keep the same pairing for validation: `inputs_val_device` contains the points and `targets_val_device` contains their expected classes. Those examples do not update the model parameters.
+
     We will now train the model using the training data. We will use the same training loop as in the previous lab but using the new data sets, we will now also copy the data to the device to help speed up the training process.
     """)
     return
@@ -276,36 +299,42 @@ def _(mo):
 
 @app.cell
 def _(
-    X_val,
-    X_train,
     accuracy,
     device,
+    inputs_train,
+    inputs_val,
     loss_fn,
     model_1,
     optimizer,
+    targets_train,
+    targets_val,
     torch,
-    y_val,
-    y_train,
 ):
     torch.manual_seed(42)
     epochs = 100
-    X_train_1, y_train_1 = (X_train.to(device), y_train.to(device))
-    X_val_1, y_val_1 = (X_val.to(device), y_val.to(device))
+    inputs_train_device, targets_train_device = (
+        inputs_train.to(device),
+        targets_train.to(device),
+    )
+    inputs_val_device, targets_val_device = (
+        inputs_val.to(device),
+        targets_val.to(device),
+    )
     for epoch in range(epochs):
         model_1.train()
-        y_logits = model_1(X_train_1).squeeze()
-        y_pred = torch.round(torch.sigmoid(y_logits))
-        loss = loss_fn(y_logits, y_train_1)
-        acc = accuracy(y_true=y_train_1, y_pred=y_pred)
+        train_logits = model_1(inputs_train_device).squeeze()
+        preds = torch.round(torch.sigmoid(train_logits))
+        loss = loss_fn(train_logits, targets_train_device)
+        acc = accuracy(targets=targets_train_device, preds=preds)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         model_1.eval()
         with torch.inference_mode():
-            _val_logits = model_1(X_val_1).squeeze()
+            _val_logits = model_1(inputs_val_device).squeeze()
             val_pred = torch.round(torch.sigmoid(_val_logits))
-            val_loss = loss_fn(_val_logits, y_val_1)
-            val_acc = accuracy(y_true=y_val_1, y_pred=val_pred)
+            val_loss = loss_fn(_val_logits, targets_val_device)
+            val_acc = accuracy(targets=targets_val_device, preds=val_pred)
         if epoch % 10 == 0:
             print(
                 f"Epoch: {epoch} | Loss: {loss:.5f}, Accuracy: {acc:.2f}% | Validation loss: {val_loss:.5f}, Validation acc: {val_acc:.2f}%"
@@ -323,11 +352,11 @@ def _(mo):
 
     The code below does the following.
 
-    1. `x_min, x_max = X[:, 0].min() - 0.1, X[:, 0].max() + 0.1` calculates the minimum and maximum values for the first feature (column) of the dataset `X`, adding a small margin of 0.1 to both ends. This ensures that the grid will extend slightly beyond the range of the data.
+    1. `x_min, x_max = inputs[:, 0].min() - 0.1, inputs[:, 0].max() + 0.1` calculates the minimum and maximum values for the first feature (column) of the dataset `inputs`, adding a small margin of 0.1 to both ends. This ensures that the grid will extend slightly beyond the range of the data.
 
-    2. `y_min, y_max = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1` this line calculates the minimum and maximum values for the second feature of the dataset `X`, also adding a margin of 0.1.
+    2. `y_min, y_max = inputs[:, 1].min() - 0.1, inputs[:, 1].max() + 0.1` this line calculates the minimum and maximum values for the second feature of the dataset `inputs`, also adding a margin of 0.1.
 
-    3. `xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))`  This line creates a meshgrid using `numpy`. It generates two 2D arrays (`xx` and `yy`) that represent all combinations of x and y values within the specified ranges. The `np.linspace` function creates 100 evenly spaced values between `x_min` and `x_max`, and between `y_min` and `y_max`.
+    3. `xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))`  This line creates a meshgrid using `numpy`. It generates two 2D arrays (`xx` and `yy`) that represent all combinations of horizontal and vertical coordinates within the specified ranges. The `np.linspace` function creates 100 evenly spaced values between `x_min` and `x_max`, and between `y_min` and `y_max`.
 
     This will then allow us to plot into this grid to get the values we need.
     """)
@@ -335,9 +364,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, device, model_1, np, plt, torch, y_1):
-    x_min, x_max = (X[:, 0].min() - 0.1, X[:, 0].max() + 0.1)
-    y_min, y_max = (X[:, 1].min() - 0.1, X[:, 1].max() + 0.1)
+def _(device, inputs, model_1, np, plt, targets, torch):
+    x_min, x_max = (inputs[:, 0].min() - 0.1, inputs[:, 0].max() + 0.1)
+    y_min, y_max = (inputs[:, 1].min() - 0.1, inputs[:, 1].max() + 0.1)
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
     plt.figure(figsize=(4, 4))
     grid = np.c_[xx.ravel(), yy.ravel()]
@@ -348,7 +377,9 @@ def _(X, device, model_1, np, plt, torch, y_1):
         grid_preds = torch.round(torch.sigmoid(_grid_logits))
         zz = grid_preds.reshape(xx.shape).detach().cpu().numpy()
         plt.contourf(xx, yy, zz, cmap=plt.cm.coolwarm, alpha=0.2)
-        plt.scatter(x=X[:, 0], y=X[:, 1], c=y_1, s=10, cmap=plt.cm.coolwarm)
+        plt.scatter(
+            x=inputs[:, 0], y=inputs[:, 1], c=targets, s=10, cmap=plt.cm.coolwarm
+        )
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         plt.title("Decision Boundary")
