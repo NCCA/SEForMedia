@@ -93,9 +93,9 @@ def _(train_set, valid_set):
 
 @app.cell
 def _(train_set):
-    x_0, y_0 = train_set[0]
-    print(type(x_0), type(y_0), x_0.size, y_0)
-    x_0
+    input_0, target_0 = train_set[0]
+    print(type(input_0), type(target_0), input_0.size, target_0)
+    input_0
     return
 
 
@@ -292,8 +292,9 @@ def _(history):
 def _(device, model, torch, train_set):
     model.eval()
     with torch.inference_mode():
-        prediction = model(train_set[0][0].to(device).unsqueeze(0))
-    print(f"predicted {prediction.argmax(dim=1).item()}, label {train_set[0][1]}")
+        _inputs, _target = train_set[0]
+        _logits = model(_inputs.to(device).unsqueeze(0))
+    print(f"predicted {_logits.argmax(dim=1).item()}, target {_target}")
     return
 
 
