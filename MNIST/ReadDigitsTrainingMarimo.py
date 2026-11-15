@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full", app_title="MNIST Digits")
 
 
@@ -136,11 +136,15 @@ def _(mo):
 
 @app.cell
 def _(np, plt, train_images, train_labels):
-    def display_image(image: np.array, label: str) -> None:
-        plt.figure(figsize=(1, 1))
-        plt.title(f"Label : {label}")
-        plt.imshow(image, cmap="gray")
-        plt.axis("off")
+    def display_image(image: np.ndarray, label: str, size: float = 2.0) -> None:
+        """Show a greyscale image with its label in a small figure.
+
+        size is the width and height of the figure in inches.
+        """
+        fig, ax = plt.subplots(figsize=(size, size))
+        ax.imshow(image, cmap="gray")
+        ax.set_title(f"Label : {label}", fontsize=8)
+        ax.axis("off")
         plt.show()
 
     # We can now display the first image from the training dataset.
@@ -196,24 +200,19 @@ def _(mo):
 
     Earlier, we created a `trans` variable to convert our ndarray to a tensor. [Transforms](https://pytorch.org/vision/stable/transforms.html) are a group of torchvision functions that can be used to transform a dataset.
 
-    At present our train_images and test_images are numpy arrays. We need to convert them to tensors. We can do this using the `trans` variable we created earlier.
+    At present our `train_images` and `test_images` are numpy arrays. We need to convert them to tensors, which I call `inputs_train` and `inputs_val`, with the labels becoming `targets_train` and `targets_val`. The test set is what we use to validate the model during training.
     """)
     return
 
 
 @app.cell
 def _(device, test_images, test_labels, torch, train_images, train_labels):
-    train_images_tensor = torch.tensor(train_images, dtype=torch.float32).to(device)
-    train_labels_tensor = torch.tensor(train_labels, dtype=torch.uint8).to(device)
+    inputs_train = torch.tensor(train_images, dtype=torch.float32).to(device)
+    targets_train = torch.tensor(train_labels, dtype=torch.uint8).to(device)
 
-    test_images_tensor = torch.tensor(test_images, dtype=torch.float32).to(device)
-    test_labels_tensor = torch.tensor(test_labels, dtype=torch.uint8).to(device)
-    return (
-        test_images_tensor,
-        test_labels_tensor,
-        train_images_tensor,
-        train_labels_tensor,
-    )
+    inputs_val = torch.tensor(test_images, dtype=torch.float32).to(device)
+    targets_val = torch.tensor(test_labels, dtype=torch.uint8).to(device)
+    return inputs_train, inputs_val, targets_train, targets_val
 
 
 @app.cell(hide_code=True)
@@ -223,7 +222,7 @@ def _(mo):
 
     We can use the DataLoader class from the torch.utils.data module to create a DataLoader for our training and test data, you can think of this as batching images into smaller groups for training.
 
-    First we need to create a custom class to hold our data, we can do this by creating a subclass of the Dataset class from the torch.utils.data module. We need to implement the __len__ and __getitem__ methods to return the length of the dataset and the data and label for a given index.
+    First we need to create a custom class to hold our data, we can do this by creating a subclass of the Dataset class from the torch.utils.data module. We need to implement the __len__ and __getitem__ methods to return the length of the dataset and the inputs and target for a given index.
     """)
     return
 
@@ -232,17 +231,15 @@ def _(mo):
 def _(Dataset):
     # Custom dataset class
     class DigitsDataset(Dataset):
-        def __init__(self, images_tensor, labels_tensor):
-            self.images_tensor = images_tensor
-            self.labels_tensor = labels_tensor
+        def __init__(self, inputs, targets):
+            self.inputs = inputs
+            self.targets = targets
 
         def __len__(self):
-            return len(self.labels_tensor)
+            return len(self.targets)
 
         def __getitem__(self, idx):
-            image = self.images_tensor[idx]
-            label = self.labels_tensor[idx]
-            return image, label
+            return self.inputs[idx], self.targets[idx]
 
     return (DigitsDataset,)
 
@@ -263,15 +260,15 @@ def _(mo):
 def _(
     DataLoader,
     DigitsDataset,
-    test_images_tensor,
-    test_labels_tensor,
-    train_images_tensor,
-    train_labels_tensor,
+    inputs_train,
+    inputs_val,
+    targets_train,
+    targets_val,
 ):
     batch_size = 32
 
-    train_data = DigitsDataset(train_images_tensor, train_labels_tensor)
-    valid_data = DigitsDataset(test_images_tensor, test_labels_tensor)
+    train_data = DigitsDataset(inputs_train, targets_train)
+    valid_data = DigitsDataset(inputs_val, targets_val)
 
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_data, batch_size=batch_size)
@@ -510,9 +507,9 @@ def _(mo):
 
 
 @app.function
-def get_batch_accuracy(output, y, N):
-    pred = output.argmax(dim=1, keepdim=True)
-    correct = pred.eq(y.view_as(pred)).sum().item()
+def get_batch_accuracy(logits, targets, N):
+    preds = logits.argmax(dim=1, keepdim=True)
+    correct = preds.eq(targets.view_as(preds)).sum().item()
     return correct / N
 
 
@@ -538,15 +535,15 @@ def _(device, loss_function, torch, train_N, train_loader):
         loss = 0
         accuracy = 0
         model.train()
-        for x, y in train_loader:
-            x, y = (x.to(device), y.to(device))
-            output = model(x)
+        for inputs, targets in train_loader:
+            inputs, targets = (inputs.to(device), targets.to(device))
+            logits = model(inputs)
             optimizer.zero_grad()
-            batch_loss = loss_function(output, y)
+            batch_loss = loss_function(logits, targets)
             batch_loss.backward()
             optimizer.step()
-            loss = loss + batch_loss.item() * len(y)
-            accuracy = accuracy + get_batch_accuracy(output, y, train_N)
+            loss = loss + batch_loss.item() * len(targets)
+            accuracy = accuracy + get_batch_accuracy(logits, targets, train_N)
         return loss / train_N, accuracy
 
     return (train,)
@@ -571,11 +568,11 @@ def _(device, loss_function, torch, valid_N, valid_loader):
         accuracy = 0
         model.eval()
         with torch.inference_mode():
-            for x, y in valid_loader:
-                x, y = (x.to(device), y.to(device))
-                output = model(x)
-                loss = loss + loss_function(output, y).item() * len(y)
-                accuracy = accuracy + get_batch_accuracy(output, y, valid_N)
+            for inputs, targets in valid_loader:
+                inputs, targets = (inputs.to(device), targets.to(device))
+                logits = model(inputs)
+                loss = loss + loss_function(logits, targets).item() * len(targets)
+                accuracy = accuracy + get_batch_accuracy(logits, targets, valid_N)
         return loss / valid_N, accuracy
 
     return (validate,)
@@ -679,12 +676,12 @@ def _(mo):
 
 
 @app.cell
-def _(device, model_compiled, test_images_tensor, torch):
+def _(device, inputs_val, model_compiled, torch):
     model_compiled.eval()
     with torch.inference_mode():
-        prediction = model_compiled(test_images_tensor[0].to(device).unsqueeze(0))
-    prediction
-    return (prediction,)
+        logits = model_compiled(inputs_val[0].to(device).unsqueeze(0))
+    logits
+    return (logits,)
 
 
 @app.cell(hide_code=True)
@@ -698,9 +695,9 @@ def _(mo):
 
 
 @app.cell
-def _(display_image, prediction, test_images):
-    print(prediction.argmax(dim=1, keepdim=True))
-    display_image(test_images[0], prediction.argmax(dim=1, keepdim=True).item())
+def _(display_image, logits, test_images):
+    print(logits.argmax(dim=1, keepdim=True))
+    display_image(test_images[0], logits.argmax(dim=1, keepdim=True).item())
     return
 
 
@@ -730,11 +727,11 @@ def _(
     build_model,
     device,
     display_image,
+    inputs_val,
     mo,
     model,
     save_btn,
     test_images,
-    test_images_tensor,
     torch,
 ):
     mo.stop(not save_btn.value, mo.md("Press Save model to save and reload."))
@@ -744,9 +741,9 @@ def _(
     model2.to(device)
     model2.eval()
     with torch.inference_mode():
-        prediction_1 = model2(test_images_tensor[0].to(device).unsqueeze(0))
-    torch.save(test_images_tensor[0], "test_image.pth")
-    display_image(test_images[0], prediction_1.argmax(dim=1, keepdim=True).item())
+        _logits = model2(inputs_val[0].to(device).unsqueeze(0))
+    torch.save(inputs_val[0], "test_image.pth")
+    display_image(test_images[0], _logits.argmax(dim=1, keepdim=True).item())
     return
 
 
@@ -762,11 +759,11 @@ def _(mo):
 def _(
     device,
     display_image,
+    inputs_val,
     mo,
     model,
     save_btn,
     test_images,
-    test_images_tensor,
     torch,
 ):
     mo.stop(not save_btn.value)
@@ -775,8 +772,8 @@ def _(
     model3.to(device)
     model3.eval()
     with torch.inference_mode():
-        prediction_2 = model3(test_images_tensor[0].to(device).unsqueeze(0))
-    display_image(test_images[0], prediction_2.argmax(dim=1, keepdim=True).item())
+        _logits = model3(inputs_val[0].to(device).unsqueeze(0))
+    display_image(test_images[0], _logits.argmax(dim=1, keepdim=True).item())
     return
 
 

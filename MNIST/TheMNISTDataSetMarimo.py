@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -232,9 +232,15 @@ def _(mo):
 
 @app.cell
 def _(np, plt, test_images, test_labels, train_images, train_labels):
-    def display_image(image: np.array, label: str) -> None:
-        plt.title(f"Label : {label}")
-        plt.imshow(image, cmap="gray")
+    def display_image(image: np.ndarray, label: str, size: float = 2.0) -> None:
+        """Show a greyscale image with its label in a small figure.
+
+        size is the width and height of the figure in inches.
+        """
+        fig, ax = plt.subplots(figsize=(size, size))
+        ax.imshow(image, cmap="gray")
+        ax.set_title(f"Label : {label}", fontsize=8)
+        ax.axis("off")
         plt.show()
 
     # We can now display the first image from the training dataset.
