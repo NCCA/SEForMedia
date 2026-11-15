@@ -19,6 +19,7 @@ dependencies = [
     "ipycanvas>=0.14.1",
     "ipyturtle3>=0.1.4",
     "kagglehub>=1.0.2",
+    "manim>=0.22.1",
     "marimo>=0.14.17",
     "marimo-lens>=0.2.3",
     "marimo-studio>=0.2.3",
