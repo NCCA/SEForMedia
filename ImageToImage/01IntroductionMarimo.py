@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -11,13 +11,14 @@ def _(mo):
     mo.md(r"""
     # Image-to-image learning: introduction to U-Net
 
-    We will build an encoder decoder that maps an image to another grid of values.
-    The shared architecture gives us a starting point for three different problems:
+    In this notebook we will build an encoder decoder that maps an image to another grid of values.
+
+    This shared architecture gives us a starting point for three different problems:
     [denoising](02DenoisingMarimo.py), [2× super resolution](03SuperResolutionMarimo.py)
     and [pet segmentation](04PetSegmentationMarimo.py).
 
-    This notebook explains the common ideas such as feature maps, pooling, skip connections,
-    upsampling, patches, validation and tiled inference. The other notebooks are stand alone examples which use their own loss functions and complete training and evaluation loops to demonstrate the principles described here.
+    This notebook explains the common ideas such as [feature maps](https://en.wikipedia.org/wiki/Self-organizing_map), [pooling](https://en.wikipedia.org/wiki/Pooling_layer), [skip connections](https://www.analyticsvidhya.com/blog/2021/08/all-you-need-to-know-about-skip-connections/),
+    [upsampling](https://en.wikipedia.org/wiki/Upsampling), patches, validation and [tiled inference](https://roboflow.com/blog/edge-tiling-during-inference). The other notebooks are stand alone examples which use their own loss functions and complete training and evaluation loops to demonstrate the principles described here.
 
     Start here, then open any of the three examples independently.
 
