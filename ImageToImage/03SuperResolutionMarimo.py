@@ -2,22 +2,20 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Image-to-image learning, Part 2: 2× super resolution
+    # Image-to-image, Part 2: 2× super resolution
 
     We will train a U-Net and a small ESPCN to reconstruct a 128 × 128 RGB patch from a 64 × 64 input, then compare their quality and processing cost.
 
-    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
+    ## Input and target
 
-    ## What changes for this task?
-
-    Unlike denoising, the target is the clean image itself, and it has twice the width and height of the input. Unlike segmentation, the output still has three RGB channels. U-Net first enlarges the input; ESPCN learns features at low resolution and rearranges its final channels with PixelShuffle.
+    We use a low-resolution RGB patch as input and a clean RGB patch with twice its width and height as the target. U-Net first enlarges the input; ESPCN learns features at low resolution and rearranges its final channels with PixelShuffle.
 
     | Item | This notebook |
     | --- | --- |
@@ -84,7 +82,7 @@ def _(get_device):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## From low-resolution features to RGB pixels
+    ## U-Net and ESPCN
 
     We crop a 128 × 128 target first, then use area averaging to make its 64 × 64
     input. The U-Net baseline enlarges the input with bicubic interpolation before
@@ -131,7 +129,7 @@ def _(core):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Prepare the training pair
+    ## Training patches
 
     We crop the clean 128 × 128 target first, then area-downsample it to 64 × 64.
     This keeps the input and target aligned. The trimap is not a training target.
@@ -279,13 +277,12 @@ def _(F, TF, core, pets_trainval, plt, torch, train_indices):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Train a fresh model
+    ## Training
 
     U-Net and ESPCN train on the same sequence of patches with the same number of optimiser steps. Their processing time differs.
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
-    for the shared training and validation protocol.
+    retains the weights with the lowest validation loss.
     """)
     return
 
@@ -401,7 +398,7 @@ def _(
         trained_models[_name] = _model.cpu().eval()
         training_seconds[_name] = time.perf_counter() - _start
     print("Best validation weights are ready. Training seconds:", training_seconds)
-    return (config, history, trained_models, training_seconds)
+    return config, history, trained_models, training_seconds
 
 
 @app.cell
@@ -430,12 +427,11 @@ def _(history, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Apply the model to full images
-
-    A 128-pixel low-resolution input tile produces a 256-pixel RGB tile (`scale=2`). We blend RGB predictions directly. Both tile size and overlap are measured in low-resolution input pixels.
-
-    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
-    and the context lost at tile edges. Here we use it for this task's output.
+    The solid curve shows training loss and the dashed curve shows validation loss.
+    We keep the weights from the epoch with the lowest validation loss, which may
+    occur before the final epoch. If training loss keeps falling whilst validation
+    loss rises, the model may be overfitting. Increase the number of epochs and
+    patches to see how the curves develop; the short default run checks the workflow.
     """)
     return
 
@@ -443,14 +439,28 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Compare with baselines
+    ## Tiled inference
+
+    A 128-pixel low-resolution input tile produces a 256-pixel RGB tile (`scale=2`). We blend RGB predictions directly. Both tile size and overlap are measured in low-resolution input pixels.
+
+    See [tiled inference](01IntroductionMarimo.py) for the blending calculation
+    and the context lost at tile edges.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Evaluation
 
     We compare U-Net and ESPCN with nearest, bilinear, bicubic and bicubic plus unsharp interpolation. These are the resizing baselines from the evaluation lesson. For odd-sized photographs we remove the last row or column, then area-downsample the reference. Every method receives that same low-resolution image.
 
     We report RGB MSE and PSNR using the two-pixel scoring border described in the introduction.
 
-    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
-    and how to interpret the comparison. The gallery below shows the first test image.
+    We report the mean and sample standard deviation across test photographs.
+    Timings include tile transfers and CPU stitching. The gallery shows the first
+    test photograph.
     """)
     return
 
@@ -477,7 +487,6 @@ def _(mo):
 def _(
     F,
     TF,
-    config,
     core,
     device,
     evaluation_form,
@@ -573,7 +582,7 @@ def _(
             mo.ui.table(summary.reset_index(), selection=None),
         ]
     )
-    return (preview_panels, scores)
+    return preview_panels, scores
 
 
 @app.cell
@@ -605,11 +614,11 @@ def _(plt, preview_panels):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Keep this run
+    ## Saving weights and scores
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
-    for the saved metadata and why we keep it.
+    The filename includes the task and a timestamp. We also save the split seed,
+    scoring protocol and training configuration so we can interpret the results later.
     """)
     return
 

@@ -2,22 +2,21 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Image-to-image learning, Part 3: binary pet segmentation
+    # Image-to-image, Part 3: binary pet segmentation
 
-    We will train a U-Net to label each pixel as pet or background. The output is a mask, so matching the colours of the photograph is no longer our objective.
+    We will train a U-Net to label each pixel as pet or background. We use the photograph as input and its annotated mask as the target.
 
-    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
 
-    ## What changes for this task?
+    ## Input and target
 
-    Unlike denoising and super resolution, the target is an annotation rather than a photograph. We change the U-Net head from three RGB channels to one logit channel. Image MSE and PSNR are replaced by mask overlap scores, and uncertain boundary pixels must be ignored in both the loss and evaluation.
+    The U-Net predicts one logit per pixel. We train it against a binary pet mask and use mask overlap scores for evaluation. We exclude uncertain boundary pixels from both the loss and the scores.
 
     | Item | This notebook |
     | --- | --- |
@@ -44,8 +43,6 @@ def _():
     import matplotlib.pyplot as plt
     import pandas as pd
     import torch
-    from torch import nn
-    import torch.nn.functional as F
     from torchvision import datasets
     from torchvision.transforms import functional as TF
 
@@ -58,7 +55,6 @@ def _():
     from Utils import get_device
 
     return (
-        F,
         TF,
         core,
         datasets,
@@ -66,7 +62,6 @@ def _():
         inspect,
         lesson_directory,
         mo,
-        nn,
         pd,
         plt,
         time,
@@ -84,11 +79,19 @@ def _(get_device):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## One logit per pixel
+    ## Segmentation targets
 
     Oxford's trimap has label 1 for the pet, 2 for the background and 3 for the uncertain
     boundary. Our target is `(trimap == 1).float()`. We ignore label 3, including in the
     scores; counting it as background would change the task.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## BCE and Dice loss
 
     The U-Net output has one channel with no sigmoid layer. `BCEWithLogitsLoss` includes
     the sigmoid calculation in a numerically stable form. We apply sigmoid separately
@@ -113,7 +116,49 @@ def _(core, inspect, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Prepare the training pair
+    We can check the validity mask on three pixels. The first two are pet and
+    background; the third is an uncertain boundary. Predict the effect of changing
+    only the third logit, then compare the losses below.
+    """)
+    return
+
+
+@app.cell
+def _(core, torch):
+    _logits = torch.tensor([2.0, -2.0, 0.0]).reshape(1, 1, 1, 3)
+    _target = torch.tensor([1.0, 0.0, 0.0]).reshape(1, 1, 1, 3)
+    _valid = torch.tensor([1.0, 1.0, 0.0]).reshape(1, 1, 1, 3)
+    _changed = _logits.clone()
+    _changed[..., 2] = 10.0
+    print("Target labels:", _target.flatten())
+    print("Valid pixels:", _valid.flatten())
+    print("Probabilities:", _logits.sigmoid().flatten())
+    print("Changed probabilities:", _changed.sigmoid().flatten())
+    print(
+        "Original loss:",
+        core.segmentation_loss(_logits, _target, _valid).item(),
+    )
+    print(
+        "Changed loss:",
+        core.segmentation_loss(_changed, _target, _valid).item(),
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The third probability changes, but the loss stays the same because that pixel
+    is excluded from both BCE and Dice. Change one of the first two logits to see
+    how a valid pixel contributes to the loss.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Training patches
 
     We crop the RGB photograph and trimap at the same coordinates. Label 1 becomes
     foreground, label 2 becomes background, and label 3 is excluded with a validity
@@ -146,7 +191,12 @@ def _(core, plt, torch):
         ("Valid pixels (white)", _valid),
     ]
 
-    print("Input shape:", tuple(_inputs.shape), "Target shape:", tuple(_target.shape))
+    print(
+        "Input shape:",
+        tuple(_inputs.shape),
+        "Target shape:",
+        tuple(_target.shape),
+    )
     _figure, _axes = plt.subplots(1, 3, figsize=(11, 3), layout="constrained")
     for _axis, (_title, _pixels) in zip(_axes, _panels):
         _axis.imshow(
@@ -247,11 +297,10 @@ def _(TF, pets_trainval, plt, train_indices):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Train a fresh model
+    ## Training
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
-    for the shared training and validation protocol.
+    retains the weights with the lowest validation loss.
     """)
     return
 
@@ -261,7 +310,9 @@ def _(mo):
     training_form = mo.ui.dictionary(
         {
             "upsampling": mo.ui.dropdown(
-                ["transpose", "resize"], value="transpose", label="U-Net decoder"
+                ["transpose", "resize"],
+                value="transpose",
+                label="U-Net decoder",
             ),
             "epochs": mo.ui.number(1, 200, value=2, label="Epochs"),
             "samples": mo.ui.number(
@@ -282,7 +333,6 @@ def _(
     core,
     device,
     mo,
-    nn,
     pets_trainval,
     time,
     torch,
@@ -290,7 +340,10 @@ def _(
     training_form,
     validation_indices,
 ):
-    mo.stop(training_form.value is None, mo.md("Submit the training form to begin."))
+    mo.stop(
+        training_form.value is None,
+        mo.md("Submit the training form to begin."),
+    )
     config = dict(training_form.value)
     config["task"] = "segment"
     config["device"] = str(device)
@@ -304,7 +357,12 @@ def _(
         pets_trainval, train_indices, "segment", config["samples"], seed=42
     )
     _validation_data = core.PetPatches(
-        pets_trainval, validation_indices, "segment", samples=32, seed=10000, fixed=True
+        pets_trainval,
+        validation_indices,
+        "segment",
+        samples=32,
+        seed=10000,
+        fixed=True,
     )
     _loader = torch.utils.data.DataLoader(
         _train_data, batch_size=config["batch"], num_workers=0
@@ -362,8 +420,11 @@ def _(
     _model.load_state_dict(_best_weights)
     trained_models[_name] = _model.cpu().eval()
     training_seconds[_name] = time.perf_counter() - _start
-    print("Best validation weights are ready. Training seconds:", training_seconds)
-    return (config, history, trained_models, training_seconds)
+    print(
+        "Best validation weights are ready. Training seconds:",
+        training_seconds,
+    )
+    return config, history, trained_models, training_seconds
 
 
 @app.cell
@@ -392,12 +453,11 @@ def _(history, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Apply the model to full images
-
-    The model predicts one logit per input pixel (`scale=1`). We blend logits, apply sigmoid to the assembled output, then threshold at 0.5. We do not blend already-thresholded binary masks.
-
-    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
-    and the context lost at tile edges. Here we use it for this task's output.
+    The solid curve shows training loss and the dashed curve shows validation loss.
+    We keep the weights from the epoch with the lowest validation loss, which may
+    occur before the final epoch. If training loss keeps falling whilst validation
+    loss rises, the model may be overfitting. Increase the number of epochs and
+    patches to see how the curves develop; the short default run checks the workflow.
     """)
     return
 
@@ -405,14 +465,28 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Compare with baselines
+    ## Tiled inference
+
+    The model predicts one logit per input pixel (`scale=1`). We blend logits, apply sigmoid to the assembled output, then threshold at 0.5. We do not blend already-thresholded binary masks.
+
+    See [tiled inference](01IntroductionMarimo.py) for the blending calculation
+    and the context lost at tile edges.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Evaluation
 
     We compare the U-Net mask with all-background and all-pet predictions. These expose class imbalance, but are not strong segmentation methods. Hard Dice and IoU are computed at threshold 0.5 with trimap label 3 excluded. We score masks rather than RGB colours; a high pixel accuracy can hide a model that misses the pet.
 
     Higher Dice and IoU indicate greater overlap. We ignore trimap label 3 in both masks and define two empty masks as a score of one.
 
-    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
-    and how to interpret the comparison. The gallery below shows the first test image.
+    We report the mean and sample standard deviation across test photographs.
+    Timings include tile transfers and CPU stitching. The gallery shows the first
+    test photograph.
     """)
     return
 
@@ -437,9 +511,7 @@ def _(mo):
 
 @app.cell
 def _(
-    F,
     TF,
-    config,
     core,
     device,
     evaluation_form,
@@ -468,7 +540,8 @@ def _(
             torch.mps.synchronize()
 
     for _index in mo.status.progress_bar(
-        range(min(_eval["count"], len(pets_test))), title="Full-image evaluation"
+        range(min(_eval["count"], len(pets_test))),
+        title="Full-image evaluation",
     ):
         _pil, _trimap = pets_test[_index]
         _reference = TF.to_tensor(_pil.convert("RGB"))
@@ -480,7 +553,10 @@ def _(
         if _index == 0:
             preview_panels.append(("Photograph", _reference))
             preview_panels.append(
-                ("Target (grey = ignored)", _mask * _valid + 0.5 * (1 - _valid))
+                (
+                    "Target (grey = ignored)",
+                    _mask * _valid + 0.5 * (1 - _valid),
+                )
             )
         for _name in (*_baselines, *trained_models):
             synchronise()
@@ -518,7 +594,10 @@ def _(
             score_rows.append(_row)
             if _index == 0:
                 preview_panels.append(
-                    (_name, (_prediction >= 0.5).float() * _valid + 0.5 * (1 - _valid))
+                    (
+                        _name,
+                        (_prediction >= 0.5).float() * _valid + 0.5 * (1 - _valid),
+                    )
                 )
     for _model in trained_models.values():
         _model.cpu()
@@ -534,7 +613,7 @@ def _(
             mo.ui.table(summary.reset_index(), selection=None),
         ]
     )
-    return (preview_panels, scores)
+    return preview_panels, scores
 
 
 @app.cell
@@ -566,11 +645,11 @@ def _(plt, preview_panels):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Keep this run
+    ## Saving weights and scores
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
-    for the saved metadata and why we keep it.
+    The filename includes the task and a timestamp. We also save the split seed,
+    scoring protocol and training configuration so we can interpret the results later.
     """)
     return
 

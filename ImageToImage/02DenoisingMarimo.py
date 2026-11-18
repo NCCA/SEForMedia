@@ -2,22 +2,20 @@
 
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Image-to-image learning, Part 1: denoising with residual learning
+    # Image-to-image, Part 1: denoising with residual learning
 
     We will train a U-Net to estimate the noise added to a photograph, then subtract that estimate to recover the clean image.
 
-    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
+    ## Input and target
 
-    ## What changes for this task?
-
-    The output has the same three channels and spatial size as the input, but its values represent noise. Unlike super resolution, we do not enlarge the image. Unlike segmentation, we predict continuous RGB residuals rather than a foreground probability.
+    We use a noisy RGB patch as input and the added noise as the training target. The network predicts three noise channels at the input resolution.
 
     | Item | This notebook |
     | --- | --- |
@@ -35,7 +33,6 @@ def _(mo):
 
 @app.cell
 def _():
-    import inspect
     import sys
     from pathlib import Path
     import time
@@ -63,7 +60,6 @@ def _():
         core,
         datasets,
         get_device,
-        inspect,
         lesson_directory,
         mo,
         nn,
@@ -84,9 +80,9 @@ def _(get_device):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Learn the noise
+    ## Residual learning
 
-    For a clean patch $x$, we sample Gaussian noise $n$ and construct $y=x+n$.
+    For a clean patch $x$, we sample [Gaussian noise](https://en.wikipedia.org/wiki/Gaussian_noise) $n$ and construct $y=x+n$.
     The network predicts $\hat n=f_\theta(y)$, so the restored image is
     $\hat x=y-\hat n$. We minimise $\operatorname{MSE}(\hat n,n)$.
     This is the residual-learning idea used by [DnCNN](https://arxiv.org/abs/1608.03981),
@@ -116,7 +112,7 @@ def _(torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Prepare the training pair
+    ## Training patches
 
     We crop a clean 128 × 128 patch, sample Gaussian noise and return
     `(clean + noise, noise)`. The trimap is not a training target. Validation fixes
@@ -148,7 +144,12 @@ def _(core, plt, torch):
         ("Noise target (0 shown as grey)", (0.5 + _target).clamp(0, 1)),
     ]
 
-    print("Input shape:", tuple(_inputs.shape), "Target shape:", tuple(_target.shape))
+    print(
+        "Input shape:",
+        tuple(_inputs.shape),
+        "Target shape:",
+        tuple(_target.shape),
+    )
     _figure, _axes = plt.subplots(1, 3, figsize=(11, 3), layout="constrained")
     for _axis, (_title, _pixels) in zip(_axes, _panels):
         _axis.imshow(
@@ -236,7 +237,12 @@ def _(TF, core, pets_trainval, plt, torch, train_indices):
         ("Noise target (0 shown as grey)", (0.5 + _target).clamp(0, 1)),
     ]
 
-    print("Input shape:", tuple(_inputs.shape), "Target shape:", tuple(_target.shape))
+    print(
+        "Input shape:",
+        tuple(_inputs.shape),
+        "Target shape:",
+        tuple(_target.shape),
+    )
     _figure, _axes = plt.subplots(1, 3, figsize=(11, 3), layout="constrained")
     for _axis, (_title, _pixels) in zip(_axes, _panels):
         _axis.imshow(
@@ -255,11 +261,10 @@ def _(TF, core, pets_trainval, plt, torch, train_indices):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Train a fresh model
+    ## Training
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
-    for the shared training and validation protocol.
+    retains the weights with the lowest validation loss.
     """)
     return
 
@@ -269,7 +274,9 @@ def _(mo):
     training_form = mo.ui.dictionary(
         {
             "upsampling": mo.ui.dropdown(
-                ["transpose", "resize"], value="transpose", label="U-Net decoder"
+                ["transpose", "resize"],
+                value="transpose",
+                label="U-Net decoder",
             ),
             "epochs": mo.ui.number(1, 200, value=2, label="Epochs"),
             "samples": mo.ui.number(
@@ -298,7 +305,10 @@ def _(
     training_form,
     validation_indices,
 ):
-    mo.stop(training_form.value is None, mo.md("Submit the training form to begin."))
+    mo.stop(
+        training_form.value is None,
+        mo.md("Submit the training form to begin."),
+    )
     config = dict(training_form.value)
     config["task"] = "denoise"
     config["device"] = str(device)
@@ -312,7 +322,12 @@ def _(
         pets_trainval, train_indices, "denoise", config["samples"], seed=42
     )
     _validation_data = core.PetPatches(
-        pets_trainval, validation_indices, "denoise", samples=32, seed=10000, fixed=True
+        pets_trainval,
+        validation_indices,
+        "denoise",
+        samples=32,
+        seed=10000,
+        fixed=True,
     )
     _loader = torch.utils.data.DataLoader(
         _train_data, batch_size=config["batch"], num_workers=0
@@ -370,8 +385,11 @@ def _(
     _model.load_state_dict(_best_weights)
     trained_models[_name] = _model.cpu().eval()
     training_seconds[_name] = time.perf_counter() - _start
-    print("Best validation weights are ready. Training seconds:", training_seconds)
-    return (config, history, trained_models, training_seconds)
+    print(
+        "Best validation weights are ready. Training seconds:",
+        training_seconds,
+    )
+    return config, history, trained_models, training_seconds
 
 
 @app.cell
@@ -400,12 +418,11 @@ def _(history, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Apply the model to full images
-
-    The model predicts noise for each tile at the same resolution (`scale=1`). We blend the noise estimates, then subtract the assembled estimate from the noisy frame. We do not subtract or clip each tile before blending.
-
-    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
-    and the context lost at tile edges. Here we use it for this task's output.
+    The solid curve shows training loss and the dashed curve shows validation loss.
+    We keep the weights from the epoch with the lowest validation loss, which may
+    occur before the final epoch. If training loss keeps falling whilst validation
+    loss rises, the model may be overfitting. Increase the number of epochs and
+    patches to see how the curves develop; the short default run checks the workflow.
     """)
     return
 
@@ -413,14 +430,28 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Compare with baselines
+    ## Tiled inference
+
+    The model predicts noise for each tile at the same resolution (`scale=1`). We blend the noise estimates, then subtract the assembled estimate from the noisy frame. We do not subtract or clip each tile before blending.
+
+    See [tiled inference](01IntroductionMarimo.py) for the blending calculation
+    and the context lost at tile edges.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Evaluation
 
     We compare the restored photograph with the noisy input, a 3 × 3 Gaussian blur and a 3 × 3 median filter. Each method receives exactly the same noise realisation for each test photograph. Scores compare the final restored image with the clean reference, not the predicted noise with the noise target.
 
     We report RGB MSE and PSNR using the two-pixel scoring border described in the introduction.
 
-    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
-    and how to interpret the comparison. The gallery below shows the first test image.
+    We report the mean and sample standard deviation across test photographs.
+    Timings include tile transfers and CPU stitching. The gallery shows the first
+    test photograph.
     """)
     return
 
@@ -447,7 +478,6 @@ def _(mo):
 def _(
     F,
     TF,
-    config,
     core,
     device,
     evaluation_form,
@@ -476,12 +506,14 @@ def _(
             torch.mps.synchronize()
 
     for _index in mo.status.progress_bar(
-        range(min(_eval["count"], len(pets_test))), title="Full-image evaluation"
+        range(min(_eval["count"], len(pets_test))),
+        title="Full-image evaluation",
     ):
         _pil, _trimap = pets_test[_index]
         _reference = TF.to_tensor(_pil.convert("RGB"))
         _input = _reference + torch.randn(
-            _reference.shape, generator=torch.Generator().manual_seed(20000 + _index)
+            _reference.shape,
+            generator=torch.Generator().manual_seed(20000 + _index),
         ) * (25 / 255)
         _baselines = ("Noisy input", "Gaussian 3 × 3", "Median 3 × 3")
         if _index == 0:
@@ -544,7 +576,7 @@ def _(
             mo.ui.table(summary.reset_index(), selection=None),
         ]
     )
-    return (preview_panels, scores)
+    return preview_panels, scores
 
 
 @app.cell
@@ -576,11 +608,11 @@ def _(plt, preview_panels):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Keep this run
+    ## Saving weights and scores
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
-    for the saved metadata and why we keep it.
+    The filename includes the task and a timestamp. We also save the split seed,
+    scoring protocol and training configuration so we can interpret the results later.
     """)
     return
 

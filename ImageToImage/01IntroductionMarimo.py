@@ -9,7 +9,7 @@ app = marimo.App(width="full")
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Image-to-image learning: introduction to U-Net
+    # Image-to-image : introduction to U-Net
 
     In this notebook we will build an encoder decoder that maps an image to another grid of values.
 
@@ -17,7 +17,7 @@ def _(mo):
     [denoising](02DenoisingMarimo.py), [2× super resolution](03SuperResolutionMarimo.py)
     and [pet segmentation](04PetSegmentationMarimo.py).
 
-    This notebook explains the common ideas such as [feature maps](https://en.wikipedia.org/wiki/Self-organizing_map), [pooling](https://en.wikipedia.org/wiki/Pooling_layer), [skip connections](https://www.analyticsvidhya.com/blog/2021/08/all-you-need-to-know-about-skip-connections/),
+    This notebook explains the common ideas such as feature maps, [pooling](https://en.wikipedia.org/wiki/Pooling_layer), [skip connections](https://www.analyticsvidhya.com/blog/2021/08/all-you-need-to-know-about-skip-connections/),
     [upsampling](https://en.wikipedia.org/wiki/Upsampling), patches, validation and [tiled inference](https://roboflow.com/blog/edge-tiling-during-inference). The other notebooks are stand alone examples which use their own loss functions and complete training and evaluation loops to demonstrate the principles described here.
 
     Start here, then open any of the three examples independently.
@@ -51,7 +51,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Keep the spatial grid
+    ## Spatial feature maps
 
     An image classifier eventually reduces an image to class scores. Here we need an
     answer at each output location, so we keep spatial feature maps throughout the
@@ -132,7 +132,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Four resolutions and three skip connections
+    ## U-Net architecture
 
     Here, “four levels” means four spatial resolutions, including the bottleneck:
 
@@ -195,7 +195,7 @@ def _(core, mo, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Concatenate along channels
+    ### Channel concatenation
 
     The batch, height and width must agree. Try concatenating an encoder feature map
     before upsampling the decoder: PyTorch catches the mismatched resolution. The
@@ -223,7 +223,7 @@ def _(F, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Why do checkerboards appear?
+    ## Checkerboard artefacts
 
     A [transposed convolution](https://docs.pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html)
     places a learned kernel around each input position. With a kernel of three and a
@@ -289,7 +289,7 @@ def _(nn, plt, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Adapting U-Net to Different Tasks
+    ## Output layers and training targets
 
     The U-Net produces a grid of numbers. What those numbers represent depends on what we train it to predict.
 
@@ -300,7 +300,7 @@ def _(mo):
 
     It performs a learned weighted combination of the features at each location. The training targets, loss and inference calculation establish what those outputs mean.
 
-    ### Denoising: predict what to remove
+    ### Denoising
 
     We add known noise to a clean image, then train the network to predict that noise:
 
@@ -313,7 +313,7 @@ def _(mo):
 
     For example, if a noisy pixel is `0.7` and the predicted noise is `0.1`, the restored pixel is `0.6`. Noise can be negative, so we allow unrestricted output values.
 
-    ### Super resolution: predict the larger image
+    ### Super resolution
 
     Here, the target is the clean, high-resolution image itself:
 
@@ -332,7 +332,7 @@ def _(mo):
 
     ESPCN takes a different route: it processes features at low resolution, then uses `PixelShuffle` to rearrange channels into a larger spatial grid.
 
-    ### Segmentation: predict whether each pixel belongs to the pet
+    ### Pet segmentation
 
     We keep the input’s spatial size but output one number per pixel:
 
@@ -347,7 +347,7 @@ def _(mo):
 
     `BCEWithLogitsLoss` takes the raw logits; the Dice part uses probabilities to measure foreground overlap. The validity mask excludes uncertain boundary pixels from both parts of the loss.
 
-    ### Comparing the tasks
+    ### Task summary
 
     | Example | Input patch | Network output | Training loss | Final result |
     | --- | --- | --- | --- | --- |
@@ -369,7 +369,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Train on patches, split by photograph
+    ## Training patches and dataset splits
 
     Activations often use more accelerator memory than the model weights. We train
     on random 128 × 128 target patches so a batch fits in memory and each photograph
@@ -387,8 +387,9 @@ def _(mo):
     generator in one process. Small images are padded; padded segmentation labels
     are ignored.
 
-    Below, the rectangle and extracted patch use the same coordinates. Moving the
-    crop should change which features we see without rescaling the photograph.
+    Below, the rectangle and extracted patch use the same coordinates. The crop
+    selects a region without rescaling the generated image. Change the seed below
+    to select a different region.
     """)
     return
 
@@ -431,7 +432,7 @@ def _(plt, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The shared training workflow
+    ## Training and validation
 
     The example notebooks share the `data` directory and use
     [Oxford-IIIT Pet](https://www.robots.ox.ac.uk/~vgg/data/pets/). Its photographs provide
@@ -460,7 +461,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Full images: tiles with overlap
+    ## Tiled inference
 
     A photograph can fit in CPU memory while its intermediate feature maps exhaust
     GPU memory. Keep the full image and output buffers on the CPU and send one tile
@@ -492,7 +493,7 @@ def _(core, inspect, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Check the coverage before using a learned model
+    ### Tile coverage
 
     An identity model returns its input unchanged. It has no context-dependent edge
     effects, so tiling and blending should reproduce every pixel, up to rounding.
@@ -517,7 +518,7 @@ def _(core, nn, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Evaluate the final result
+    ## Evaluation
 
     Compare methods on the same held-out photographs and the same degraded inputs.
     Choose settings on validation data first. Calculate each photograph's score, then
