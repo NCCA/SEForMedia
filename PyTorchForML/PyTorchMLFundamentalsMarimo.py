@@ -755,7 +755,7 @@ def _(
     _best_validation = float("inf")
     _best_state = copy.deepcopy(fitted_model.state_dict())
     best_epoch = 0
-    for _epoch in range(60):
+    for _epoch in range(10):
         fitted_model.train()
         for _batch_inputs, _batch_targets in _loader:
             _optimiser.zero_grad(set_to_none=True)
