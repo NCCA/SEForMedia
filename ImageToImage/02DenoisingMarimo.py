@@ -13,7 +13,7 @@ def _(mo):
 
     We will train a U-Net to estimate the noise added to a photograph, then subtract that estimate to recover the clean image.
 
-    [Introduction](IntroductionMarimo.py) · [Denoising](DenoisingMarimo.py) · [Super resolution](SuperResolutionMarimo.py) · [Pet segmentation](PetSegmentationMarimo.py)
+    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
 
     ## What changes for this task?
 
@@ -26,7 +26,7 @@ def _(mo):
     | Loss | MSE between predicted and sampled noise |
     | Inference | Subtract the predicted noise from the input |
 
-    Read the [introduction](IntroductionMarimo.py) first for the U-Net architecture,
+    Read the [introduction](01IntroductionMarimo.py) first for the U-Net architecture,
     skip connections, checkerboard comparison and shared patch/tiling workflow.
     This notebook runs independently and uses the same `data` directory.
     """)
@@ -124,7 +124,7 @@ def _(mo):
     values are valid targets, so there is no sigmoid on the output.
 
     We use the photograph-level split and fixed validation protocol from the
-    [introduction](IntroductionMarimo.py). The following generated example shows
+    [introduction](01IntroductionMarimo.py). The following generated example shows
     exactly what this task receives as input and target before we load photographs.
     """)
     return
@@ -258,7 +258,7 @@ def _(mo):
     ## Train a fresh model
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](IntroductionMarimo.py)
+    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
     for the shared training and validation protocol.
     """)
     return
@@ -404,7 +404,7 @@ def _(mo):
 
     The model predicts noise for each tile at the same resolution (`scale=1`). We blend the noise estimates, then subtract the assembled estimate from the noisy frame. We do not subtract or clip each tile before blending.
 
-    The [introduction](IntroductionMarimo.py) explains `core.tiled_predict`, blending
+    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
     and the context lost at tile edges. Here we use it for this task's output.
     """)
     return
@@ -419,7 +419,7 @@ def _(mo):
 
     We report RGB MSE and PSNR using the two-pixel scoring border described in the introduction.
 
-    The [introduction](IntroductionMarimo.py) explains per-image aggregation, timing
+    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
     and how to interpret the comparison. The gallery below shows the first test image.
     """)
     return
@@ -579,7 +579,7 @@ def _(mo):
     ## Keep this run
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](IntroductionMarimo.py)
+    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
     for the saved metadata and why we keep it.
     """)
     return
@@ -641,7 +641,7 @@ def _(mo):
     4. Compare the two decoder upsampling modes. Inspect flat areas as well as edges; does lower MSE remove every visible artefact?
     5. Compare full-frame inference with overlaps 0, 16 and 32 on a small photograph. Plot the absolute difference.
 
-    Next, [super resolution](SuperResolutionMarimo.py) changes the output size and learns RGB pixels directly.
+    Next, [super resolution](03SuperResolutionMarimo.py) changes the output size and learns RGB pixels directly.
     """)
     return
 

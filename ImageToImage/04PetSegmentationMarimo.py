@@ -13,7 +13,7 @@ def _(mo):
 
     We will train a U-Net to label each pixel as pet or background. The output is a mask, so matching the colours of the photograph is no longer our objective.
 
-    [Introduction](IntroductionMarimo.py) · [Denoising](DenoisingMarimo.py) · [Super resolution](SuperResolutionMarimo.py) · [Pet segmentation](PetSegmentationMarimo.py)
+    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
 
     ## What changes for this task?
 
@@ -26,7 +26,7 @@ def _(mo):
     | Loss | BCEWithLogitsLoss plus soft Dice, ignoring uncertain pixels |
     | Inference | Apply sigmoid to logits, then threshold at 0.5 |
 
-    Read the [introduction](IntroductionMarimo.py) first for the U-Net architecture,
+    Read the [introduction](01IntroductionMarimo.py) first for the U-Net architecture,
     skip connections, checkerboard comparison and shared patch/tiling workflow.
     This notebook runs independently and uses the same `data` directory.
     """)
@@ -120,7 +120,7 @@ def _(mo):
     mask. Small photographs are padded and padded mask pixels are ignored.
 
     We use the photograph-level split and fixed validation protocol from the
-    [introduction](IntroductionMarimo.py). The following generated example shows
+    [introduction](01IntroductionMarimo.py). The following generated example shows
     exactly what this task receives as input and target before we load photographs.
     """)
     return
@@ -250,7 +250,7 @@ def _(mo):
     ## Train a fresh model
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](IntroductionMarimo.py)
+    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
     for the shared training and validation protocol.
     """)
     return
@@ -396,7 +396,7 @@ def _(mo):
 
     The model predicts one logit per input pixel (`scale=1`). We blend logits, apply sigmoid to the assembled output, then threshold at 0.5. We do not blend already-thresholded binary masks.
 
-    The [introduction](IntroductionMarimo.py) explains `core.tiled_predict`, blending
+    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
     and the context lost at tile edges. Here we use it for this task's output.
     """)
     return
@@ -411,7 +411,7 @@ def _(mo):
 
     Higher Dice and IoU indicate greater overlap. We ignore trimap label 3 in both masks and define two empty masks as a score of one.
 
-    The [introduction](IntroductionMarimo.py) explains per-image aggregation, timing
+    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
     and how to interpret the comparison. The gallery below shows the first test image.
     """)
     return
@@ -569,7 +569,7 @@ def _(mo):
     ## Keep this run
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](IntroductionMarimo.py)
+    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
     for the saved metadata and why we keep it.
     """)
     return
@@ -630,7 +630,7 @@ def _(mo):
     4. Compare a model trained with BCE alone with BCE plus Dice using the same split and seed.
     5. Vary the prediction threshold using validation photographs. Keep the selected threshold fixed for the final test comparison.
 
-    Return to [denoising](DenoisingMarimo.py) or [super resolution](SuperResolutionMarimo.py) and explain why their three-channel MSE objective would not describe this task.
+    Return to [denoising](02DenoisingMarimo.py) or [super resolution](03SuperResolutionMarimo.py) and explain why their three-channel MSE objective would not describe this task.
     """)
     return
 

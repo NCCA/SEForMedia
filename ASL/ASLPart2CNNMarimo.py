@@ -472,10 +472,8 @@ def _(alphabet, device, model, plt, torch, valid_loader):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ![]({DATASET_LOCATION}/mnist_asl/american_sign_language.PNG)
-    """)
+def _(DATASET_LOCATION, mo):
+    mo.image(f"{DATASET_LOCATION}american_sign_language.PNG")
     return
 
 

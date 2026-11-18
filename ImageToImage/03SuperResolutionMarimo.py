@@ -13,7 +13,7 @@ def _(mo):
 
     We will train a U-Net and a small ESPCN to reconstruct a 128 × 128 RGB patch from a 64 × 64 input, then compare their quality and processing cost.
 
-    [Introduction](IntroductionMarimo.py) · [Denoising](DenoisingMarimo.py) · [Super resolution](SuperResolutionMarimo.py) · [Pet segmentation](PetSegmentationMarimo.py)
+    [Introduction](01IntroductionMarimo.py) · [Denoising](02DenoisingMarimo.py) · [Super resolution](03SuperResolutionMarimo.py) · [Pet segmentation](04PetSegmentationMarimo.py)
 
     ## What changes for this task?
 
@@ -26,7 +26,7 @@ def _(mo):
     | Loss | MSE between predicted and clean RGB pixels |
     | Inference | Use the predicted RGB image at twice the input size |
 
-    Read the [introduction](IntroductionMarimo.py) first for the U-Net architecture,
+    Read the [introduction](01IntroductionMarimo.py) first for the U-Net architecture,
     skip connections, checkerboard comparison and shared patch/tiling workflow.
     This notebook runs independently and uses the same `data` directory.
     """)
@@ -138,7 +138,7 @@ def _(mo):
     Both networks receive the same low-resolution tensors and target pixels.
 
     We use the photograph-level split and fixed validation protocol from the
-    [introduction](IntroductionMarimo.py). The following generated example shows
+    [introduction](01IntroductionMarimo.py). The following generated example shows
     exactly what this task receives as input and target before we load photographs.
     """)
     return
@@ -284,7 +284,7 @@ def _(mo):
     U-Net and ESPCN train on the same sequence of patches with the same number of optimiser steps. Their processing time differs.
 
     Submit the settings to train. The loop below uses the device detected above and
-    retains the best validation weights. See the [introduction](IntroductionMarimo.py)
+    retains the best validation weights. See the [introduction](01IntroductionMarimo.py)
     for the shared training and validation protocol.
     """)
     return
@@ -434,7 +434,7 @@ def _(mo):
 
     A 128-pixel low-resolution input tile produces a 256-pixel RGB tile (`scale=2`). We blend RGB predictions directly. Both tile size and overlap are measured in low-resolution input pixels.
 
-    The [introduction](IntroductionMarimo.py) explains `core.tiled_predict`, blending
+    The [introduction](01IntroductionMarimo.py) explains `core.tiled_predict`, blending
     and the context lost at tile edges. Here we use it for this task's output.
     """)
     return
@@ -449,7 +449,7 @@ def _(mo):
 
     We report RGB MSE and PSNR using the two-pixel scoring border described in the introduction.
 
-    The [introduction](IntroductionMarimo.py) explains per-image aggregation, timing
+    The [introduction](01IntroductionMarimo.py) explains per-image aggregation, timing
     and how to interpret the comparison. The gallery below shows the first test image.
     """)
     return
@@ -608,7 +608,7 @@ def _(mo):
     ## Keep this run
 
     Save the selected weights, configuration and per-image scores to `checkpoints`.
-    The filename includes the task and a timestamp. See the [introduction](IntroductionMarimo.py)
+    The filename includes the task and a timestamp. See the [introduction](01IntroductionMarimo.py)
     for the saved metadata and why we keep it.
     """)
     return
@@ -669,7 +669,7 @@ def _(mo):
     4. Train with area downsampling, then test with a different degradation. Why might the scores change even at the same scale factor?
     5. Compare tile overlaps 0, 16 and 32. Remember that overlap is measured in low-resolution pixels.
 
-    Next, [pet segmentation](PetSegmentationMarimo.py) replaces the RGB output with one logit per pixel.
+    Next, [pet segmentation](04PetSegmentationMarimo.py) replaces the RGB output with one logit per pixel.
     """)
     return
 

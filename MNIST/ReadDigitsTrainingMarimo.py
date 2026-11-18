@@ -13,7 +13,7 @@ def _(mo):
 
     In this notebook we are going to train a neural network to recognize handwritten digits. This is the  "Hello World" of deep learning: training a deep learning model to correctly classify hand-written digits.
 
-    In the previous [notebook](TheMNISTDataSet.ipynb) we downloaded the MNIST dataset, which is a dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.  We will re-use this data (downloaded either to your local hard drive or /transfer) to train a neural network to recognize the digits.
+    In the previous [notebook](TheMNISTDataSetMarimo.py) we downloaded the MNIST dataset, which is a dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.  We will re-use this data (downloaded either to your local hard drive or /transfer) to train a neural network to recognize the digits.
 
     We will start by importing the necessary libraries, including our Utils module.
     """)

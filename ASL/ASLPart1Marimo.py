@@ -107,12 +107,16 @@ def _(DATASET_LOCATION, pathlib):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    There are two image files showing the the signs and two CSV files for the actual test and train data.
-    ![](./mnist_asl/american_sign_language.PNG)
-    ![](./mnist_asl/amer_sign3.png)
-    """)
+def _(DATASET_LOCATION, mo):
+    mo.vstack(
+        [
+            mo.md(r"""
+    There are two image files showing the signs and two CSV files for the actual test and train data. The images come from the download, so I load them from `DATASET_LOCATION` with `mo.image` rather than linking to them in markdown.
+    """),
+            mo.image(f"{DATASET_LOCATION}american_sign_language.PNG"),
+            mo.image(f"{DATASET_LOCATION}amer_sign3.png"),
+        ]
+    )
     return
 
 

@@ -159,7 +159,7 @@ def _(mo):
     mo.md(r"""
     ## Building the Model
 
-    We will use the same model we used in the [previous notebook](ReadDigitsTraining.ipynb) to train the model.
+    We will use the same model we used in the [previous notebook](ReadDigitsTrainingMarimo.py) to train the model.
     """)
     return
 

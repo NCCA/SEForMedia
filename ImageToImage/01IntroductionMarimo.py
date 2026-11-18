@@ -13,8 +13,8 @@ def _(mo):
 
     We will build an encoder decoder that maps an image to another grid of values.
     The shared architecture gives us a starting point for three different problems:
-    [denoising](DenoisingMarimo.py), [2× super resolution](SuperResolutionMarimo.py)
-    and [pet segmentation](PetSegmentationMarimo.py).
+    [denoising](02DenoisingMarimo.py), [2× super resolution](03SuperResolutionMarimo.py)
+    and [pet segmentation](04PetSegmentationMarimo.py).
 
     This notebook explains the common ideas such as feature maps, pooling, skip connections,
     upsampling, patches, validation and tiled inference. The other notebooks are stand alone examples which use their own loss functions and complete training and evaluation loops to demonstrate the principles described here.
@@ -549,8 +549,8 @@ def _(mo):
     4. Why must we split photographs before sampling patches? What would happen if two nearby crops reached different splits?
     5. Change the image size, tile size and overlap in the identity check. Predict the output shape. Then compare tiled and full-frame inference for a trained U-Net on a small image.
 
-    Continue with [denoising](DenoisingMarimo.py), [2× super resolution](SuperResolutionMarimo.py)
-    or [pet segmentation](PetSegmentationMarimo.py). Each example runs independently.
+    Continue with [denoising](02DenoisingMarimo.py), [2× super resolution](03SuperResolutionMarimo.py)
+    or [pet segmentation](04PetSegmentationMarimo.py). Each example runs independently.
     """)
     return
 
